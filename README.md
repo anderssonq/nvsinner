@@ -1,4 +1,4 @@
-
+```
 ██▄   ██ ░▒    ░      ▄███▓▒░ ░█ ██▄   ██ ██▄   ██ ░▒▓██ ▒▄   █████░▄   
 █▓░▒▄ ▀█ ▒▓    ▒░    ▀█▀ ▄    ██ █▓░▒▄ ▀█ █▓░▒▄ ▀█    ░  ▀▓░▄ ██   ▀░▒▄ 
 ▓▒ ▀▓▒▄░ ▐█▌   ▓▒       ▀░▒▄  ██ ▓▒ ▀▓▒▄░ ▓▒ ▀▓▒▄░   ░▒▀  ▀▀  ▓█▄█▄░▄▒▓▀
@@ -6,17 +6,16 @@
 ░     ▒▓   ▀▓▒░▀  ░▒▓███░░▀   ▓▒ ░     ▒▓ ░     ▒▓ ░▒▓███ ░▀▀ ░▒   ▀██▄ 
       ░▒     ▀                ▒░       ░▒       ░▒             ░     ▀█▀
                               ░                                         
-
+```
 A Neovim distribution managed with **lazy.nvim**, extended into a Cursor-like
 AI terminal IDE with a dark monochrome glassmorphism theme. Target editor:
 **Neovim 0.11+**. Installs as an isolated `NVIM_APPNAME=nvsinner`, so it runs
 side-by-side with any existing `~/.config/nvim` without touching it.
 
-- ⚡ **Fast startup** — almost everything is lazy-loaded (only ~12 of 42 plugins
+- **Fast startup** — almost everything is lazy-loaded (only ~12 of 42 plugins
   load at startup; cold start ≈ 60 ms).
-- 🤖 **AI via terminal** — run any CLI agent (e.g. `claude`, `kiro-cli`, `opencode`) in a dedicated
+- **AI via terminal** — run any CLI agent (e.g. `claude`, `kiro-cli`, `opencode`) in a dedicated
   right-hand column (`<leader>j`); buffers auto-reload when it edits files.
-- 🌑 **Glass theme** — kanagawa "dragon" with a near-black background.
 
 > *"I got tired of so many IDEs and code editors everywhere — they all end up
 > forcing you to use the mouse. On top of that, I started seeing AI tools
