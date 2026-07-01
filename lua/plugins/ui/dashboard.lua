@@ -138,6 +138,45 @@ return {
 			opts = { position = "center", hl = "NvSinnerAttrib" },
 		})
 
+		-- ── Mouse: click a menu item to run it ───────────────────────────────
+		-- alpha snaps the cursor to the nearest button and runs it on <CR>, but
+		-- has no mouse handling. Add a click: jump to the clicked line, let alpha
+		-- snap, and fire ONLY when the click actually landed on a button row (the
+		-- snap kept the row) — so clicking the logo, quote or padding does nothing.
+		local function press_under_mouse()
+			local a = require("alpha")
+			local win = vim.api.nvim_get_current_win()
+			local m = vim.fn.getmousepos()
+			if m.winid ~= win or m.line < 1 then
+				return
+			end
+			pcall(vim.api.nvim_win_set_cursor, win, { m.line, math.max(m.column - 1, 0) })
+			a.move_cursor(win)
+			if vim.api.nvim_win_get_cursor(win)[1] == m.line then
+				pcall(a.press)
+			end
+		end
+
+		local function attach_click(buf)
+			vim.keymap.set("n", "<LeftRelease>", press_under_mouse, {
+				buffer = buf,
+				silent = true,
+				desc = "Dashboard: run the item under the mouse",
+			})
+		end
+
+		-- Attach on every alpha buffer (FileType fires when alpha draws); also map
+		-- the current buffer in case alpha already drew before this ran.
+		vim.api.nvim_create_autocmd("FileType", {
+			pattern = "alpha",
+			callback = function(ev)
+				attach_click(ev.buf)
+			end,
+		})
+		if vim.bo.filetype == "alpha" then
+			attach_click(0)
+		end
+
 		alpha.setup(dashboard.config)
 	end,
 }
