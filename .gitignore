@@ -1,0 +1,44 @@
+# Ignore macOS Finder metadata
+.DS_Store
+
+# Ignore swap files
+*.swp
+*.swo
+
+# Ignore backup files
+*~
+
+# Ignore undo history files
+*.un~
+
+# Ignore session files
+Session.vim
+
+session/
+*.vim
+# Ignore plugin download directories
+plugged/
+pack/*/start/*
+pack/*/opt/*
+
+# Ignore .netrwhist (netrw plugin history)
+.netrwhist
+
+# Ignore coc.nvim extensions
+coc/extensions
+
+# Ignore node_modules (for plugins using npm)
+node_modules/
+
+# Ignore log files
+log/
+
+# Ignore custom cache directories
+.cache/
+.tmp/
+
+
+# testing files
+test.js
+test.ts
+

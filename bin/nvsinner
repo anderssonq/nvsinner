@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# NvSinner launcher.
+#
+# Runs Neovim under the isolated `nvsinner` app name (Neovim's NVIM_APPNAME), so
+# it loads ~/.config/nvsinner with its OWN data/state/cache dirs
+# (~/.local/share/nvsinner, ~/.local/state/nvsinner, ~/.cache/nvsinner) and
+# coexists with any other Neovim config you have under plain `nvim`.
+#
+# All arguments are forwarded to nvim, e.g. `nvsinner README.md`, `nvsinner +Lazy`.
+exec env NVIM_APPNAME=nvsinner nvim "$@"
