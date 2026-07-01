@@ -1,10 +1,10 @@
 -- Start screen ("NvSinner" dashboard) built on alpha-nvim.
 --
--- Layout mirrors the classic alpha "dashboard" theme: centred block logo,
--- a column of shortcut buttons, and a footer. The footer rotates a random dev
--- quote on each launch above a constant "andersoftware.com" attribution line.
--- The block logo spells NVSINNER (small-caps, beveled) — an ASCII nod to the
--- gothic "Sinner" mark.
+-- Layout mirrors the classic alpha "dashboard" theme: centred block logo, a
+-- muted subtitle, a column of shortcut buttons, and a footer. The footer rotates
+-- a random dev quote on each launch, with a constant "andersoftware.com"
+-- attribution line below it. The block logo spells NVSINNER (small-caps,
+-- beveled) — an ASCII nod to the gothic "Sinner" mark.
 --
 -- Buttons are wired to THIS config's real features (telescope, neo-tree,
 -- persistence, lazy) rather than the alpha defaults. See CLAUDE.md.
@@ -55,6 +55,7 @@ return {
 			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = CRIMSON, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = FG })
 			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = CRIMSON, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = "#9aa0b4", italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = "#7a7f8d", italic = true })
 		end
 		apply_dashboard_hl()
@@ -111,23 +112,31 @@ return {
 		math.randomseed(vim.uv.hrtime())
 		local quote = quotes[math.random(#quotes)]
 
-		local footer = {
-			"⟡ " .. quote .. " ⟡",
-			"",
-			"NvSinner · andersoftware.com",
-		}
-		dashboard.section.footer.val = footer
-		-- Per-line highlight (region table, like the header): crimson quote, muted
-		-- attribution. End columns are BYTE lengths (#line) — alpha's columns are
-		-- byte-based and the ⟡/— glyphs are multibyte.
-		dashboard.section.footer.opts.hl = {
-			{ { "NvSinnerFooter", 0, #footer[1] } },
-			{},
-			{ { "NvSinnerAttrib", 0, #footer[3] } },
-		}
+		dashboard.section.footer.val = "⟡ " .. quote .. " ⟡"
+		dashboard.section.footer.opts.hl = "NvSinnerFooter"
 
 		-- A little breathing room above the logo.
 		dashboard.config.layout[1].val = 4
+
+		-- Muted tagline under the logo. Inserted right after the header (its own
+		-- centered element, so it centres on its own width like the attribution).
+		table.insert(dashboard.config.layout, 3, {
+			type = "text",
+			val = "‹ the sinner's neovim ide ›",
+			opts = { position = "center", hl = "NvSinnerSubtitle" },
+		})
+		table.insert(dashboard.config.layout, 3, { type = "padding", val = 1 })
+
+		-- Attribution as its OWN centered element. alpha centers each element on
+		-- its longest line, so keeping this short line out of the footer (which
+		-- holds the wide, variable-length quote) lets it centre on the screen
+		-- instead of left-aligning under the quote.
+		table.insert(dashboard.config.layout, { type = "padding", val = 1 })
+		table.insert(dashboard.config.layout, {
+			type = "text",
+			val = "NvSinner · andersoftware.com",
+			opts = { position = "center", hl = "NvSinnerAttrib" },
+		})
 
 		alpha.setup(dashboard.config)
 	end,
