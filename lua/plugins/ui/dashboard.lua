@@ -7,7 +7,9 @@
 -- beveled) — an ASCII nod to the gothic "Sinner" mark.
 --
 -- Buttons are wired to THIS config's real features (telescope, neo-tree,
--- persistence, lazy) rather than the alpha defaults. See CLAUDE.md.
+-- persistence, lazy) rather than the alpha defaults. Menu items are also
+-- mouse-aware: hovering highlights the item (a "pill") and a click runs it.
+-- See CLAUDE.md.
 
 return {
 	"goolord/alpha-nvim",
@@ -57,6 +59,8 @@ return {
 			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = CRIMSON, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = "#9aa0b4", italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = "#7a7f8d", italic = true })
+			-- Hover "pill" on the focused menu item (glass lift + brighter text).
+			vim.api.nvim_set_hl(0, "NvSinnerHover", { fg = "#e8e8ee", bg = "#20202c", bold = true })
 		end
 		apply_dashboard_hl()
 		-- Re-assert after any colorscheme reload (mirrors theme.lua's pattern).
@@ -138,11 +142,68 @@ return {
 			opts = { position = "center", hl = "NvSinnerAttrib" },
 		})
 
-		-- ── Mouse: click a menu item to run it ───────────────────────────────
-		-- alpha snaps the cursor to the nearest button and runs it on <CR>, but
-		-- has no mouse handling. Add a click: jump to the clicked line, let alpha
-		-- snap, and fire ONLY when the click actually landed on a button row (the
-		-- snap kept the row) — so clicking the logo, quote or padding does nothing.
+		-- ── Mouse & hover: highlight and click menu items ────────────────────
+		-- alpha keeps the cursor on the nearest button and runs it on <CR>, but has
+		-- no mouse/hover feedback. Add: a "pill" highlight on the button the cursor
+		-- is on (follows j/k, clicks AND mouse hover), <MouseMove> to move onto the
+		-- button under the pointer, and <LeftRelease> to run it.
+		local hover_ns = vim.api.nvim_create_namespace("nvsinner_dashboard_hover")
+
+		-- Paint the pill on the button under the cursor. A button line is the only
+		-- one whose label is followed by a right-aligned shortcut — i.e. a run of
+		-- ≥2 spaces after its first word block — so requiring that gap skips the
+		-- logo/subtitle/quote/attribution. The pill spans label → before the gap.
+		local function render_hover(win, buf)
+			if not (vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(buf)) then
+				return
+			end
+			vim.api.nvim_buf_clear_namespace(buf, hover_ns, 0, -1)
+			local row = vim.api.nvim_win_get_cursor(win)[1]
+			local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
+			if not line then
+				return
+			end
+			local s = line:find("%S") -- first non-space (skips the centering padding)
+			local gap = s and line:find("  ", s, true) -- right-align padding after the label
+			if not (s and gap) then
+				return
+			end
+			vim.api.nvim_buf_set_extmark(buf, hover_ns, row - 1, s - 1, {
+				end_col = gap - 1,
+				hl_group = "NvSinnerHover",
+				priority = 1000,
+			})
+		end
+
+		-- <MouseMove>: put the cursor on the button under the pointer (let alpha
+		-- snap; if the pointer isn't over a button, keep the selection where it is).
+		local last_hover_line = -1
+		local function hover_under_mouse()
+			local a = require("alpha")
+			local win = vim.api.nvim_get_current_win()
+			local m = vim.fn.getmousepos()
+			if m.winid ~= win or m.line < 1 or m.line == last_hover_line then
+				return
+			end
+			last_hover_line = m.line
+			local buf = vim.api.nvim_win_get_buf(win)
+			if vim.api.nvim_win_get_cursor(win)[1] ~= m.line then
+				local prev = vim.api.nvim_win_get_cursor(win)
+				pcall(vim.api.nvim_win_set_cursor, win, { m.line, 0 })
+				a.move_cursor(win)
+				if vim.api.nvim_win_get_cursor(win)[1] ~= m.line then
+					pcall(vim.api.nvim_win_set_cursor, win, prev) -- not a button: restore
+					a.move_cursor(win)
+				end
+			end
+			-- Repaint directly: an API cursor move doesn't fire CursorMoved, so we
+			-- can't lean on that autocmd here (it covers keyboard j/k instead).
+			render_hover(win, buf)
+		end
+
+		-- <LeftRelease>: run the button under the pointer, but only if the click
+		-- actually landed on a button row (the snap kept the row) — so clicking the
+		-- logo, quote or padding does nothing.
 		local function press_under_mouse()
 			local a = require("alpha")
 			local win = vim.api.nvim_get_current_win()
@@ -157,24 +218,46 @@ return {
 			end
 		end
 
-		local function attach_click(buf)
-			vim.keymap.set("n", "<LeftRelease>", press_under_mouse, {
+		local function attach_mouse(buf)
+			if vim.b[buf].nvsinner_dash_mouse then
+				return -- already wired (avoid duplicate CursorMoved autocmds)
+			end
+			vim.b[buf].nvsinner_dash_mouse = true
+
+			local opts = { buffer = buf, silent = true }
+			vim.keymap.set("n", "<LeftRelease>", press_under_mouse,
+				vim.tbl_extend("force", opts, { desc = "Dashboard: run the item under the mouse" }))
+			vim.keymap.set("n", "<MouseMove>", hover_under_mouse,
+				vim.tbl_extend("force", opts, { desc = "Dashboard: hover the item under the mouse" }))
+
+			-- Repaint the pill whenever the cursor lands on a button. Scheduled so
+			-- it reads the position AFTER alpha's own CursorMoved snap.
+			vim.api.nvim_create_autocmd("CursorMoved", {
 				buffer = buf,
-				silent = true,
-				desc = "Dashboard: run the item under the mouse",
+				callback = function()
+					local win = vim.api.nvim_get_current_win()
+					vim.schedule(function()
+						render_hover(win, buf)
+					end)
+				end,
 			})
+			-- Initial paint (cursor starts on the first button once alpha draws).
+			local win = vim.api.nvim_get_current_win()
+			vim.schedule(function()
+				render_hover(win, buf)
+			end)
 		end
 
-		-- Attach on every alpha buffer (FileType fires when alpha draws); also map
+		-- Attach on every alpha buffer (FileType fires when alpha draws); also wire
 		-- the current buffer in case alpha already drew before this ran.
 		vim.api.nvim_create_autocmd("FileType", {
 			pattern = "alpha",
 			callback = function(ev)
-				attach_click(ev.buf)
+				attach_mouse(ev.buf)
 			end,
 		})
 		if vim.bo.filetype == "alpha" then
-			attach_click(0)
+			attach_mouse(0)
 		end
 
 		alpha.setup(dashboard.config)

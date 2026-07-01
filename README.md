@@ -83,7 +83,7 @@ buffers reload automatically — see the auto-reload setup in `core/autoreload.l
 | `lualine.lua` | lualine.nvim | Minimal monochrome global statusline |
 | `incline.lua` | incline.nvim | Floating filename label, top-right of each window |
 | `barbacue.lua` | barbecue.nvim | VS Code-style breadcrumbs (winbar) |
-| `dashboard.lua` | alpha-nvim | Start screen — "NvSinner" block logo + quick-action menu |
+| `dashboard.lua` | alpha-nvim | Start screen — "NvSinner" block logo + quick-action menu (mouse: hover highlights an item, click runs it); rotating dev quote |
 | `colorizer.lua` | nvim-colorizer | Inline color previews for hex/rgb |
 | `cursorline.lua` | nvim-cursorline | Highlights current line and word under cursor |
 | `identmini.lua` | indentmini.nvim | Indentation guides |
