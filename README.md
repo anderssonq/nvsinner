@@ -1,4 +1,11 @@
-# 🔥 NvSinner
+
+██▄   ██ ░▒    ░      ▄███▓▒░ ░█ ██▄   ██ ██▄   ██ ░▒▓██ ▒▄   █████░▄   
+█▓░▒▄ ▀█ ▒▓    ▒░    ▀█▀ ▄    ██ █▓░▒▄ ▀█ █▓░▒▄ ▀█    ░  ▀▓░▄ ██   ▀░▒▄ 
+▓▒ ▀▓▒▄░ ▐█▌   ▓▒       ▀░▒▄  ██ ▓▒ ▀▓▒▄░ ▓▒ ▀▓▒▄░   ░▒▀  ▀▀  ▓█▄█▄░▄▒▓▀
+▒░   ▀▓█  ░▒▄ ▄█▌        ▄▒▓▀ █▓ ▒░   ▀▓█ ▒░   ▀▓█   ▒▓   ▄▀▀ ▒▓ ▀██░▀  
+░     ▒▓   ▀▓▒░▀  ░▒▓███░░▀   ▓▒ ░     ▒▓ ░     ▒▓ ░▒▓███ ░▀▀ ░▒   ▀██▄ 
+      ░▒     ▀                ▒░       ░▒       ░▒             ░     ▀█▀
+                              ░                                         
 
 A Neovim distribution managed with **lazy.nvim**, extended into a Cursor-like
 AI terminal IDE with a dark monochrome glassmorphism theme. Target editor:
@@ -230,4 +237,33 @@ NVIM_APPNAME=nvsinner nvim     # lazy.nvim bootstraps + installs on first launch
 `NVIM_APPNAME=nvsinner` gives the distro its own config/data/state/cache dirs, so
 it never collides with another Neovim setup. LSP servers (`lua_ls`, `ts_ls`,
 `html`) auto-install via Mason on first launch — no manual `:MasonInstall`
-needed. Verify anytime inside Neovim with `:Lazy sync` and `:checkhealth`.
+needed. Verify anytime inside Neovim with `:Lazy` and `:checkhealth`.
+
+---
+
+## 🔄 Updating
+
+NvSinner is just a git clone, so an update is a `git pull` plus a plugin restore.
+Pick whichever you like:
+
+- **In-editor (recommended):** run `:NvSinnerUpdate`. It `git pull`s the config,
+  restores plugins to the pinned `lazy-lock.json`, and runs `:checkhealth`.
+  **Restart Neovim afterwards** so the new Lua config loads.
+- **Re-run the installer:** the one-liner is idempotent — on an existing clone it
+  `git pull`s and re-installs plugins instead of skipping.
+
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/anderssonq/nvsinner/main/install.sh | bash
+  ```
+
+- **By hand:**
+
+  ```bash
+  git -C ~/.config/nvsinner pull
+  NVIM_APPNAME=nvsinner nvim --headless "+Lazy! restore" +qa
+  ```
+
+Plugins are pinned in the committed `lazy-lock.json` and updates use `Lazy!
+restore` (not `sync`), so you get the exact plugin versions the distro was tested
+with. To deliberately float to the newest plugins instead, run `:Lazy sync` (this
+rewrites your local `lazy-lock.json`).

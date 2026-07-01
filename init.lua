@@ -22,6 +22,7 @@ require("core.keymaps")
 require("core.autoreload")
 require("core.ui-touch")
 require("core.ai-activity") -- start polling so the terminal winbar shows agent activity
+require("core.update") -- defines :NvSinnerUpdate (git pull + restore plugins + checkhealth)
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {

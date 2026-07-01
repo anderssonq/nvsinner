@@ -42,13 +42,22 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    the personal dotfile repo (`anderssonq/ander-nvim-lazy`) with a fresh history
    so commit history + README tell the distro's story.
 5. ✅ `install.sh` automates `git clone` → `nvsinner` launcher (`~/.local/bin`)
-   → headless `Lazy! sync`. Launcher source also kept at [bin/nvsinner](bin/nvsinner).
+   → headless `Lazy! restore`. Launcher source also kept at [bin/nvsinner](bin/nvsinner).
+6. ✅ **Update path for existing installs.** `install.sh` `git pull`s an existing
+   clone (unshallowing old `--depth=1` installs) instead of skipping, and a new
+   `:NvSinnerUpdate` command ([lua/core/update.lua](lua/core/update.lua)) does
+   `git pull --ff-only` → `Lazy restore` → `checkhealth` in-editor. Both install
+   and update use `Lazy! restore` against the committed `lazy-lock.json`, so the
+   plugin set is reproducible (pinned versions, not floating to latest).
 
 ## Status
 
-Distro plumbing is in place: `NVIM_APPNAME=nvsinner` launcher (`bin/nvsinner`),
-`install.sh`, first-boot Mason auto-install, and NvSinner branding across the
-dashboard + README. On the dev machine `~/.config/nvsinner` is a **symlink** to
-this repo (`~/.config/nvim`) so both `nvim` and `nvsinner` load the same files.
-**Remaining:** carve NvSinner into its own repo (item 4) before publishing the
-one-liner widely.
+Distro plumbing is in place: its own repo
+([`anderssonq/nvsinner`](https://github.com/anderssonq/nvsinner)),
+`NVIM_APPNAME=nvsinner` launcher (`bin/nvsinner`), `install.sh` with an
+install-or-update flow, an in-editor `:NvSinnerUpdate`, first-boot Mason
+auto-install, and NvSinner branding across the dashboard + README. On the dev
+machine `~/.config/nvsinner` is a **symlink** to this repo (`~/.config/nvim`) so
+both `nvim` and `nvsinner` load the same files. **Remaining:** the smaller
+distribution-polish items tracked in [TODO.md](TODO.md) (PATH help, uninstall
+script, first-run health surfacing, screenshots, CI).

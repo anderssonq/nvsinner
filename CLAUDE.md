@@ -117,6 +117,7 @@ lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
+lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```
 
@@ -372,6 +373,23 @@ installable, separately-named Neovim distro ("NvSinner").
   the two events from double-toasting one write. Only loaded buffers fire either,
   so you're notified for files you actually have open.
 
+### Updater — `lua/core/update.lua` (native, required from `init.lua`)
+- Defines the `:NvSinnerUpdate` command (à la `:NvChadUpdate` / `:AstroUpdate`):
+  `git -C <config> pull --ff-only` (async via `vim.system`) → `require("lazy").restore()`
+  → `:checkhealth`, then a toast reminding you to **restart** (the pull rewrites
+  the Lua files on disk but the running Neovim keeps the old modules loaded).
+- **`restore`, not `sync`** — updates check every plugin out to the commit pinned
+  in the committed `lazy-lock.json`, so installs/updates reproduce the tested
+  plugin set instead of floating to latest (`:Lazy sync` is the opt-in "float"
+  path). `install.sh` uses `Lazy! restore` for the same reason.
+- **No-op-with-warning when the config dir isn't a git clone** (`is_git_repo`
+  checks for a `.git` dir OR file): the dev machine's `~/.config/nvsinner` is a
+  symlink to this repo and a manual copy has no remote — neither can `git pull`.
+  `M.update({ dir = … })` takes an optional dir override purely as a test seam.
+- `install.sh` mirrors this out-of-editor: on an existing clone it `git pull`s
+  (unshallowing old `--depth=1` installs) instead of skipping; fresh clones are
+  full-depth so `git pull` / `:NvSinnerUpdate` update cleanly.
+
 ## Keymap reference (leader = Space)
 
 | Keys | Action |
@@ -436,6 +454,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/autoreload_spec.lua` | `autoread`, the FileChangedShell**Post** autocmds, and the edit toast firing on an external change |
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |
+| `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
 
 Conventions for new specs: name them `*_spec.lua`, require the module under test
