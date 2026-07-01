@@ -1,8 +1,10 @@
 -- Start screen ("NvSinner" dashboard) built on alpha-nvim.
 --
 -- Layout mirrors the classic alpha "dashboard" theme: centred block logo,
--- a column of shortcut buttons, and a footer tagline. The block logo spells
--- NVSINNER (small-caps, beveled) — an ASCII nod to the gothic "Sinner" mark.
+-- a column of shortcut buttons, and a footer. The footer rotates a random dev
+-- quote on each launch above a constant "andersoftware.com" attribution line.
+-- The block logo spells NVSINNER (small-caps, beveled) — an ASCII nod to the
+-- gothic "Sinner" mark.
 --
 -- Buttons are wired to THIS config's real features (telescope, neo-tree,
 -- persistence, lazy) rather than the alpha defaults. See CLAUDE.md.
@@ -53,6 +55,7 @@ return {
 			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = CRIMSON, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = FG })
 			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = CRIMSON, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = "#7a7f8d", italic = true })
 		end
 		apply_dashboard_hl()
 		-- Re-assert after any colorscheme reload (mirrors theme.lua's pattern).
@@ -92,8 +95,36 @@ return {
 		}
 
 		-- ── Footer ───────────────────────────────────────────────────────────
-		dashboard.section.footer.val = "⟡ Don't stop until you're proud — NvSinner by andersoftware.com ⟡"
-		dashboard.section.footer.opts.hl = "NvSinnerFooter"
+		-- A dev quote picked fresh on every launch (this config runs once per
+		-- VimEnter), sitting above a CONSTANT attribution line — so the rotating
+		-- quote changes but "andersoftware.com" is always shown.
+		local quotes = {
+			"Don't stop until you're proud",
+			"Greatness is the orphan of urgency",
+			"First, solve the problem. Then, write the code",
+			"Clean code always looks like it was written by someone who cares",
+			"Make it work, make it right, make it fast. — Kent Beck",
+			"The best code is no code at all. — Jeff Atwood",
+			"Simplicity is the soul of efficiency. — Austin Freeman",
+			"Walking on water and developing software from a specification are easy if both are frozen. — Edward V. Berard",
+		}
+		math.randomseed(vim.uv.hrtime())
+		local quote = quotes[math.random(#quotes)]
+
+		local footer = {
+			"⟡ " .. quote .. " ⟡",
+			"",
+			"NvSinner · andersoftware.com",
+		}
+		dashboard.section.footer.val = footer
+		-- Per-line highlight (region table, like the header): crimson quote, muted
+		-- attribution. End columns are BYTE lengths (#line) — alpha's columns are
+		-- byte-based and the ⟡/— glyphs are multibyte.
+		dashboard.section.footer.opts.hl = {
+			{ { "NvSinnerFooter", 0, #footer[1] } },
+			{},
+			{ { "NvSinnerAttrib", 0, #footer[3] } },
+		}
 
 		-- A little breathing room above the logo.
 		dashboard.config.layout[1].val = 4
