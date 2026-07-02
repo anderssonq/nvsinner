@@ -49,6 +49,15 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    `git pull --ff-only` → `Lazy restore` → `checkhealth` in-editor. Both install
    and update use `Lazy! restore` against the committed `lazy-lock.json`, so the
    plugin set is reproducible (pinned versions, not floating to latest).
+7. ✅ **Distribution polish — PATH help, uninstall, first-run health.**
+   `install.sh` prints the exact `export PATH` line (naming the likely shell rc)
+   when `~/.local/bin` isn't on PATH, without editing the user's files. A new
+   [uninstall.sh](uninstall.sh) removes the four `nvsinner` XDG dirs + the
+   launcher (confirm on TTY / `--yes` when piped; unlinks a symlinked config dir
+   rather than following it). Missing externals surface via `:checkhealth
+   nvsinner` ([lua/core/health.lua](lua/core/health.lua) +
+   [lua/nvsinner/health.lua](lua/nvsinner/health.lua)) plus a one-time first-run
+   toast. README documents Health check + Uninstalling.
 
 ## Status
 
@@ -58,6 +67,7 @@ Distro plumbing is in place: its own repo
 install-or-update flow, an in-editor `:NvSinnerUpdate`, first-boot Mason
 auto-install, and NvSinner branding across the dashboard + README. On the dev
 machine `~/.config/nvsinner` is a **symlink** to this repo (`~/.config/nvim`) so
-both `nvim` and `nvsinner` load the same files. **Remaining:** the smaller
-distribution-polish items tracked in [TODO.md](TODO.md) (PATH help, uninstall
-script, first-run health surfacing, screenshots, CI).
+both `nvim` and `nvsinner` load the same files. The distribution-polish items
+(PATH help, `uninstall.sh`, first-run health surfacing) are now done too.
+**Remaining:** the "nice to have" items tracked in [TODO.md](TODO.md) — Mason-managed
+formatters, README screenshots/GIF, CI, and versioned releases.

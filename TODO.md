@@ -4,18 +4,6 @@ Pending work to turn this config into a fully standalone, publishable Neovim
 distribution. Done items live in [NVSINNER.md](NVSINNER.md); this file tracks
 what's left.
 
-## Distribution polish
-
-- [ ] **`nvsinner` launcher install on non-`~/.local/bin` PATHs.** `install.sh`
-      warns if `~/.local/bin` isn't on PATH but doesn't fix the shell rc. Decide
-      whether to offer appending the `export PATH` / alias automatically.
-- [ ] **Uninstall script / instructions.** A clean `uninstall.sh` (or README
-      section) that removes `~/.config/nvsinner`, `~/.local/share/nvsinner`,
-      `~/.local/state/nvsinner`, `~/.cache/nvsinner`, and the launcher.
-- [ ] **Health check on first run.** Surface missing externals (ripgrep, node,
-      stylua, prettier, eslint_d, a Nerd Font) with a friendly message instead of
-      letting features silently no-op.
-
 ## Nice to have
 
 - [ ] **Optional formatters via Mason** (stylua, prettier, eslint_d) so the
@@ -27,6 +15,15 @@ what's left.
 
 ## Done (see NVSINNER.md for detail)
 
+- [x] **Distribution polish — PATH help, uninstall, first-run health.**
+      `install.sh` no longer just warns about `~/.local/bin`: it prints the exact
+      `export PATH` line naming the likely shell rc (zsh/bash/fish), but never
+      edits the user's files. A new `uninstall.sh` removes the four
+      `nvsinner` XDG dirs (config/data/state/cache) + the launcher, confirming
+      first (prompt on a TTY, `--yes` required when piped) and unlinking — not
+      following — a symlinked config dir. Missing externals are surfaced via
+      `:checkhealth nvsinner` (`lua/nvsinner/health.lua` → `lua/core/health.lua`)
+      plus a one-time first-run toast; README has an "Uninstalling" section.
 - [x] **Update / upgrade path for existing users.** `install.sh` now `git pull`s
       an existing clone (and unshallows old `--depth=1` installs) instead of
       skipping; a new `:NvSinnerUpdate` command (`lua/core/update.lua`) does

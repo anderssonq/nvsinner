@@ -118,6 +118,8 @@ lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-inser
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
+lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
+lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```
 
@@ -390,6 +392,45 @@ installable, separately-named Neovim distro ("NvSinner").
   (unshallowing old `--depth=1` installs) instead of skipping; fresh clones are
   full-depth so `git pull` / `:NvSinnerUpdate` update cleanly.
 
+### Health check — `lua/core/health.lua` (native, required from `init.lua`)
+- Surfaces missing external tools (ripgrep, node, stylua, prettier, eslint_d, a
+  Nerd Font) so features fail *loudly* instead of silently no-op-ing. **One tool
+  table (`M.tools`), two entry points:**
+  - **`:checkhealth nvsinner`** — `lua/nvsinner/health.lua` is a thin provider
+    (`{ check = … }`) that Neovim discovers by module path (`lua/<name>/health.lua`
+    → checkhealth name `<name>`); it delegates to `core.health.report()`, which
+    walks `check_tools({ with_version = true })` and emits `vim.health.ok/warn`
+    with an install hint per missing tool. It shows in the full `:checkhealth`
+    (and the one `:NvSinnerUpdate` runs) under "nvsinner" too.
+  - **First-run toast** — `M.setup()` (called at require time) registers a
+    `User VeryLazy` autocmd that, after an 800ms defer (so nvim-notify is ready),
+    runs `M.first_run_notify()`: if any tool is missing it fires a one-time
+    `vim.notify` pointing at `:checkhealth nvsinner`. A marker file under
+    `stdpath("state")` makes it **greet once** (written even when nothing's
+    missing, so it never nags). `M.first_run_notify({ marker = … })` takes a
+    marker override as a test seam (mirrors `update.lua`'s `{ dir = … }`).
+- **Headless never consumes the first run** — `setup()` bails when
+  `#vim.api.nvim_list_uis() == 0`, so the installer's headless `Lazy! restore`
+  and the test harness don't write the marker or toast; the user's first
+  *interactive* launch gets the greeting.
+- **Nerd Font is info-only** — it's a terminal/GUI font setting that can't be
+  probed from inside Neovim, so it's reported as `vim.health.info` and left OUT
+  of the missing-count that drives the toast. Tool checks use `vim.fn.executable`
+  (fast, no subprocess); versions shell out only for `:checkhealth`.
+
+### Install / uninstall scripts — `install.sh`, `uninstall.sh`
+- `install.sh`: clone-or-update → `nvsinner` launcher (`~/.local/bin`) → headless
+  `Lazy! restore`. If `~/.local/bin` isn't on PATH it **prints** the exact
+  `export PATH` line (naming the likely rc: `.zshrc` / `.bash_profile` on macOS /
+  `.bashrc` on Linux / fish's `config.fish` with `fish_add_path`) — it never
+  edits the user's shell files.
+- `uninstall.sh`: removes the four `nvsinner` XDG dirs (config/data/state/cache,
+  each respecting `XDG_*_HOME`) + the `~/.local/bin/nvsinner` launcher. Lists what
+  it'll remove, then **confirms** — prompts on a TTY, requires `--yes`/`-y` when
+  piped (`curl | bash` has no TTY). A **symlinked** config dir (dev machine) is
+  `rm -f`'d (unlink only) — never followed into its target; real dirs are
+  `rm -rf`'d. `~/.config/nvim` is untouched (different app name).
+
 ## Keymap reference (leader = Space)
 
 | Keys | Action |
@@ -455,6 +496,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |
 | `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
+| `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
 
 Conventions for new specs: name them `*_spec.lua`, require the module under test

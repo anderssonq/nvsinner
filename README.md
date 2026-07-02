@@ -272,3 +272,37 @@ Plugins are pinned in the committed `lazy-lock.json` and updates use `Lazy!
 restore` (not `sync`), so you get the exact plugin versions the distro was tested
 with. To deliberately float to the newest plugins instead, run `:Lazy sync` (this
 rewrites your local `lazy-lock.json`).
+
+---
+
+## 🩺 Health check
+
+Missing external tools (ripgrep, node, stylua, prettier, eslint_d, a Nerd Font)
+make features silently no-op rather than error. To see what's present at a glance:
+
+```vim
+:checkhealth nvsinner
+```
+
+It lists each external with an install hint for anything missing. On the **first
+interactive launch** NvSinner also pops a one-time toast if something's missing,
+pointing you here — it never nags again.
+
+---
+
+## 🧹 Uninstalling
+
+NvSinner keeps everything under its own `nvsinner` app name, so removing it never
+touches your other `~/.config/nvim`. Run the uninstaller (prompts for
+confirmation from a terminal; pass `--yes` when piping):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/anderssonq/nvsinner/main/uninstall.sh | bash -s -- --yes
+# or, from a clone:  ./uninstall.sh
+```
+
+It removes the four `nvsinner` dirs — config (`~/.config/nvsinner`), data
+(`~/.local/share/nvsinner`), state (`~/.local/state/nvsinner`), cache
+(`~/.cache/nvsinner`) — and the `~/.local/bin/nvsinner` launcher. If your config
+dir is a symlink (e.g. a dev checkout), only the link is removed; the target is
+left intact. Or remove those five paths by hand.

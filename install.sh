@@ -55,9 +55,23 @@ EOF
 chmod +x "$LAUNCHER"
 ok "Installed launcher: $LAUNCHER"
 
+# If ~/.local/bin isn't on PATH, PRINT the exact line to add (naming the likely
+# shell rc) — we never edit the user's shell files, just tell them what to paste.
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
-  *) warn "$BIN_DIR is not on your PATH — add it to your shell rc:  export PATH=\"$BIN_DIR:\$PATH\"" ;;
+  *)
+    case "${SHELL:-}" in
+      */fish) rc="$HOME/.config/fish/config.fish"; line='fish_add_path $HOME/.local/bin' ;;
+      */zsh)  rc="${ZDOTDIR:-$HOME}/.zshrc";        line='export PATH="$HOME/.local/bin:$PATH"' ;;
+      */bash)
+        # macOS Terminal starts bash as a login shell (.bash_profile); Linux uses .bashrc.
+        if [ "$(uname)" = "Darwin" ]; then rc="$HOME/.bash_profile"; else rc="$HOME/.bashrc"; fi
+        line='export PATH="$HOME/.local/bin:$PATH"' ;;
+      *)      rc="your shell startup file";          line='export PATH="$HOME/.local/bin:$PATH"' ;;
+    esac
+    warn "$BIN_DIR is not on your PATH."
+    printf '  Add this line to %s, then restart your shell (or run: source %s):\n\n      %s\n\n' "$rc" "$rc" "$line"
+    ;;
 esac
 
 # 3. Install plugins ----------------------------------------------------------
