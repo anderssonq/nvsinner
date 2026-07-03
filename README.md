@@ -98,7 +98,7 @@ array of lines; the file is re-read on every open, so no restart needed).
 #### `:NvSinnerHelp` — the command palette
 
 Can't remember a command? `:NvSinnerHelp` lists every NvSinner command
-(`:NvSinnerMenu`, `:NvSinnerPrompts`, `:NvSinnerUpdate`, `:checkhealth
+(`:NvSinnerMenu`, `:NvSinnerPrompts`, `:NvSinnerUpdate`, `:NvSinnerSync`, `:checkhealth
 nvsinner`, …) with a one-line description. Navigate with `j`/`k` and press
 `Enter` — or just click a row — to **run it**; the palette closes itself. New
 commands are discovered automatically, so the list is never stale.
@@ -350,6 +350,14 @@ Pick whichever you like:
 - **In-editor (recommended):** run `:NvSinnerUpdate`. It `git pull`s the config,
   restores plugins to the pinned `lazy-lock.json`, and runs `:checkhealth`.
   **Restart Neovim afterwards** so the new Lua config loads.
+- **Float to latest (opt-in):** run `:NvSinnerSync`. It runs `:Lazy sync`
+  (updates every plugin to its latest commit and **rewrites `lazy-lock.json`**)
+  and then updates any outdated Mason packages. This deliberately leaves the
+  tested, pinned plugin set — retest afterwards, and commit the new
+  `lazy-lock.json` if you maintain your own clone. If a plugin **changes
+  branch** during the sync (an upstream default-branch flip usually means a
+  rewrite), a warning names it and gives the rollback recipe:
+  `git restore lazy-lock.json` + `:Lazy restore`.
 - **Re-run the installer:** the one-liner is idempotent — on an existing clone it
   `git pull`s and re-installs plugins instead of skipping.
 

@@ -73,6 +73,7 @@ richest narrative source and are cited by filename.
 | FA-21 | LSP: deprecated setup API, `ts_lsp` typo, semantic-token repaint | lsp | settled |
 | FA-22 | AI column width: 30% proportional → fixed 50 columns | toggleterm | settled |
 | FA-23 | Auto-reload: disk wins over unsaved buffer edits | autoreload | by-design trade-off |
+| FA-24 | `:NvSinnerSync` jumped nvim-treesitter master → main (upstream default-branch flip) | install/update / treesitter | settled |
 
 ---
 
@@ -406,7 +407,7 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
 
 ---
 
-## Distro and repo history (FA-15, FA-16)
+## Distro and repo history (FA-15, FA-16, FA-24)
 
 ### FA-15 — Repo split: fresh `main`, old history on `feat/nvsinner-distro`
 
@@ -449,6 +450,44 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
 - **Do not retry:** `--depth=1` in install paths, or swapping `restore` back
   to `sync` in install/update flows. Install mechanics:
   `nvsinner-build-and-run`.
+
+### FA-24 — `:NvSinnerSync` jumped nvim-treesitter to the `main` rewrite (2026-07-03)
+
+- **Symptom:** running the new `:NvSinnerSync` (the opt-in float path,
+  `lua/core/sync.lua`) produced a cascade of ERROR notifications:
+  `nvim-treesitter[markdown/markdown_inline]: Failed to execute the following
+  command`, `ld: symbol(s) not found for architecture arm64`
+  (`_tree_sitter_…_external_scanner_*`), `clang: error: linker command failed`.
+- **Root cause (two layers):**
+  1. The nvim-treesitter spec had **no `branch` pin**, so lazy follows the
+     upstream **default branch** — and upstream flipped it from `master`
+     (frozen) to `main`, a **full rewrite**: no `nvim-treesitter.configs`
+     module (the spec's `config` would error on the next restart) and a new
+     install pipeline that recompiles every parser from source on the machine.
+  2. The `build = ":TSUpdate"` rebuild of the markdown pair then failed at
+     link on arm64, and every failed pipeline step (compile, `mv -f …-tmp…`)
+     fired its own error notification — the flood.
+  `restore` never exposes this (it checks out the pinned commit); only
+  `sync` re-resolves the default branch. The running session kept working on
+  the old in-memory modules, masking the breakage until restart.
+- **Resolution:**
+  - Rolled back: `git restore lazy-lock.json` + `Lazy! restore` in BOTH app
+    instances (`nvim` and `nvsinner` data dirs) — treesitter back to the
+    pinned master commit, `configs.lua` present, compiled parsers intact.
+  - Pinned `branch = "master"` in `lua/plugins/editor/nvim-treesitter.lua`
+    with the incident note; migrating to `main` is a deliberate config
+    rewrite, not a version bump.
+  - `:NvSinnerSync` grew a **branch-jump guard**: it snapshots the lockfile's
+    per-plugin `branch` before syncing, diffs it after (`M.branch_jumps`,
+    pure test seam), and WARNs naming every jump plus the rollback recipe.
+- **Evidence:** `lazy-lock.json` diff (`"nvim-treesitter": master → main`);
+  absence of `lua/nvim-treesitter/configs.lua` on the `main` checkout;
+  `tests/core/sync_spec.lua` (branch-jump cases).
+- **Status:** settled.
+- **Do not retry:** unpinning nvim-treesitter's `branch` while the spec uses
+  `nvim-treesitter.configs`, or removing the branch-jump guard from
+  `core/sync.lua`. When migrating to the `main` rewrite on purpose, rewrite
+  the spec's config for the new API in the same change.
 
 ---
 

@@ -40,6 +40,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 local DESCS = {
 	NvSinnerMenu = "Settings modal — theme, transparency, accent, panel sides",
 	NvSinnerPrompts = "Prompt library → OS clipboard (also <leader>p)",
+	NvSinnerSync = "Float plugins + Mason packages to latest (rewrites lockfile)",
 	NvSinnerUpdate = "git pull + restore pinned plugins + checkhealth",
 }
 

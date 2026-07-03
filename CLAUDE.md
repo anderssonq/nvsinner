@@ -125,6 +125,7 @@ lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-inser
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
+lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
 lua/core/image-open.lua      Open image files in macOS Quick Look + metadata placeholder (native)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
@@ -584,6 +585,39 @@ installable, separately-named Neovim distro ("NvSinner").
   (unshallowing old `--depth=1` installs) instead of skipping; fresh clones are
   full-depth so `git pull` / `:NvSinnerUpdate` update cleanly.
 
+### Plugin/Mason sync — `lua/core/sync.lua` (native, required from `init.lua`)
+- Defines **`:NvSinnerSync`** — the explicit **opt-in "float" path** that
+  non-negotiable `restore`-doctrine reserves for developers: `require("lazy").sync()`
+  (install missing + update to latest + clean removed — **rewrites
+  `lazy-lock.json`**, so retest and commit it) followed by a **Mason package
+  update** phase. It never replaces `:NvSinnerUpdate`, which stays pinned to
+  the lockfile; install/update paths are untouched.
+- **Chaining via `User LazySync`, not a runner** — lazy's `sync()` returns
+  nothing (unlike `restore()`, which returns a waitable runner — verified in
+  `lazy/manage/init.lua`); it fires the `User LazySync` autocmd when the whole
+  clean+install+update pipeline settles, so the Mason phase hooks that event
+  with a one-shot autocmd.
+- **Mason phase** (mason 2.x API, verified against the installed plugin):
+  loads `mason.nvim` via `require("lazy").load` (it's `cmd = "Mason"` lazy),
+  `registry.refresh(cb)` (async; a failed refresh just falls back to cached
+  specs), then `M.outdated()` compares `pkg:get_installed_version()` vs
+  `pkg:get_latest_version()` per installed package (both pcall-guarded —
+  `get_latest_version` throws on a malformed purl; a nil installed version /
+  missing receipt is skipped) and `pkg:install(nil, cb)` updates the stale
+  ones, with one summary toast (or an ERROR listing failures). When
+  mason/lazy aren't on the rtp (tests, bare boot) it warns and skips instead
+  of erroring. `M.outdated(pkgs)` is the pure test seam.
+- **Branch-jump guard** — a spec without a `branch` pin follows the *upstream
+  default* branch, and sync re-resolves it, so an upstream default-branch flip
+  silently swaps the plugin for whatever lives there. Incident 2026-07-03:
+  nvim-treesitter flipped master → `main` (a full rewrite — no
+  `nvim-treesitter.configs`, parser rebuilds failed to link on arm64, error
+  flood); rolled back via `git restore lazy-lock.json` + `Lazy! restore`, and
+  the spec now pins `branch = "master"`. Sync snapshots the lockfile's
+  per-plugin `branch` before running and diffs it after (`M.branch_jumps`,
+  the second pure test seam), WARN-ing about every jump with the rollback
+  recipe. Full post-mortem: FA-24 in `nvsinner-failure-archaeology`.
+
 ### Health check — `lua/core/health.lua` (native, required from `init.lua`)
 - Surfaces missing external tools (ripgrep, node, stylua, prettier, eslint_d, a
   Nerd Font) so features fail *loudly* instead of silently no-op-ing. **One tool
@@ -648,6 +682,7 @@ installable, separately-named Neovim distro ("NvSinner").
 | `:NvSinnerMenu` | Settings modal: theme, transparency, accent pack, folder/notif/syntax colors, panel sides, notifications |
 | `<leader>p` / `:NvSinnerPrompts` | Prompt library modal — pick a reusable AI prompt, copy it to the clipboard (`e` edits `settings/prompts.json`) |
 | `:NvSinnerHelp` | Command palette — every NvSinner command with its description; pick one to run it (auto-closes) |
+| `:NvSinnerSync` | Opt-in float: `:Lazy sync` (rewrites `lazy-lock.json`) + update outdated Mason packages (`:NvSinnerUpdate` stays the pinned path) |
 | `<leader>m` | Markdown "Open view" — toggle the render-markdown reading view (also the clickable winbar button) |
 | `<cr>` / `gO` (in an image buffer) | Reopen image in Quick Look / open in Preview.app |
 | `<C-Space>` (insert) | nvim-cmp trigger completion |
@@ -714,6 +749,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |
 | `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
+| `tests/core/sync_spec.lua` | `:NvSinnerSync` command exists, `outdated()` version comparison (stale/fresh/no-receipt/throwing lookup), `branch_jumps()` lockfile diffing (jump detection, added/removed ignored), and the mason-unavailable warning path |
 | `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |
 | `tests/core/image_open_spec.lua` | `BufReadCmd` replaces an image with the placeholder, `buftype=nofile` write-guard, `<cr>`/`gO` buffer maps, and no headless auto-preview |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |

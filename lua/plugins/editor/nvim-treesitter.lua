@@ -1,5 +1,13 @@
 return {
 	"nvim-treesitter/nvim-treesitter",
+	-- Pin to master ON PURPOSE. Upstream flipped its default branch to `main`,
+	-- which is a full rewrite: no `nvim-treesitter.configs` module (this spec's
+	-- config would error on boot) and a new install pipeline that recompiles
+	-- every parser from source (the markdown pair failed to link on arm64).
+	-- An unpinned `:NvSinnerSync`/`:Lazy sync` follows the upstream default and
+	-- jumped to `main` — incident 2026-07-03, see CLAUDE.md *Plugin/Mason sync*.
+	-- Migrating to `main` is a deliberate config rewrite, not a version bump.
+	branch = "master",
 	build = ":TSUpdate",
 	event = { "BufReadPost", "BufNewFile" },
 	config = function()
