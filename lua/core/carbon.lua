@@ -92,18 +92,60 @@ M.light = {
 	diff_delete = "#f7dfe8",
 }
 
--- Roles for the background currently in effect (vim.o.background).
+-- ─── Accent packs ────────────────────────────────────────────────────────────
+-- Four selectable identity accents. A pack swaps ONLY the identity accent pair
+-- (base09 — THE carbon accent: keywords/types/operators, active markers,
+-- breadcrumb icons — and its pale companion base15: numbers, escapes). All
+-- gray surfaces (base00/base01/base02, blend, lift) are untouched, so the pack
+-- recolors text accents, never the background. Hues are IBM Carbon tones
+-- (40/30 tier on dark, 60/50 tier on light for contrast on white).
+M.accents = {
+	blue = { dark = {}, light = {} }, -- stock carbon (base09 #78a9ff / #ee5396)
+	magenta = {
+		dark = { base09 = "#ff7eb6", base15 = "#ffafd2" },
+		light = { base09 = "#d02670", base15 = "#ee5396" },
+	},
+	green = {
+		dark = { base09 = "#42be65", base15 = "#6fdc8c" },
+		light = { base09 = "#198038", base15 = "#24a148" },
+	},
+	purple = {
+		dark = { base09 = "#a56eff", base15 = "#d4bbff" },
+		light = { base09 = "#8a3ffc", base15 = "#a56eff" },
+	},
+}
+
+-- Which accent pack is active: "blue" (default) | "magenta" | "green" |
+-- "purple". Same flag convention as background()/transparent() below:
+-- vim.g.nvsinner_accent wins over $NVSINNER_ACCENT; anything unknown → "blue".
+function M.accent()
+	local a = vim.g.nvsinner_accent or vim.env.NVSINNER_ACCENT
+	return (a and M.accents[a]) and a or "blue"
+end
+
+-- Roles for the background currently in effect (vim.o.background), with the
+-- active accent pack's overrides applied on top. Consumers re-resolve this on
+-- every ColorScheme re-apply, so switching the accent + `:colorscheme carbon`
+-- restyles the whole UI.
 function M.colors()
-	return (vim.o.background == "light") and M.light or M.dark
+	local variant = (vim.o.background == "light") and "light" or "dark"
+	local base = M[variant]
+	local pack = M.accents[M.accent()][variant]
+	if next(pack) == nil then
+		return base
+	end
+	return vim.tbl_extend("force", {}, base, pack)
 end
 
 -- ─── Feature flags ───────────────────────────────────────────────────────────
 -- Read at startup by theme.lua and on every (re)apply by colors/carbon.lua and
--- ui-touch.lua. Two ways to set each flag:
---   * persistently: `vim.g.nvsinner_background = "light"` /
---     `vim.g.nvsinner_transparent = true` early in lua/core/options.lua
---   * per launch:   `NVSINNER_BACKGROUND=light NVSINNER_TRANSPARENT=1 nvsinner`
--- The vim.g value wins over the environment variable when both are set.
+-- ui-touch.lua. Three ways to set each flag (first match wins):
+--   * vim.g (set by :NvSinnerMenu via lua/core/settings.lua, or by hand)
+--   * environment: `NVSINNER_BACKGROUND=light NVSINNER_TRANSPARENT=1
+--     NVSINNER_ACCENT=green nvsinner` (per launch)
+--   * the persisted defaults lua/core/settings.lua seeds vim.g with at boot
+-- The vim.g value wins over the environment variable when both are set;
+-- settings.lua only seeds vim.g when NEITHER is set, so env overrides survive.
 
 -- Which variant to boot into: "dark" (default) or "light".
 function M.background()

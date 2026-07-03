@@ -10,14 +10,26 @@ return {
 	config = function()
 		local devicons = require("nvim-web-devicons")
 
-		-- Carbon palette roles (single source: lua/core/carbon.lua).
-		local c = require("core.carbon").colors()
-		local ACCENT = c.base09 -- blue identity accent: the active window
-		local MODIFIED = c.base10 -- magenta: unsaved-changes marker
-		local FG = c.base04
-		local MUTED = c.base03
-		local BG_ACTIVE = c.base02 -- lifted chip for the active badge
-		local BG_INACTIVE = c.base01
+		-- Carbon palette roles (single source: lua/core/carbon.lua), cached in a
+		-- table that is REFILLED on ColorScheme so a live dark↔light / accent
+		-- switch (:NvSinnerMenu) restyles the badge instead of keeping the
+		-- boot-time colors. render() reads the cache, not config-time upvalues.
+		local pal = {}
+		local function refresh()
+			local c = require("core.carbon").colors()
+			pal.ACCENT = c.base09 -- identity accent: the active window
+			pal.MODIFIED = c.base10 -- magenta: unsaved-changes marker
+			pal.FG = c.base04
+			pal.MUTED = c.base03
+			pal.BG_ACTIVE = c.base02 -- lifted chip for the active badge
+			pal.BG_INACTIVE = c.base01
+		end
+		refresh()
+		vim.api.nvim_create_autocmd("ColorScheme", {
+			group = vim.api.nvim_create_augroup("nv_incline_carbon", { clear = true }),
+			pattern = "*",
+			callback = refresh,
+		})
 
 		require("incline").setup({
 			window = {
@@ -35,18 +47,18 @@ return {
 				local modified = vim.bo[props.buf].modified
 				local is_current = vim.api.nvim_get_current_buf() == props.buf
 
-				local bg = is_current and BG_ACTIVE or BG_INACTIVE
+				local bg = is_current and pal.BG_ACTIVE or pal.BG_INACTIVE
 
 				return {
-					is_current and { "● ", guifg = ACCENT, guibg = bg } or "",
+					is_current and { "● ", guifg = pal.ACCENT, guibg = bg } or "",
 					ft_icon and { ft_icon, " ", guifg = ft_color, guibg = bg } or "",
 					{
 						filename,
 						gui = modified and "bold,italic" or "bold",
-						guifg = is_current and FG or MUTED,
+						guifg = is_current and pal.FG or pal.MUTED,
 						guibg = bg,
 					},
-					modified and { " ●", guifg = MODIFIED, guibg = bg } or "",
+					modified and { " ●", guifg = pal.MODIFIED, guibg = bg } or "",
 					guibg = bg,
 				}
 			end,

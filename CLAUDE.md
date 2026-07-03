@@ -114,7 +114,9 @@ Then open `nvim` and run `:Lazy` / `:Mason` to confirm everything installed.
 init.lua                     Bootstraps lazy.nvim, requires lua/core/*, imports the plugin folders
 colors/carbon.lua            The "carbon" colorscheme (oxocarbon/IBM Carbon port, self-contained)
 lua/core/options.lua         Leaders + core vim options (required FIRST, before lazy)
-lua/core/carbon.lua          Carbon base16 role palette — the ONE source of truth for every color
+lua/core/settings.lua        Persistent :NvSinnerMenu settings (JSON in data dir) — seeds the carbon flags at boot (native)
+lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over core/settings (native)
+lua/core/carbon.lua          Carbon base16 role palette + accent packs — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
@@ -168,7 +170,16 @@ line to `init.lua`** or its files will silently never load.
 ### AI — terminal column (no in-editor AI plugins)
 - avante and codecompanion were **removed**. There is no in-editor AI plugin and
   no `lua/plugins/ai.lua`. AI is used by running a CLI agent — e.g. `claude`
-  (Claude Code) — inside the toggleterm "AI column" on the right (see *Terminals*).
+  (Claude Code) — inside the toggleterm "AI column" (see *Terminals*).
+- **First-open CLI picker** — the first time an AI session is toggled, a picker
+  opens *in the column's own space* (a full-height side split, not a float)
+  listing `claude` / `kiro-cli` / `opencode` (not-installed ones are marked and
+  refuse selection with a warning) plus **"plain terminal — no AI"**. The choice
+  becomes the toggleterm `cmd` (nil → default shell); picking plain terminal
+  titles the column's winbar `term` (like the horizontals) instead of `AI · N`
+  via the `__nv_label` override read by `on_panel_open`. Keyboard (`j`/`k`,
+  `<CR>`, `1`-`4`, `q`/`<Esc>`) + mouse (click a row); styled with the NvMenu*
+  groups from `core/menu.lua`.
 - The CLI handles its own auth/billing; the config does **not** read
   `ANTHROPIC_API_KEY`. Buffers auto-reload when the CLI edits files on disk (see
   *Auto-reload*).
@@ -196,14 +207,59 @@ line to `init.lua`** or its files will silently never load.
   terminal bar: `base11 #33b1ff` (carbon's terminal-mode accent).
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
   colorscheme reloads and lazy-loaded plugins.
-- **Feature flags** (resolved by `core/carbon.lua`; `vim.g` wins over env):
-  `vim.g.nvsinner_background` / `$NVSINNER_BACKGROUND` (`"dark"` default,
-  `"light"` boots the light variant) and `vim.g.nvsinner_transparent` /
-  `$NVSINNER_TRANSPARENT` (drops every full-surface bg — editor, floats,
-  panels — while chips/bars stay solid for legibility; `ui-touch.lua` also
-  drops its focus lift and dim-bar strip in transparent mode). Documented for
-  users in README's *Theme options (carbon)*, which also carries the
-  glass→carbon migration steps.
+- **Feature flags** (resolved by `core/carbon.lua`; `vim.g` wins over env,
+  which wins over the persisted `:NvSinnerMenu` value seeded by
+  `core/settings.lua`): `vim.g.nvsinner_background` / `$NVSINNER_BACKGROUND`
+  (`"dark"` default, `"light"` boots the light variant),
+  `vim.g.nvsinner_transparent` / `$NVSINNER_TRANSPARENT` (drops every
+  full-surface bg — editor, floats, panels — while chips/bars stay solid for
+  legibility; `ui-touch.lua` also drops its focus lift and dim-bar strip in
+  transparent mode), and `vim.g.nvsinner_accent` / `$NVSINNER_ACCENT` (accent
+  pack, below). Documented for users in README's *Theme options (carbon)*,
+  which also carries the glass→carbon migration steps.
+- **Accent packs** — `M.accents` in `core/carbon.lua` defines four selectable
+  identity accents (`blue` default / `magenta` / `green` / `purple`, IBM
+  Carbon tones). A pack overrides ONLY the identity text-accent pair (`base09`
+  and its pale companion `base15`) in `M.colors()`; gray surfaces
+  (`base00`/`base01`/`base02`, `blend`, `lift`) never change. Because every
+  consumer re-resolves `M.colors()` on `ColorScheme`, switching the accent is
+  just `vim.g.nvsinner_accent = <pack>` + `:colorscheme carbon` (which is what
+  `core/settings.lua` does).
+
+### Settings & menu — `lua/core/settings.lua` + `lua/core/menu.lua` (native, required from `init.lua`)
+- `core/settings.lua` persists user choices as JSON in
+  `stdpath("data")/nvsinner-settings.json` and applies them:
+  `background` / `transparent` / `accent` (carbon flags), `tree_side` (neo-tree
+  position), `ai_side` (AI/vertical terminal column side), `quiet` (mute
+  INFO-level `vim.notify`; WARN/ERROR always pass). **Required right after
+  `core.options` in `init.lua`** so it can seed the carbon `vim.g` flags before
+  lazy applies the theme — and it only seeds a flag when neither `vim.g` nor
+  the env var is set, preserving the documented `vim.g` > env precedence.
+  Every `M.set` persists, applies live (theme changes re-run
+  `:colorscheme carbon`), and fires `User NvSinnerSetting`
+  (`data = { key, value }`) so lazy specs react without eager requires:
+  `toggleterm.lua` re-asserts its layout on `ai_side`, neo-tree reads
+  `tree_side` on each `<leader>e`. The quiet wrapper is installed on
+  `User VeryLazy` (after noice replaces `vim.notify`) and wraps/unwraps the
+  *current* notify. `M.load({ file = … })` / `M.setup({ file = … })` are test
+  seams (mirror `update.lua` / `health.lua`).
+- `core/menu.lua` defines **`:NvSinnerMenu`** — a Mason-style floating modal
+  over the six settings. Keyboard: `j`/`k` (or arrows) move, `h`/`l` /
+  `<CR>` / `<Space>` cycle a value, `1`-`6` jump, `q`/`<Esc>` close. Mouse:
+  hovering moves the selection onto the row under the pointer (`<MouseMove>`,
+  same feel as the dashboard menu — the buffer-local map also shadows
+  ui-touch's LSP-hover handler over the modal) and a click cycles the row
+  (`<LeftRelease>` + `getmousepos`). The AI CLI picker carries the same
+  hover/click behavior. Every change
+  applies live and persists via `settings.set`. Rendering uses exact byte
+  spans (the `▸` marker is multi-byte) with extmarks in the `nvsinner_menu`
+  namespace; highlights are the fg-only `NvMenu*` groups (carbon roles,
+  re-applied on `ColorScheme`; `NvMenuSel` keeps a solid `base01` wash on
+  purpose, chips stay legible in transparent mode). The NvMenu* groups are
+  shared with toggleterm's AI CLI picker so both read as one component. There
+  is deliberately NO WinLeave auto-close: changing "AI column side" makes
+  toggleterm jump windows to re-assert the layout, which would tear the modal
+  down mid-interaction.
 
 ### Touch / focus feedback — `lua/core/ui-touch.lua` (+ `lua/plugins/ui/illuminate.lua`)
 - Native module `lua/core/ui-touch.lua` (required from `init.lua`) makes focus
@@ -287,8 +343,10 @@ line to `init.lua`** or its files will silently never load.
 - **Per-terminal label** — `M.winbar(buf)` also prefixes a buffer var
   `b:nv_term_label` if present (e.g. `AI · 3 ⠹ working…`). `toggleterm.lua`
   sets it in `on_panel_open` from the term id: AI panels use the reserved ids
-  100+ (`AI · <id-99>`), the `<leader>t` horizontals use 1–9 (`term <id>`). Plain
-  `:terminal` buffers have no label and just show the spinner.
+  100+ (`AI · <id-99>`), the `<leader>t` horizontals use 1–9 (`term <id>`);
+  an AI column opened as a *plain terminal* (CLI picker) carries the
+  `__nv_label` override and is titled `term` instead. Plain `:terminal`
+  buffers have no label and just show the spinner.
 - **First-open caveat (handled in `ui-touch.lua`)** — a toggleterm window fires
   `BufWinEnter` while its buffer is still a scratch (`buftype ""`), so `ui-touch`'s
   `focus()` would style it as a code pane and skip the terminal winbar; the
@@ -392,13 +450,19 @@ exactly this reason) — reference a role.
   `<leader>t` is a prefix of `<leader>t2`…, so a bare `<leader>t` waits one
   `timeoutlen` (which-key shows the menu) before falling back to terminal 1.
   (Moved off `<C-t>` to avoid a Ctrl+T conflict.)
-- AI panels → **multiple persistent vertical columns on the right**, each an
-  independent AI session for any AI CLI; toggling hides without killing the
-  process. Session 1 is triggered by `<leader>j`, `<M-J>` (iTerm2 sends this
-  from Cmd+Opt+J via "Send Escape Sequence" = `J`), or `<D-M-j>` (GUI Neovim).
-  Sessions 2–9 are toggled by `<leader>j2` … `<leader>j9`.
-- Panels are created **lazily and memoised by session number** (`get_ai_panel`),
-  so a session only spawns a shell the first time you open it.
+- AI panels → **multiple persistent vertical columns** (right by default; side
+  configurable via `:NvSinnerMenu`'s `ai_side` — `restore_layout()` forces
+  `wincmd L`/`wincmd H` accordingly and a `User NvSinnerSetting` autocmd
+  re-asserts it live), each an independent AI session for any AI CLI; toggling
+  hides without killing the process. Session 1 is triggered by `<leader>j`,
+  `<M-J>` (iTerm2 sends this from Cmd+Opt+J via "Send Escape Sequence" = `J`),
+  or `<D-M-j>` (GUI Neovim). Sessions 2–9 are toggled by `<leader>j2` …
+  `<leader>j9`.
+- Panels are created **lazily and memoised by session number**
+  (`create_ai_panel`), so a session only spawns its process the first time you
+  open it — and that first open shows the **CLI picker** (see *AI* above):
+  the chosen CLI becomes the terminal's `cmd`, "plain terminal" runs the shell
+  with a `term` winbar title.
 - Each panel gets a reserved `id = 99 + N` (session 1 → 100, … session 9 → 108),
   kept clear of the low ids 1–9 that the horizontal terminals use. Without
   reserved ids, opening an AI panel first would claim id 1 and `<leader>t` would just
@@ -506,12 +570,13 @@ installable, separately-named Neovim distro ("NvSinner").
 | Keys | Action |
 |------|--------|
 | `<leader>f` / `<leader>sf` / `<leader>fb` | Telescope find files (incl. hidden dotfiles) / live grep / buffers |
-| `<leader>e` | Toggle Neo-tree (reveals the current file in the tree) |
+| `<leader>e` | Toggle Neo-tree (reveals the current file; side from `:NvSinnerMenu`) |
+| `:NvSinnerMenu` | Settings modal: theme, transparency, accent pack, panel sides, notifications |
 | `<leader>m` | Markdown "Open view" — toggle the render-markdown reading view (also the clickable winbar button) |
 | `<cr>` / `gO` (in an image buffer) | Reopen image in Quick Look / open in Preview.app |
 | `<C-Space>` (insert) | nvim-cmp trigger completion |
 | `<leader>t` / `<leader>t2` … `<leader>t9` | Horizontal terminals 1–9 (independent) |
-| `<leader>j` / `<M-J>` / `<D-M-j>` | Toggle AI session 1 (terminal column) |
+| `<leader>j` / `<M-J>` / `<D-M-j>` | Toggle AI session 1 (terminal column; first open asks which CLI) |
 | `<leader>j2` … `<leader>j9` | Toggle AI sessions 2–9 (independent columns) |
 | `]h` / `[h` | Next / previous git hunk (gitsigns) |
 | `<leader>hp` / `<leader>hs` / `<leader>hr` / `<leader>hb` | Hunk: preview / stage / reset / blame line |
@@ -565,6 +630,8 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/options_spec.lua` | leaders + core editor options |
 | `tests/core/carbon_spec.lua` | carbon role tables (dark/light), the background/transparency flags (`vim.g` + env), and `:colorscheme carbon` honoring both (opaque vs transparent surfaces) |
 | `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + resize helpers |
+| `tests/core/settings_spec.lua` | settings defaults, JSON save/load roundtrip + corrupt-file fallback, vim.g seeding precedence, the quiet notify filter, and the carbon accent packs |
+| `tests/core/menu_spec.lua` | `:NvSinnerMenu` command, the modal float rendering every row, and move/cycle writing through to core/settings |
 | `tests/core/autoreload_spec.lua` | `autoread`, the FileChangedShell**Post** autocmds, and the edit toast firing on an external change |
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |

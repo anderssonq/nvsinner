@@ -1,0 +1,44 @@
+-- Tests for the :NvSinnerMenu settings modal (lua/core/menu.lua): the user
+-- command, the float and its rendered rows, and the move/cycle interaction
+-- writing through to core/settings. Mouse clicks aren't exercised headless;
+-- the click handler routes into the same cycle() these specs cover.
+
+describe("core.menu", function()
+	local settings = require("core.settings")
+	local menu = require("core.menu")
+
+	before_each(function()
+		-- Throwaway persistence so cycling in a spec never touches real settings.
+		settings.load({ file = vim.fn.tempname() })
+		menu.close()
+	end)
+
+	it("defines the :NvSinnerMenu user command", function()
+		assert.is_not_nil(vim.api.nvim_get_commands({})["NvSinnerMenu"])
+	end)
+
+	it("opens a floating modal listing every settings row", function()
+		menu.open()
+		local win = vim.api.nvim_get_current_win()
+		assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative, "must be a float")
+		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+		for _, row in ipairs({ "Theme", "Transparency", "Accent", "Neo-tree side", "AI column side", "Notifications" }) do
+			assert.matches(row, text, nil, true)
+		end
+		assert.matches("q close", text, nil, true) -- the keyboard hint line
+		menu.close()
+		assert.are_not.equal(win, vim.api.nvim_get_current_win())
+	end)
+
+	it("cycle() changes and persists the selected setting", function()
+		menu.open()
+		menu.move(-99) -- clamp to the first row…
+		menu.move(3) -- …then land on row 4: Neo-tree side (left/right)
+		assert.are.equal("left", settings.get("tree_side"))
+		menu.cycle(1)
+		assert.are.equal("right", settings.get("tree_side"))
+		menu.cycle(1) -- wraps around
+		assert.are.equal("left", settings.get("tree_side"))
+		menu.close()
+	end)
+end)

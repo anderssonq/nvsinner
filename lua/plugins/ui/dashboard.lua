@@ -1,10 +1,10 @@
 -- Start screen ("NvSinner" dashboard) built on alpha-nvim.
 --
--- Layout mirrors the classic alpha "dashboard" theme: centred block logo, a
--- muted subtitle, a column of shortcut buttons, and a footer. The footer rotates
+-- Layout mirrors the classic alpha "dashboard" theme: centred logo, a muted
+-- subtitle, a column of shortcut buttons, and a footer. The footer rotates
 -- a random dev quote on each launch, with a constant "andersoftware.com"
--- attribution line below it. The block logo spells NVSINNER (small-caps,
--- beveled) — an ASCII nod to the gothic "Sinner" mark.
+-- attribution line below it. The logo is the distressed shade-block NVSINNER
+-- mark — the same ASCII art as the README header (one identity everywhere).
 --
 -- Buttons are wired to THIS config's real features (telescope, neo-tree,
 -- persistence, lazy) rather than the alpha defaults. Menu items are also
@@ -23,41 +23,54 @@ return {
 		local alpha = require("alpha")
 		local dashboard = require("alpha.themes.dashboard")
 
-		-- ── Block logo ───────────────────────────────────────────────────────
-		-- Every line is padded to the same width so alpha (which centres each
-		-- header line individually) keeps the block's left edge aligned.
-		dashboard.section.header.val = {
-			[[██   ██  ██   ██   ▟████▙  ██████  ██   ██  ██   ██  ██████  █████▙ ]],
-			[[███  ██  ██   ██  ██▘        ██    ███  ██  ███  ██  ██      ██  ██ ]],
-			[[██▟▙ ██  ██   ██  ▜████▙     ██    ██▟▙ ██  ██▟▙ ██  █████   █████▛ ]],
-			[[██ ▜▙██  ▜█▖ ▗█▛      ▝██    ██    ██ ▜▙██  ██ ▜▙██  ██      ██ ▜▙  ]],
-			[[██  ▜██   ▜█▙█▛   ▖   ▟█▘    ██    ██  ▜██  ██  ▜██  ██      ██  ▜▙ ]],
-			[[██   ██    ▜█▛    ▜████▛   ██████  ██   ██  ██   ██  ██████  ██   ██]],
+		-- ── Logo ─────────────────────────────────────────────────────────────
+		-- The distressed shade-block NVSINNER mark — the SAME ASCII art as the
+		-- README header, so the terminal start screen and the repo front page
+		-- share one identity. It's plain text (█▓▒░ shade blocks), so it renders
+		-- in any terminal exactly like the README code block does. Lines are
+		-- padded programmatically to one display width because alpha centres
+		-- each header line individually — unequal widths would skew the block.
+		local logo = {
+			[[██▄   ██ ░▒    ░      ▄███▓▒░ ░█ ██▄   ██ ██▄   ██ ░▒▓██ ▒▄   █████░▄]],
+			[[█▓░▒▄ ▀█ ▒▓    ▒░    ▀█▀ ▄    ██ █▓░▒▄ ▀█ █▓░▒▄ ▀█    ░  ▀▓░▄ ██   ▀░▒▄]],
+			[[▓▒ ▀▓▒▄░ ▐█▌   ▓▒       ▀░▒▄  ██ ▓▒ ▀▓▒▄░ ▓▒ ▀▓▒▄░   ░▒▀  ▀▀  ▓█▄█▄░▄▒▓▀]],
+			[[▒░   ▀▓█  ░▒▄ ▄█▌        ▄▒▓▀ █▓ ▒░   ▀▓█ ▒░   ▀▓█   ▒▓   ▄▀▀ ▒▓ ▀██░▀]],
+			[[░     ▒▓   ▀▓▒░▀  ░▒▓███░░▀   ▓▒ ░     ▒▓ ░     ▒▓ ░▒▓███ ░▀▀ ░▒   ▀██▄]],
+			[[      ░▒     ▀                ▒░       ░▒       ░▒             ░     ▀█▀]],
+			[[                              ░]],
 		}
+		local logo_width = 0
+		for _, line in ipairs(logo) do
+			logo_width = math.max(logo_width, vim.fn.strdisplaywidth(line))
+		end
+		for i, line in ipairs(logo) do
+			logo[i] = line .. string.rep(" ", logo_width - vim.fn.strdisplaywidth(line))
+		end
+		dashboard.section.header.val = logo
 
 		-- ── Palette + highlights ─────────────────────────────────────────────
 		-- Monochrome top→bottom gradient on the logo (evenly spaced steps of
-		-- the carbon gray ramp, base05 → base03), with the blue identity accent
-		-- (base09) for the "Sinner" identity on shortcuts + footer.
-		local c = require("core.carbon").colors()
-		local gradient = {
-			c.base05,
-			c.base04,
-			"#aeaeae", -- ramp midpoints between base04 and base03
-			"#8d8d8d",
-			"#6f6f6f",
-			c.base03,
-		}
-		local ACCENT = c.base09 -- carbon blue, the identity accent
-		local FG = c.base04
-
+		-- the carbon gray ramp, base05 → base03), with the identity accent
+		-- (base09) for the "Sinner" identity on shortcuts + footer. Roles are
+		-- resolved INSIDE the applier so a live dark↔light / accent switch
+		-- (:NvSinnerMenu) recolors the dashboard too.
 		local function apply_dashboard_hl()
+			local c = require("core.carbon").colors()
+			local gradient = {
+				c.base05,
+				c.base04,
+				"#b6b6b6", -- ramp midpoints between base04 and base03
+				"#9c9c9c",
+				"#838383",
+				"#6a6a6a",
+				c.base03,
+			}
 			for i, color in ipairs(gradient) do
 				vim.api.nvim_set_hl(0, "NvSinnerLogo" .. i, { fg = color, bold = true })
 			end
-			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = ACCENT, italic = true })
-			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = FG })
-			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = ACCENT, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = c.base09, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = c.base04 })
+			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = c.base09, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = "#a2a9b0", italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = c.base03, italic = true })
 			-- Hover "pill" on the focused menu item (panel lift + brighter text).
@@ -139,7 +152,7 @@ return {
 		table.insert(dashboard.config.layout, { type = "padding", val = 1 })
 		table.insert(dashboard.config.layout, {
 			type = "text",
-			val = "NvSinner · andersoftware.com",
+			val = "andersoftware.com · github.com/anderssonq/nvsinner",
 			opts = { position = "center", hl = "NvSinnerAttrib" },
 		})
 
@@ -226,10 +239,18 @@ return {
 			vim.b[buf].nvsinner_dash_mouse = true
 
 			local opts = { buffer = buf, silent = true }
-			vim.keymap.set("n", "<LeftRelease>", press_under_mouse,
-				vim.tbl_extend("force", opts, { desc = "Dashboard: run the item under the mouse" }))
-			vim.keymap.set("n", "<MouseMove>", hover_under_mouse,
-				vim.tbl_extend("force", opts, { desc = "Dashboard: hover the item under the mouse" }))
+			vim.keymap.set(
+				"n",
+				"<LeftRelease>",
+				press_under_mouse,
+				vim.tbl_extend("force", opts, { desc = "Dashboard: run the item under the mouse" })
+			)
+			vim.keymap.set(
+				"n",
+				"<MouseMove>",
+				hover_under_mouse,
+				vim.tbl_extend("force", opts, { desc = "Dashboard: hover the item under the mouse" })
+			)
 
 			-- Repaint the pill whenever the cursor lands on a button. Scheduled so
 			-- it reads the position AFTER alpha's own CursorMoved snap.

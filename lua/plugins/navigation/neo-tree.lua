@@ -25,12 +25,15 @@ return {
 					-- Open it focused on the file you're editing/reading: `reveal`
 					-- jumps to and highlights the current buffer's file in the tree.
 					-- For non-file buffers (dashboard, terminals) fall back to a
-					-- plain open at the cwd root.
+					-- plain open at the cwd root. The side comes from the persisted
+					-- `tree_side` setting (:NvSinnerMenu), read on every open so a
+					-- change applies to the next toggle.
+					local side = require("core.settings").get("tree_side")
 					local file = vim.api.nvim_buf_get_name(0)
 					if file ~= "" and vim.bo.buftype == "" and vim.fn.filereadable(file) == 1 then
-						vim.cmd("Neotree reveal left")
+						vim.cmd("Neotree reveal " .. side)
 					else
-						vim.cmd("Neotree focus left")
+						vim.cmd("Neotree focus " .. side)
 					end
 					vim.notify(
 						" a add · r rename · d delete · y copy · x cut · p paste · ? help",
@@ -52,7 +55,9 @@ return {
 				},
 				window = {
 					width = 30, -- Width in columns, adjust as needed
-					position = "left",
+					-- Default side for a bare :Neotree; the <leader>e keymap passes
+					-- the side explicitly on every open (persisted via :NvSinnerMenu).
+					position = require("core.settings").get("tree_side"),
 				},
 			},
 		})

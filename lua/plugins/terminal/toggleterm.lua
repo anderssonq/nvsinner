@@ -22,12 +22,15 @@ return {
 		-- toggleterm/ui.lua, while the reverse order leaves the column full-height).
 		-- `restore_layout()` makes the result deterministic regardless of order:
 		-- every horizontal terminal is forced to the bottom (`wincmd J`), then
-		-- every AI column is forced to a full-height right column (`wincmd L`)
-		-- LAST, so the columns always win the right edge and the horizontals tuck
-		-- into the bottom-left. Each panel keeps its own size, so the two never
-		-- collide and the margins stay put (AI columns AI_WIDTH wide, horizontals
-		-- 20% of the screen tall).
+		-- every AI column is forced to a full-height side column (`wincmd L`/`H`,
+		-- side from the persisted `ai_side` setting — :NvSinnerMenu) LAST, so the
+		-- columns always win their edge and the horizontals tuck into the bottom.
+		-- Each panel keeps its own size, so the two never collide and the margins
+		-- stay put (AI columns AI_WIDTH wide, horizontals 20% of the screen tall).
 		local AI_WIDTH = 50
+		local function ai_side()
+			return require("core.settings").get("ai_side") == "left" and "left" or "right"
+		end
 		local function h_height()
 			return math.floor(vim.o.lines * 0.20)
 		end
@@ -44,7 +47,7 @@ return {
 			for _, t in pairs(ai_panels) do
 				if t:is_open() then
 					vim.api.nvim_set_current_win(t.window)
-					vim.cmd("wincmd L")
+					vim.cmd(ai_side() == "left" and "wincmd H" or "wincmd L")
 					vim.cmd("vertical resize " .. AI_WIDTH)
 				end
 			end
@@ -59,7 +62,10 @@ return {
 			local buf = term.bufnr or vim.api.nvim_get_current_buf()
 			if buf and vim.api.nvim_buf_is_valid(buf) then
 				local id = term.id or 0
-				vim.b[buf].nv_term_label = id >= 100 and ("AI · " .. (id - 99)) or ("term " .. id)
+				-- __nv_label overrides the id-derived label: an AI column opened as a
+				-- plain terminal (CLI picker → "plain terminal") is titled "term",
+				-- like the horizontals, instead of "AI · N".
+				vim.b[buf].nv_term_label = term.__nv_label or (id >= 100 and ("AI · " .. (id - 99)) or ("term " .. id))
 			end
 			if term.window and vim.api.nvim_win_is_valid(term.window) then
 				vim.api.nvim_set_current_win(term.window)
@@ -120,29 +126,198 @@ return {
 		-- the shared layout helpers.)
 
 		-- Panels are created lazily and memoised by session number, so a session
-		-- only spawns a shell the first time it is opened.
-		local function get_ai_panel(n)
-			if not ai_panels[n] then
-				ai_panels[n] = Terminal:new({
-					-- Reserved ids (100+) so they never collide with the <leader>t
-					-- horizontal terminals, which use the low ids 1–9. Session 1
-					-- keeps its historical id 100; session N gets 99 + N.
-					id = 99 + n,
-					direction = "vertical", -- splitright is on -> opens on the right
-					size = AI_WIDTH, -- fixed column width (not percentual): a compact AI column
-					hidden = true, -- "custom" terminal: not part of the <leader>t list
-					close_on_exit = false, -- if the shell dies, don't auto-close
-					-- on_panel_open forces the column full-height on the right
-					-- (wincmd L) and re-tucks any horizontal terminal bottom-left.
-					on_open = on_panel_open,
-				})
-			end
+		-- only spawns its process the first time it is opened — and the FIRST open
+		-- asks (in the column's own space) which CLI to run, via the picker below.
+		local function create_ai_panel(n, choice)
+			ai_panels[n] = Terminal:new({
+				-- Reserved ids (100+) so they never collide with the <leader>t
+				-- horizontal terminals, which use the low ids 1–9. Session 1
+				-- keeps its historical id 100; session N gets 99 + N.
+				id = 99 + n,
+				cmd = choice and choice.cmd or nil, -- nil → the default shell
+				direction = "vertical", -- splitright is on -> opens on the right
+				size = AI_WIDTH, -- fixed column width (not percentual): a compact AI column
+				hidden = true, -- "custom" terminal: not part of the <leader>t list
+				close_on_exit = false, -- if the CLI/shell dies, don't auto-close
+				-- on_panel_open forces the column full-height on the configured
+				-- side and re-tucks any horizontal terminal bottom-left.
+				on_open = on_panel_open,
+			})
+			-- Winbar title: plain-terminal sessions read "term" (like the
+			-- horizontals); CLI sessions keep the "AI · N" identity.
+			ai_panels[n].__nv_label = (choice and choice.plain) and "term" or nil
 			return ai_panels[n]
 		end
 
-		local function toggle_ai_panel(n)
-			get_ai_panel(n or 1):toggle()
+		-- ─── First-open CLI picker ─────────────────────────────────────────────
+		-- Shown in the same space the column will occupy: a full-height side
+		-- split listing the known AI CLIs plus "plain terminal — no AI". Keyboard
+		-- (j/k move, <CR> launch, 1-4 jump, q/<Esc> cancel) and mouse (click a
+		-- row to launch it). Styled with the NvMenu* carbon groups defined by
+		-- lua/core/menu.lua so the picker and :NvSinnerMenu read as one component.
+		local AI_CLIS = { "claude", "kiro-cli", "opencode" }
+		local picker_ns = vim.api.nvim_create_namespace("nvsinner_ai_picker")
+
+		local function pick_ai_cmd(n, on_choice)
+			local entries = {}
+			for _, cli in ipairs(AI_CLIS) do
+				table.insert(entries, { cmd = cli, name = cli, ok = vim.fn.executable(cli) == 1 })
+			end
+			table.insert(entries, { cmd = nil, name = "plain terminal — no AI", ok = true, plain = true })
+
+			vim.cmd(ai_side() == "left" and "topleft vsplit" or "botright vsplit")
+			local win = vim.api.nvim_get_current_win()
+			vim.api.nvim_win_set_width(win, AI_WIDTH)
+			local buf = vim.api.nvim_create_buf(false, true)
+			vim.api.nvim_win_set_buf(win, buf)
+			vim.bo[buf].buftype = "nofile" -- also keeps ui-touch's focus styling away
+			vim.bo[buf].bufhidden = "wipe"
+			vim.bo[buf].filetype = "nvsinner-picker"
+			vim.wo[win].winhighlight = "Normal:NormalFloat"
+			vim.wo[win].number = false
+			vim.wo[win].relativenumber = false
+			vim.wo[win].signcolumn = "no"
+
+			local sel = 1
+			local TOP = 2 -- blank + title line above the first entry
+			local function render()
+				local lines, spans = { "", ("  AI · %d — launch:"):format(n), "" }, {}
+				for i, e in ipairs(entries) do
+					local head = string.format(" %s %d  ", (i == sel) and "▸" or " ", i)
+					local note = e.ok and "" or "  (not installed)"
+					spans[i] = { head = #head, name = #head + #e.name, total = #head + #e.name + #note }
+					table.insert(lines, head .. e.name .. note)
+				end
+				table.insert(lines, "")
+				table.insert(lines, "  j/k move · ⏎ launch · 1-4 jump · q cancel")
+				vim.bo[buf].modifiable = true
+				vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+				vim.bo[buf].modifiable = false
+				vim.api.nvim_buf_clear_namespace(buf, picker_ns, 0, -1)
+				local ext = vim.api.nvim_buf_set_extmark
+				ext(buf, picker_ns, 1, 0, { end_col = #lines[2], hl_group = "NvMenuLabel" })
+				for i in ipairs(entries) do
+					local row = TOP + i -- 0-based row of entry i (line TOP+1+i, -1)
+					local s = spans[i]
+					ext(buf, picker_ns, row, 0, { end_col = s.head, hl_group = "NvMenuKey" })
+					ext(buf, picker_ns, row, s.head, {
+						end_col = s.name,
+						hl_group = entries[i].ok and "NvMenuValue" or "NvMenuMuted",
+					})
+					if s.total > s.name then
+						ext(buf, picker_ns, row, s.name, { end_col = s.total, hl_group = "NvMenuMuted" })
+					end
+					if i == sel then
+						ext(buf, picker_ns, row, 0, { line_hl_group = "NvMenuSel" })
+					end
+				end
+				ext(buf, picker_ns, #lines - 1, 0, { end_col = #lines[#lines], hl_group = "NvMenuMuted" })
+				if vim.api.nvim_win_is_valid(win) then
+					vim.api.nvim_win_set_cursor(win, { TOP + 1 + sel, 1 })
+				end
+			end
+
+			local function cancel()
+				if vim.api.nvim_win_is_valid(win) then
+					pcall(vim.api.nvim_win_close, win, true)
+				end
+			end
+			local function choose(i)
+				local e = entries[i or sel]
+				if not e then
+					return
+				end
+				if not e.ok then
+					vim.notify(e.name .. " is not on PATH — install it or pick another option", vim.log.levels.WARN)
+					return
+				end
+				cancel()
+				on_choice(e)
+			end
+
+			local function map(lhs, rhs)
+				vim.keymap.set("n", lhs, rhs, { buffer = buf, nowait = true, silent = true })
+			end
+			local function move(d)
+				sel = math.min(#entries, math.max(1, sel + d))
+				render()
+			end
+			map("j", function()
+				move(1)
+			end)
+			map("k", function()
+				move(-1)
+			end)
+			map("<Down>", function()
+				move(1)
+			end)
+			map("<Up>", function()
+				move(-1)
+			end)
+			map("<CR>", choose)
+			map("l", choose)
+			for i = 1, #entries do
+				map(tostring(i), function()
+					sel = i
+					render()
+				end)
+			end
+			map("<LeftRelease>", function()
+				local mp = vim.fn.getmousepos()
+				if mp.winid == win then
+					local i = mp.line - (TOP + 1)
+					if i >= 1 and i <= #entries then
+						sel = i
+						choose(i)
+					end
+				end
+			end)
+			-- Hover: move the selection onto the row under the pointer (same
+			-- feel as the dashboard menu and :NvSinnerMenu).
+			local hover_line = -1
+			map("<MouseMove>", function()
+				local mp = vim.fn.getmousepos()
+				if mp.winid ~= win or mp.line == hover_line then
+					return
+				end
+				hover_line = mp.line
+				local i = mp.line - (TOP + 1)
+				if i >= 1 and i <= #entries and i ~= sel then
+					sel = i
+					render()
+				end
+			end)
+			map("q", cancel)
+			map("<Esc>", cancel)
+
+			render()
 		end
+
+		local function toggle_ai_panel(n)
+			n = n or 1
+			if ai_panels[n] then
+				ai_panels[n]:toggle()
+				return
+			end
+			pick_ai_cmd(n, function(choice)
+				create_ai_panel(n, choice):toggle()
+			end)
+		end
+
+		-- Re-assert the column side live when it changes in :NvSinnerMenu.
+		vim.api.nvim_create_autocmd("User", {
+			pattern = "NvSinnerSetting",
+			group = vim.api.nvim_create_augroup("nv_toggleterm_settings", { clear = true }),
+			callback = function(ev)
+				if ev.data and ev.data.key == "ai_side" then
+					local cur = vim.api.nvim_get_current_win()
+					restore_layout()
+					if vim.api.nvim_win_is_valid(cur) then
+						vim.api.nvim_set_current_win(cur)
+					end
+				end
+			end,
+		})
 
 		-- iTerm2 bridge: iTerm2 cannot send Cmd to a TUI app, so we configure
 		-- Cmd+Opt+J in iTerm2 as "Send Escape Sequence" with the text "J".

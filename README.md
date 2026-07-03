@@ -71,9 +71,15 @@ files in an existing category are picked up automatically.
 ### 🤖 AI
 
 There are no in-editor AI plugins. AI is a **CLI agent run in the terminal
-column** (`toggleterm.lua`): press `<leader>j` to open the right-hand column and
-type `claude` (or any other CLI). When it edits files on disk, the corresponding
-buffers reload automatically — see the auto-reload setup in `core/autoreload.lua`.
+column** (`toggleterm.lua`): press `<leader>j` to open the column. The first
+time a session opens, a picker appears **in the column's own space** asking
+which CLI to launch — `claude`, `kiro-cli`, `opencode` (uninstalled ones are
+marked), or **plain terminal — no AI**, which starts your shell and titles the
+column `term` like the horizontal terminals. Navigate with `j`/`k`, launch with
+`Enter` (or click a row), cancel with `q`. When the CLI edits files on disk,
+the corresponding buffers reload automatically — see the auto-reload setup in
+`core/autoreload.lua`. The column's side (left/right) is configurable in
+`:NvSinnerMenu`.
 
 ### 🎨 Appearance
 
@@ -83,22 +89,43 @@ buffers reload automatically — see the auto-reload setup in `core/autoreload.l
 | `lualine.lua` | lualine.nvim | Global statusline with the carbon mode→accent chip |
 | `incline.lua` | incline.nvim | Floating filename label, top-right of each window |
 | `barbacue.lua` | barbecue.nvim | VS Code-style breadcrumbs (winbar) |
-| `dashboard.lua` | alpha-nvim | Start screen — "NvSinner" block logo + quick-action menu (mouse: hover highlights an item, click runs it); rotating dev quote |
+| `dashboard.lua` | alpha-nvim | Start screen — the README's distressed "NvSinner" ASCII mark + quick-action menu (mouse: hover highlights an item, click runs it); rotating dev quote |
 | `colorizer.lua` | nvim-colorizer | Inline color previews for hex/rgb |
 | `cursorline.lua` | nvim-cursorline | Highlights current line and word under cursor |
 | `identmini.lua` | indentmini.nvim | Indentation guides |
 | `notify.lua` | nvim-notify | Pretty notifications (replaces `vim.notify`) |
 
+#### `:NvSinnerMenu` — the settings modal
+
+The easiest way to configure the theme (and a few layout choices) is
+**`:NvSinnerMenu`**: a Mason-style floating panel where every change applies
+live and persists across restarts (stored as JSON under the nvsinner data
+dir). Navigate with `j`/`k`, change a value with `h`/`l` (or `Enter`/`Space`),
+jump with `1`–`6`, close with `q` — or use the mouse: hovering moves the
+selection onto the row under the pointer (dashboard-style) and a click cycles
+its value.
+
+| Row | Values |
+|-----|--------|
+| Theme | `dark` / `light` |
+| Transparency | `off` / `on` |
+| Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent (keywords, active markers, numbers), never the gray surfaces |
+| Neo-tree side | `left` / `right` |
+| AI column side | `left` / `right` |
+| Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
+
 #### Theme options (carbon)
 
-The carbon theme has two feature flags. Each can be set per launch via an
-environment variable, or persistently with a `vim.g` global early in
-`lua/core/options.lua` (the `vim.g` value wins when both are set):
+The theme flags can also be set per launch via an environment variable, or
+with a `vim.g` global early in `lua/core/options.lua`. Precedence: `vim.g`
+wins over the environment, which wins over the persisted `:NvSinnerMenu`
+value:
 
 | Flag | Values | Per launch | Persistent |
 |------|--------|-----------|------------|
 | Background variant | `dark` (default) / `light` | `NVSINNER_BACKGROUND=light nvsinner` | `vim.g.nvsinner_background = "light"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
+| Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
 
 Transparent mode drops every full-surface background (editor, floats, side
 panels) so your terminal's own background/blur shows through; small solid
@@ -178,7 +205,7 @@ optional cleanups if you customized things:
 | `<leader>f` | n | Telescope find files |
 | `<leader>sf` | n | Telescope live grep |
 | `<leader>fb` | n | Telescope buffers |
-| `<leader>e` | n | Toggle Neo-tree (reveals the current file in the tree) |
+| `<leader>e` | n | Toggle Neo-tree (reveals the current file; side set in `:NvSinnerMenu`) |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
 | `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down |
 
@@ -199,7 +226,7 @@ optional cleanups if you customized things:
 |------|------|--------|
 | `<leader>t` | n | Toggle horizontal terminal 1 |
 | `<leader>t2` … `<leader>t9` | n | Toggle horizontal terminals 2–9 (independent) |
-| `<leader>j` | n | Toggle AI session 1 (right-hand column) |
+| `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
 | `<M-J>` | n, i, t | Toggle AI session 1 (sent by iTerm2's `⌘⌥J`) |
 | `<D-M-j>` | n, t | Toggle AI session 1 (GUI Neovim `⌘⌥J`) |

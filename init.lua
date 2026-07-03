@@ -18,6 +18,7 @@ vim.opt.rtp:prepend(lazypath)
 -- Core config: options FIRST (sets the leaders before lazy reads `keys` specs),
 -- then keymaps, the AI-workflow autoreload, and the native touch/focus layer.
 require("core.options")
+require("core.settings") -- persisted :NvSinnerMenu settings; seeds the carbon flags BEFORE lazy/theme
 require("core.keymaps")
 require("core.autoreload")
 require("core.ui-touch")
@@ -25,6 +26,7 @@ require("core.ai-activity") -- start polling so the terminal winbar shows agent 
 require("core.update") -- defines :NvSinnerUpdate (git pull + restore plugins + checkhealth)
 require("core.health") -- :checkhealth nvsinner + a one-time first-run "missing tools" toast
 require("core.image-open") -- open images in macOS Quick Look instead of showing binary bytes
+require("core.menu") -- :NvSinnerMenu — the settings modal over core/settings.lua
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {
