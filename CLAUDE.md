@@ -119,6 +119,7 @@ lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (nativ
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
+lua/core/image-open.lua      Open image files in macOS Quick Look + metadata placeholder (native)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```
@@ -274,7 +275,20 @@ barbecue tokyonight defaults were removed for exactly this reason).
 - `barbacue.lua` — `barbecue` breadcrumb winbar (path > LSP symbols) on code
   windows, recolored: muted dirname/separators, FG basename, soft `#9aa0b4`
   symbol icons, crimson reserved for the `modified` marker. Pairs with the
-  terminal winbar so every window has a consistent top bar.
+  terminal winbar so every window has a consistent top bar. **markdown is in
+  `exclude_filetypes`** so it doesn't fight `render-markdown.lua`'s "Open view"
+  button for the same winbar line.
+- `render-markdown.lua` — `render-markdown.nvim` gated behind an **"Open view"**
+  reading-view toggle. The button is a **centered, clickable** winbar chip
+  (`NvMdBtn`, crimson) on every markdown window (a `%=…%@…@…%X…%=` click region
+  driving `_G.NvMdReader.click`); `<leader>m` toggles the same thing. Starts OFF
+  (`enabled = false`) and renders only when opted in. **0.12.x crash fix:** the
+  spec's `init` overrides the markdown `injections` query to keep only the
+  `markdown_inline` injection and drop the code-fence language directive that
+  hits the `node:range` nil-node crash — set at STARTUP because a buffer's
+  markdown LanguageTree caches its injection query at construction (setting it
+  later from `config()` is too late). Nothing else consumes the markdown TS tree,
+  so the blast radius is exactly render-markdown.
 - `noice.lua` — `noice.nvim`: centered floating `:` cmdline (`command_palette`
   preset), messages routed through `nvim-notify`, glass-themed popups
   (`NoiceCmdlinePopup*` re-applied on `ColorScheme`). **LSP hover/signature are
@@ -418,6 +432,22 @@ installable, separately-named Neovim distro ("NvSinner").
   of the missing-count that drives the toast. Tool checks use `vim.fn.executable`
   (fast, no subprocess); versions shell out only for `:checkhealth`.
 
+### Image viewer — `lua/core/image-open.lua` (native, required from `init.lua`)
+- Opening an image file shows it instead of dumping binary bytes. iTerm2 (this
+  config's terminal) uses its own inline-image escapes, **not** the Kitty
+  graphics protocol that in-buffer image plugins need, so the image is popped
+  into **macOS Quick Look** (`qlmanage -p`, async/non-blocking) and the buffer
+  shows a small placeholder (icon, filename, `sips` dimensions, size).
+- **`BufReadCmd` takes over the read** for the image extensions (`png`, `jpg`,
+  `webp`, `svg`, …, both cases) and sets `buftype = "nofile"` so `:w` can never
+  overwrite the image with the placeholder text. Setting `filetype` last fires
+  the `nvsinner_image` `FileType` autocmd, which binds `<cr>` (reopen Quick Look)
+  and `gO` (open in Preview.app).
+- **Auto-preview is interactive-only** — it bails when `#nvim_list_uis() == 0`
+  (headless/tests) and skips **floating** windows (`win_config.relative ~= ""`),
+  so telescope's preview doesn't spawn a Quick Look storm; a `b:` flag makes it
+  pop once per buffer.
+
 ### Install / uninstall scripts — `install.sh`, `uninstall.sh`
 - `install.sh`: clone-or-update → `nvsinner` launcher (`~/.local/bin`) → headless
   `Lazy! restore`. If `~/.local/bin` isn't on PATH it **prints** the exact
@@ -435,8 +465,10 @@ installable, separately-named Neovim distro ("NvSinner").
 
 | Keys | Action |
 |------|--------|
-| `<leader>f` / `<leader>sf` / `<leader>fb` | Telescope find files / live grep / buffers |
+| `<leader>f` / `<leader>sf` / `<leader>fb` | Telescope find files (incl. hidden dotfiles) / live grep / buffers |
 | `<leader>e` | Toggle Neo-tree (reveals the current file in the tree) |
+| `<leader>m` | Markdown "Open view" — toggle the render-markdown reading view (also the clickable winbar button) |
+| `<cr>` / `gO` (in an image buffer) | Reopen image in Quick Look / open in Preview.app |
 | `<C-Space>` (insert) | nvim-cmp trigger completion |
 | `<leader>t` / `<leader>t2` … `<leader>t9` | Horizontal terminals 1–9 (independent) |
 | `<leader>j` / `<M-J>` / `<D-M-j>` | Toggle AI session 1 (terminal column) |
@@ -497,6 +529,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |
 | `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
 | `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |
+| `tests/core/image_open_spec.lua` | `BufReadCmd` replaces an image with the placeholder, `buftype=nofile` write-guard, `<cr>`/`gO` buffer maps, and no headless auto-preview |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
 
 Conventions for new specs: name them `*_spec.lua`, require the module under test

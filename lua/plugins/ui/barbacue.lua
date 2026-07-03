@@ -20,6 +20,10 @@ return {
 		local CONTEXT = "#9aa0b4" -- soft tone for LSP symbol icons
 
 		require("barbecue").setup({
+			-- markdown owns its winbar for the "Open view" reading-view button
+			-- (see render-markdown.lua) — keep barbecue's breadcrumb off it so the
+			-- two don't fight over the same line.
+			exclude_filetypes = { "netrw", "toggleterm", "markdown" },
 			theme = {
 				normal = { fg = FG },
 				ellipsis = { fg = DIM },

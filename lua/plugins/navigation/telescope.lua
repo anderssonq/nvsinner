@@ -25,6 +25,15 @@ return {
 						disable = { "markdown", "markdown_inline" },
 					},
 				},
+				-- Never surface git internals even when searching hidden files below.
+				file_ignore_patterns = { "^%.git/" },
+			},
+			pickers = {
+				-- <leader>f finds hidden dotfiles too (rg --hidden). .git/ is still
+				-- excluded via file_ignore_patterns above so it doesn't flood results.
+				find_files = {
+					hidden = true,
+				},
 			},
 			extensions = {
 				["ui-select"] = {
