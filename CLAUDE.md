@@ -184,8 +184,8 @@ line to `init.lua`** or its files will silently never load.
     `CursorLine`; everything else stays on the base `#0a0a0f` with a tenue
     `WinSeparator` `#2a2a38`. **Focused terminals** (AI column / horizontal
     terminal) additionally get a **full-width top bar** (a `winbar`, `WinBar:`
-    `NvTermFocusBar` `#c4746e`) plus a brighter separator (`NvTermFocusSeparator`
-    `#c4746e`, kanagawa dragonRed — the config's lone accent) — a 1px split line
+    `NvTermFocusBar` `#80949e`) plus a brighter separator (`NvTermFocusSeparator`
+    `#80949e`) — a 1px split line
     was too faint on the near-black bg, so the bar
     carries the focus cue. The bar is **always present** (dim `NvTermBarDim`
     `#16161d` when unfocused, bright when focused) so the terminal never reflows;
@@ -371,7 +371,7 @@ installable, separately-named Neovim distro ("NvSinner").
   case) **and** `FileChangedShellPost`: with `autoread` on and the buffer
   unmodified — the common case — Neovim reloads silently and fires *only*
   `FileChangedShellPost`, NOT `FileChangedShell` (verified empirically), so the
-  Post event is required to catch the usual AI edit. A 500ms per-file dedup keeps
+  Post event is required to catch the usual AI edit. A 250ms per-file dedup keeps
   the two events from double-toasting one write. Only loaded buffers fire either,
   so you're notified for files you actually have open.
 
@@ -504,3 +504,39 @@ at the top of the `describe` block (plenary busted has **no** `setup`/`finally`;
 use `before_each` / restore state inline), and prefer real Neovim behaviour
 (open a terminal, `vim.wait` for the state) over mocking.
 ```
+
+## Skill library (`.claude/skills/`)
+
+Ground-truth-verified runbooks that let a **Sonnet-class agent with zero repo
+history** debug, extend, validate, and advance NvSinner at the standard this
+file sets — without re-deriving context each session. Claude Code auto-loads
+the matching skill from its trigger-rich `description`; nothing here needs to
+be invoked by name. Skills are self-contained (no dependency on this file at
+runtime) but must never contradict it — this file remains the authoritative
+manifest.
+
+| Skill | Covers |
+|------|--------|
+| `nvsinner-change-control` | Change classification, the project's non-negotiables with rationale + incident pointers, validation gates, pre-merge checklist |
+| `nvsinner-debugging-playbook` | Symptom→triage table for known failure modes, with discriminating experiments |
+| `nvsinner-failure-archaeology` | Chronicle of settled investigations, dead ends, and by-design trade-offs — "do not retry" fences |
+| `nvsinner-architecture-contract` | Boot sequence, load-bearing design decisions with WHY, invariants, weak points stated plainly |
+| `neovim-internals-reference` | The Neovim-internals theory pack (fast event contexts, winbar evaluation, terminal buffers, redraw machinery) as applied here |
+| `nvsinner-config-catalog` | Every config axis — tunables, triggers, palette hexes, terminal ids — with current values and how-to-add checklists |
+| `nvsinner-build-and-run` | Environment from scratch, install/update/uninstall anatomy, first-boot behavior, known traps |
+| `nvsinner-diagnostics-toolkit` | Measurement over eyeballing — ships tested scripts: boot-check, startup-time, keymap-audit, palette-audit |
+| `nvsinner-testing-and-qa` | The plenary suite, spec conventions, evidence-bar discipline for calling a change "done" |
+| `nvsinner-docs-and-style` | Docs-of-record map, house style, doc-sync checklist, commit/PR templates |
+| `nvsinner-terminal-ux-campaign` | Decision-gated campaign for the terminal/agent-UX stack: reproduction matrix, ranked solution menu, fenced wrong paths |
+| `nvsinner-empirical-verification` | "Prove it, don't just believe `:help`" — runnable probe recipes + the idea lifecycle |
+| `nvsinner-frontier` | Honest positioning vs. other distros, claim discipline, falsifiable open research problems |
+
+Each skill ends with a **Provenance and maintenance** section (`Facts
+verified: <date>` + one-line re-verification commands) — facts drift, re-run
+those before trusting a value under active development. Authoring this
+library surfaced two doc/code mismatches in this very file, corrected above:
+the AI-edit toast dedup is **250ms** (Auto-reload section) and the
+focused-terminal bar/separator color is **`#80949e`**, not kanagawa dragonRed
+(Touch / focus feedback section) — dragonRed `#c4746e` remains the lone
+*accent* color, used for the `NvAiBusy` busy chip and UI highlights, not the
+terminal bar itself.
