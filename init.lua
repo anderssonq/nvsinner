@@ -27,6 +27,8 @@ require("core.update") -- defines :NvSinnerUpdate (git pull + restore plugins + 
 require("core.health") -- :checkhealth nvsinner + a one-time first-run "missing tools" toast
 require("core.image-open") -- open images in macOS Quick Look instead of showing binary bytes
 require("core.menu") -- :NvSinnerMenu — the settings modal over core/settings.lua
+require("core.prompts") -- :NvSinnerPrompts — prompt library modal (settings/prompts.json → clipboard)
+require("core.help") -- :NvSinnerHelp — command palette listing every NvSinner command (pick → run)
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {

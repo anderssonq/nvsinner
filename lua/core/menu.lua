@@ -1,9 +1,10 @@
 -- ─── :NvSinnerMenu — settings modal ──────────────────────────────────────────
 -- A Mason-style floating panel over lua/core/settings.lua: pick the theme
--- variant, transparency, accent pack, panel sides and notification muting, and
--- watch each change apply live (every change also persists). Keyboard-driven
--- like Mason (j/k move, h/l or <CR>/<Space> cycle, 1-6 jump, q/<Esc> close)
--- AND mouse-clickable (click a row to cycle its value).
+-- variant, transparency, accent pack, neo-tree folder color, the single-role
+-- color slots (info toasts, variables, strings, functions), panel sides and
+-- notification muting, and watch each change apply live (every change also
+-- persists). Keyboard-driven like Mason (j/k move, h/l or <CR>/<Space> cycle,
+-- 1-9 jump, q/<Esc> close) AND mouse-clickable (click a row to cycle its value).
 --
 -- Styling is carbon roles only (lua/core/carbon.lua): recessed float on
 -- NormalFloat/blend, base09 identity accent for values, base03 muted hints.
@@ -19,7 +20,7 @@ local settings = require("core.settings")
 local function apply_hl()
 	local c = require("core.carbon").colors()
 	local set = vim.api.nvim_set_hl
-	set(0, "NvMenuKey", { fg = c.base09, bold = true }) -- the 1-6 shortcut digits
+	set(0, "NvMenuKey", { fg = c.base09, bold = true }) -- the 1-9 shortcut digits
 	set(0, "NvMenuLabel", { fg = c.base04 })
 	set(0, "NvMenuValue", { fg = c.base09, bold = true })
 	set(0, "NvMenuMuted", { fg = c.base03, italic = true }) -- hints, ‹ › arrows
@@ -40,17 +41,30 @@ local function bool_show(on, off)
 	end
 end
 
+-- Choices shared by the single-role color slots (carbon.slot_choices +
+-- "default" = the stock carbon look).
+local SLOT_VALUES = { "default", "accent", "teal", "aqua", "magenta", "pink", "green", "purple", "plain" }
+
 local ITEMS = {
 	{ key = "background", label = "Theme", values = { "dark", "light" } },
 	{ key = "transparent", label = "Transparency", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "accent", label = "Accent", values = { "blue", "magenta", "green", "purple" } },
+	{
+		key = "folder",
+		label = "Folder color",
+		values = { "accent", "teal", "aqua", "pink", "green", "purple", "gray" },
+	},
+	{ key = "notif", label = "Notif color", values = SLOT_VALUES },
+	{ key = "variables", label = "Variables", values = SLOT_VALUES },
+	{ key = "strings", label = "Strings", values = SLOT_VALUES },
+	{ key = "functions", label = "Functions", values = SLOT_VALUES },
 	{ key = "tree_side", label = "Neo-tree side", values = { "left", "right" } },
 	{ key = "ai_side", label = "AI column side", values = { "left", "right" } },
 	{ key = "quiet", label = "Notifications", values = { false, true }, show = bool_show("hidden", "shown") },
 }
 
 local WIDTH = 46
-local HINT = "j/k move · h/l change · 1-6 jump · q close"
+local HINT = "j/k move · h/l change · 1-9 jump · q close"
 local TOP_PAD = 1 -- blank line above the first row
 local ns = vim.api.nvim_create_namespace("nvsinner_menu")
 
@@ -76,7 +90,8 @@ local function render()
 		local shown = it.show and it.show(v) or tostring(v)
 		-- Built in segments so the highlight byte offsets are exact (the ▸
 		-- marker is multi-byte, so fixed columns would drift).
-		local head = string.format(" %s %d  ", (i == ui.sel) and "▸" or " ", i)
+		-- %-2d keeps the label column aligned once the list passes 9 rows.
+		local head = string.format(" %s %-2d ", (i == ui.sel) and "▸" or " ", i)
 		local label = string.format("%-16s", it.label)
 		local value = string.format("‹ %s ›", shown)
 		spans[i] = { head = #head, label = #head + #label, total = #head + #label + #value }
@@ -230,7 +245,9 @@ function M.open()
 	map("<Space>", function()
 		M.cycle(1)
 	end)
-	for i = 1, #ITEMS do
+	-- Only 1-9 are reachable as single keys ("1" is nowait, so a "10" mapping
+	-- could never fire); rows past 9 are reached with j/k or the mouse.
+	for i = 1, math.min(9, #ITEMS) do
 		map(tostring(i), function()
 			ui.sel = i
 			render()

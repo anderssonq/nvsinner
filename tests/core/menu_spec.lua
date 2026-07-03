@@ -22,7 +22,20 @@ describe("core.menu", function()
 		local win = vim.api.nvim_get_current_win()
 		assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative, "must be a float")
 		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-		for _, row in ipairs({ "Theme", "Transparency", "Accent", "Neo-tree side", "AI column side", "Notifications" }) do
+		local rows = {
+			"Theme",
+			"Transparency",
+			"Accent",
+			"Folder color",
+			"Notif color",
+			"Variables",
+			"Strings",
+			"Functions",
+			"Neo-tree side",
+			"AI column side",
+			"Notifications",
+		}
+		for _, row in ipairs(rows) do
 			assert.matches(row, text, nil, true)
 		end
 		assert.matches("q close", text, nil, true) -- the keyboard hint line
@@ -33,7 +46,7 @@ describe("core.menu", function()
 	it("cycle() changes and persists the selected setting", function()
 		menu.open()
 		menu.move(-99) -- clamp to the first row…
-		menu.move(3) -- …then land on row 4: Neo-tree side (left/right)
+		menu.move(8) -- …then land on row 9: Neo-tree side (left/right)
 		assert.are.equal("left", settings.get("tree_side"))
 		menu.cycle(1)
 		assert.are.equal("right", settings.get("tree_side"))

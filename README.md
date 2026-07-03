@@ -81,6 +81,28 @@ the corresponding buffers reload automatically — see the auto-reload setup in
 `core/autoreload.lua`. The column's side (left/right) is configurable in
 `:NvSinnerMenu`.
 
+#### `:NvSinnerPrompts` — the prompt library
+
+Press `<leader>p` (or run `:NvSinnerPrompts`) to open a floating library of
+reusable AI prompts — PR description, strict code review, feature plan, bug
+fix, tests-from-pattern ship as defaults. Each row shows a title and a short
+description; picking one **copies the full prompt to the OS clipboard**, ready
+to paste into the AI column's CLI (then fill in the `[PLACEHOLDERS]`).
+Navigate with `j`/`k`, copy with `Enter`/`Space` (or click a row), jump with
+`1`–`9`, close with `q` — same feel as `:NvSinnerMenu`.
+
+The library is plain JSON at **`settings/prompts.json`**: press `e` inside the
+modal to open it and add or edit prompts (`content` can be a string or an
+array of lines; the file is re-read on every open, so no restart needed).
+
+#### `:NvSinnerHelp` — the command palette
+
+Can't remember a command? `:NvSinnerHelp` lists every NvSinner command
+(`:NvSinnerMenu`, `:NvSinnerPrompts`, `:NvSinnerUpdate`, `:checkhealth
+nvsinner`, …) with a one-line description. Navigate with `j`/`k` and press
+`Enter` — or just click a row — to **run it**; the palette closes itself. New
+commands are discovered automatically, so the list is never stale.
+
 ### 🎨 Appearance
 
 | File | Plugin | What it does |
@@ -99,9 +121,11 @@ the corresponding buffers reload automatically — see the auto-reload setup in
 
 The easiest way to configure the theme (and a few layout choices) is
 **`:NvSinnerMenu`**: a Mason-style floating panel where every change applies
-live and persists across restarts (stored as JSON under the nvsinner data
-dir). Navigate with `j`/`k`, change a value with `h`/`l` (or `Enter`/`Space`),
-jump with `1`–`6`, close with `q` — or use the mouse: hovering moves the
+live and persists across restarts (stored as JSON in the distro's `settings/`
+folder, next to the `:NvSinnerPrompts` library; an older cache under the data
+dir is migrated automatically).
+Navigate with `j`/`k`, change a value with `h`/`l` (or `Enter`/`Space`),
+jump with `1`–`9`, close with `q` — or use the mouse: hovering moves the
 selection onto the row under the pointer (dashboard-style) and a click cycles
 its value.
 
@@ -110,6 +134,11 @@ its value.
 | Theme | `dark` / `light` |
 | Transparency | `off` / `on` |
 | Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent (keywords, active markers, numbers), never the gray surfaces |
+| Folder color | `accent` / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` — recolors Neo-tree's folder names + icons (`accent` follows the Accent pack; `gray` gives a monochrome tree) |
+| Notif color | `default` / `accent` / `teal` / `aqua` / `magenta` / `pink` / `green` / `purple` / `plain` — recolors everyday info toasts (warnings/errors keep their semantic colors) |
+| Variables | same choices — recolors syntax variables, parameters and fields (`default` = plain gray) |
+| Strings | same choices — recolors syntax strings (`default` = carbon purple) |
+| Functions | same choices — paints the whole function/method family in one accent (`default` = the stock carbon mix) |
 | Neo-tree side | `left` / `right` |
 | AI column side | `left` / `right` |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
@@ -126,6 +155,11 @@ value:
 | Background variant | `dark` (default) / `light` | `NVSINNER_BACKGROUND=light nvsinner` | `vim.g.nvsinner_background = "light"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
 | Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
+| Folder color | `accent` (default) / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` | `NVSINNER_FOLDER=aqua nvsinner` | `vim.g.nvsinner_folder = "aqua"` |
+| Notif color | `default` / `accent` / `teal` / `aqua` / `magenta` / `pink` / `green` / `purple` / `plain` | `NVSINNER_NOTIF=pink nvsinner` | `vim.g.nvsinner_notif = "pink"` |
+| Variables color | same choices as Notif color | `NVSINNER_VARIABLES=aqua nvsinner` | `vim.g.nvsinner_variables = "aqua"` |
+| Strings color | same choices as Notif color | `NVSINNER_STRINGS=green nvsinner` | `vim.g.nvsinner_strings = "green"` |
+| Functions color | same choices as Notif color | `NVSINNER_FUNCTIONS=purple nvsinner` | `vim.g.nvsinner_functions = "purple"` |
 
 Transparent mode drops every full-surface background (editor, floats, side
 panels) so your terminal's own background/blur shows through; small solid
@@ -228,6 +262,7 @@ optional cleanups if you customized things:
 | `<leader>t2` … `<leader>t9` | n | Toggle horizontal terminals 2–9 (independent) |
 | `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
+| `<leader>p` | n | Prompt library (`:NvSinnerPrompts`) — copy a reusable AI prompt to the clipboard |
 | `<M-J>` | n, i, t | Toggle AI session 1 (sent by iTerm2's `⌘⌥J`) |
 | `<D-M-j>` | n, t | Toggle AI session 1 (GUI Neovim `⌘⌥J`) |
 | `<Esc>` / `jk` | t | Leave terminal mode |

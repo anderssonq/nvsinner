@@ -29,6 +29,12 @@ local transparent = carbon.transparent()
 local bg0 = transparent and c.none or c.base00 -- editor / panel surfaces
 local bgf = transparent and c.none or c.blend -- float surfaces
 local edge = transparent and c.base01 or c.blend -- float border lines
+local folder = carbon.folder_colors() -- neo-tree folder pack (:NvSinnerMenu)
+-- Single-role color slots (:NvSinnerMenu): nil = keep the stock roles below.
+local notif = carbon.slot_color("notif")
+local vars = carbon.slot_color("variables")
+local strs = carbon.slot_color("strings")
+local funcs = carbon.slot_color("functions")
 
 local hl = {
 	-- ── Core editor UI (§5.1) ────────────────────────────────────────────────
@@ -80,7 +86,7 @@ local hl = {
 	-- ── Syntax, classic groups (§5.2) — syntax bg stays NONE ─────────────────
 	Comment = { fg = c.base03, italic = true },
 	Constant = { fg = c.base04 },
-	Identifier = { fg = c.base04 },
+	Identifier = { fg = vars or c.base04 },
 	Special = { fg = c.base04 },
 	Tag = { fg = c.base04 },
 	Statement = { fg = c.base09 },
@@ -98,9 +104,9 @@ local hl = {
 	Typedef = { fg = c.base09 },
 	Label = { fg = c.base09 },
 	Boolean = { fg = c.base09 },
-	Function = { fg = c.base08 },
-	String = { fg = c.base14 },
-	Character = { fg = c.base14 },
+	Function = { fg = funcs or c.base08 },
+	String = { fg = strs or c.base14 },
+	Character = { fg = strs or c.base14 },
 	Number = { fg = c.base15 },
 	Float = { link = "Number" },
 	Decorator = { fg = c.base12 },
@@ -111,11 +117,13 @@ local hl = {
 	Error = { fg = c.base10, bg = c.base01 },
 
 	-- ── Treesitter captures (§5.3), incl. the modern @markup/@variable names ─
-	["@function"] = { fg = c.base12, bold = true },
-	["@function.builtin"] = { fg = c.base12 },
-	["@function.macro"] = { fg = c.base07 },
-	["@function.method"] = { fg = c.base07 },
-	["@method"] = { fg = c.base07 },
+	-- The "Functions" slot paints the whole family in one accent when set;
+	-- stock is a deliberate mix (base12 defs / base07 methods / base08 :h).
+	["@function"] = { fg = funcs or c.base12, bold = true },
+	["@function.builtin"] = { fg = funcs or c.base12 },
+	["@function.macro"] = { fg = funcs or c.base07 },
+	["@function.method"] = { fg = funcs or c.base07 },
+	["@method"] = { fg = funcs or c.base07 },
 	["@constant.builtin"] = { fg = c.base07 },
 	["@constant.macro"] = { fg = c.base07 },
 	["@namespace"] = { fg = c.base07 },
@@ -145,12 +153,12 @@ local hl = {
 	["@tag.attribute"] = { fg = c.base15 },
 	["@tag.delimiter"] = { fg = c.base15 },
 	["@constant"] = { fg = c.base14 },
-	["@variable"] = { fg = c.base04 },
-	["@variable.builtin"] = { fg = c.base04 },
-	["@parameter"] = { fg = c.base04 },
-	["@variable.parameter"] = { fg = c.base04 },
-	["@field"] = { fg = c.base04 },
-	["@variable.member"] = { fg = c.base04 },
+	["@variable"] = { fg = vars or c.base04 },
+	["@variable.builtin"] = { fg = vars or c.base04 },
+	["@parameter"] = { fg = vars or c.base04 },
+	["@variable.parameter"] = { fg = vars or c.base04 },
+	["@field"] = { fg = vars or c.base04 },
+	["@variable.member"] = { fg = vars or c.base04 },
 	["@text"] = { fg = c.base04 },
 	["@property"] = { fg = c.base10 },
 	["@symbol"] = { fg = c.base15, bold = true },
@@ -287,9 +295,11 @@ local hl = {
 	NotifyWARNBorder = { fg = c.base14, bg = bgf },
 	NotifyWARNIcon = { fg = c.base14 },
 	NotifyWARNTitle = { fg = c.base14 },
-	NotifyINFOBorder = { fg = c.base05, bg = bgf },
-	NotifyINFOIcon = { fg = c.base05 },
-	NotifyINFOTitle = { fg = c.base05 },
+	-- The "Notif color" slot recolors everyday INFO toasts only; WARN/ERROR/
+	-- DEBUG keep their semantic colors (warnings must stay warnings).
+	NotifyINFOBorder = { fg = notif or c.base05, bg = bgf },
+	NotifyINFOIcon = { fg = notif or c.base05 },
+	NotifyINFOTitle = { fg = notif or c.base05 },
 	NotifyDEBUGBorder = { fg = c.base13, bg = bgf },
 	NotifyDEBUGIcon = { fg = c.base13 },
 	NotifyDEBUGTitle = { fg = c.base13 },
@@ -301,8 +311,10 @@ local hl = {
 	-- ── Neo-tree (§7, NvimTree mapping carried over) ─────────────────────────
 	NeoTreeNormal = { fg = c.base04, bg = bg0 },
 	NeoTreeNormalNC = { fg = c.base04, bg = bg0 },
-	NeoTreeDirectoryName = { fg = c.base09 },
-	NeoTreeDirectoryIcon = { fg = c.base12 },
+	-- Folder colors come from the "Folder color" pack (:NvSinnerMenu); the
+	-- stock pack resolves to the old look (name base09 / icon base12).
+	NeoTreeDirectoryName = { fg = folder.name },
+	NeoTreeDirectoryIcon = { fg = folder.icon },
 	NeoTreeRootName = { fg = c.base04, bold = true },
 	NeoTreeFileName = { fg = c.base04 },
 	NeoTreeIndentMarker = { fg = c.base02 },

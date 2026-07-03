@@ -19,6 +19,10 @@ describe("core.settings", function()
 		assert.are.equal("dark", settings.get("background"))
 		assert.is_false(settings.get("transparent"))
 		assert.are.equal("blue", settings.get("accent"))
+		assert.are.equal("accent", settings.get("folder"))
+		for _, slot in ipairs({ "notif", "variables", "strings", "functions" }) do
+			assert.are.equal("default", settings.get(slot), slot)
+		end
 		assert.are.equal("left", settings.get("tree_side"))
 		assert.are.equal("right", settings.get("ai_side"))
 		assert.is_false(settings.get("quiet"))
@@ -106,6 +110,69 @@ describe("core.settings", function()
 			assert.are.equal("green", carbon.accent())
 			vim.g.nvsinner_accent = "bogus"
 			assert.are.equal("blue", carbon.accent())
+		end)
+
+		it("ships the folder packs as role pairs and resolves the flag", function()
+			for _, name in ipairs({ "accent", "teal", "aqua", "pink", "green", "purple", "gray" }) do
+				local pack = carbon.folders[name]
+				assert.is_table(pack, name)
+				assert.is_string(carbon.dark[pack.name], name .. ".name must be a palette role")
+				assert.is_string(carbon.dark[pack.icon], name .. ".icon must be a palette role")
+			end
+			local saved = vim.g.nvsinner_folder
+			vim.g.nvsinner_folder = nil
+			if vim.env.NVSINNER_FOLDER == nil then
+				assert.are.equal("accent", carbon.folder())
+			end
+			vim.g.nvsinner_folder = "aqua"
+			assert.are.equal("aqua", carbon.folder())
+			vim.g.nvsinner_folder = "bogus"
+			assert.are.equal("accent", carbon.folder())
+			vim.g.nvsinner_folder = saved
+		end)
+
+		it("folder_colors() follows the accent pack on stock, a fixed accent otherwise", function()
+			local bg = vim.o.background
+			vim.o.background = "dark"
+			local saved = vim.g.nvsinner_folder
+			vim.g.nvsinner_folder = "accent"
+			vim.g.nvsinner_accent = "green" -- stock folder names must follow base09…
+			assert.are.equal(carbon.accents.green.dark.base09, carbon.folder_colors().name)
+			assert.are.equal(carbon.dark.base12, carbon.folder_colors().icon)
+			vim.g.nvsinner_folder = "aqua" -- …a fixed pack must not
+			assert.are.equal(carbon.dark.base08, carbon.folder_colors().name)
+			assert.are.equal(carbon.dark.base08, carbon.folder_colors().icon)
+			vim.g.nvsinner_folder = saved
+			vim.g.nvsinner_accent = "blue"
+			vim.o.background = bg
+		end)
+
+		it("single-role slots resolve their flag and go nil on default", function()
+			for slot, def in pairs(carbon.slots) do
+				assert.is_string(def.g, slot)
+				assert.is_string(def.env, slot)
+			end
+			for choice, role in pairs(carbon.slot_choices) do
+				assert.is_string(carbon.dark[role], choice .. " must map to a palette role")
+			end
+			local bg = vim.o.background
+			vim.o.background = "dark"
+			local saved = vim.g.nvsinner_strings
+			vim.g.nvsinner_strings = nil
+			if vim.env.NVSINNER_STRINGS == nil then
+				assert.are.equal("default", carbon.slot("strings"))
+				assert.is_nil(carbon.slot_color("strings"), "default must keep the stock roles")
+			end
+			vim.g.nvsinner_strings = "teal"
+			assert.are.equal(carbon.dark.base07, carbon.slot_color("strings"))
+			vim.g.nvsinner_strings = "accent" -- follows the accent pack…
+			vim.g.nvsinner_accent = "green"
+			assert.are.equal(carbon.accents.green.dark.base09, carbon.slot_color("strings"))
+			vim.g.nvsinner_strings = "bogus" -- …and unknown values fall back
+			assert.are.equal("default", carbon.slot("strings"))
+			vim.g.nvsinner_strings = saved
+			vim.g.nvsinner_accent = "blue"
+			vim.o.background = bg
 		end)
 
 		it("colors() applies the pack over base09 only, never the surfaces", function()

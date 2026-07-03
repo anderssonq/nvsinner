@@ -1,9 +1,12 @@
 -- ─── Persistent user settings ────────────────────────────────────────────────
 -- The storage + apply layer behind :NvSinnerMenu (lua/core/menu.lua). One JSON
--- file under stdpath("data") holds the user's choices; this module loads it at
--- startup (required from init.lua right after core.options, so the theme flags
--- land BEFORE lazy.setup applies the colorscheme), exposes get/set, and knows
--- how to apply each setting live.
+-- file in the distro's settings/ folder (stdpath("config")/settings — next to
+-- the :NvSinnerPrompts library, so all user-tweakable state sits in one place;
+-- this cache is gitignored, prompts.json is committed) holds the user's
+-- choices; this module loads it at startup (required from init.lua right after
+-- core.options, so the theme flags land BEFORE lazy.setup applies the
+-- colorscheme), exposes get/set, and knows how to apply each setting live.
+-- A pre-settings/ cache under stdpath("data") is migrated on first load.
 --
 -- Precedence contract (documented in lua/core/carbon.lua): vim.g wins over the
 -- environment. This module only SEEDS vim.g when neither vim.g nor the env var
@@ -11,7 +14,8 @@
 -- choice for that launch.
 --
 -- Settings that other modules consume:
---   * background / transparent / accent → carbon flags (theme.lua, colors/carbon.lua)
+--   * background / transparent / accent / folder / notif / variables /
+--     strings / functions → carbon flags (theme.lua, colors/carbon.lua)
 --   * tree_side → neo-tree position (lua/plugins/navigation/neo-tree.lua)
 --   * ai_side   → AI/vertical terminal column side (lua/plugins/terminal/toggleterm.lua)
 --   * quiet     → mute info-level vim.notify toasts (warnings/errors still show)
@@ -24,12 +28,18 @@ M.defaults = {
 	background = "dark", -- "dark" | "light"
 	transparent = false, -- drop full-surface backgrounds
 	accent = "blue", -- key into require("core.carbon").accents
+	folder = "accent", -- neo-tree folder color: key into require("core.carbon").folders
+	notif = "default", -- info-toast accent: "default" | key into carbon.slot_choices
+	variables = "default", -- syntax variables/params/fields accent (same choices)
+	strings = "default", -- syntax strings accent (same choices)
+	functions = "default", -- syntax functions/methods accent (same choices)
 	tree_side = "left", -- neo-tree column: "left" | "right"
 	ai_side = "right", -- AI / vertical terminal columns: "left" | "right"
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
 }
 
-local file = vim.fn.stdpath("data") .. "/nvsinner-settings.json"
+local legacy_file = vim.fn.stdpath("data") .. "/nvsinner-settings.json" -- pre-settings/ location
+local file = vim.fn.stdpath("config") .. "/settings/nvsinner-settings.json"
 local data = vim.deepcopy(M.defaults)
 
 -- ─── Persistence ─────────────────────────────────────────────────────────────
@@ -42,6 +52,13 @@ function M.load(opts)
 	end
 	data = vim.deepcopy(M.defaults)
 	local fd = io.open(file, "r")
+	local migrating = false
+	if not fd and not (opts and opts.file) then
+		-- One-time migration: fall back to the old stdpath("data") cache and
+		-- re-save it into settings/ below (never when a test seam is in play).
+		fd = io.open(legacy_file, "r")
+		migrating = fd ~= nil
+	end
 	if not fd then
 		return data
 	end
@@ -54,6 +71,9 @@ function M.load(opts)
 				data[k] = decoded[k]
 			end
 		end
+	end
+	if migrating then
+		M.save()
 	end
 	return data
 end
@@ -113,6 +133,26 @@ local apply = {
 		vim.g.nvsinner_accent = v
 		reapply_theme()
 	end,
+	folder = function(v)
+		vim.g.nvsinner_folder = v
+		reapply_theme()
+	end,
+	notif = function(v)
+		vim.g.nvsinner_notif = v
+		reapply_theme()
+	end,
+	variables = function(v)
+		vim.g.nvsinner_variables = v
+		reapply_theme()
+	end,
+	strings = function(v)
+		vim.g.nvsinner_strings = v
+		reapply_theme()
+	end,
+	functions = function(v)
+		vim.g.nvsinner_functions = v
+		reapply_theme()
+	end,
 	quiet = function()
 		M.apply_quiet()
 	end,
@@ -156,6 +196,11 @@ function M.setup(opts)
 	seed_flag("nvsinner_background", "NVSINNER_BACKGROUND", data.background)
 	seed_flag("nvsinner_transparent", "NVSINNER_TRANSPARENT", data.transparent)
 	seed_flag("nvsinner_accent", "NVSINNER_ACCENT", data.accent)
+	seed_flag("nvsinner_folder", "NVSINNER_FOLDER", data.folder)
+	seed_flag("nvsinner_notif", "NVSINNER_NOTIF", data.notif)
+	seed_flag("nvsinner_variables", "NVSINNER_VARIABLES", data.variables)
+	seed_flag("nvsinner_strings", "NVSINNER_STRINGS", data.strings)
+	seed_flag("nvsinner_functions", "NVSINNER_FUNCTIONS", data.functions)
 	-- Defer the notify wrap until noice/notify have installed their handlers.
 	vim.api.nvim_create_autocmd("User", {
 		pattern = "VeryLazy",

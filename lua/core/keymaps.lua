@@ -57,5 +57,8 @@ vim.keymap.set("t", "<C-.>", "<Cmd>lua DecreaseWidth()<CR>", { noremap = true, s
 vim.keymap.set("t", "<C-;>", "<Cmd>lua IncreaseHeight()<CR>", { noremap = true, silent = true })
 vim.keymap.set("t", "<C-'>", "<Cmd>lua DecreaseHeight()<CR>", { noremap = true, silent = true })
 
+-- Prompt library modal (:NvSinnerPrompts) — pick a prompt, copy to clipboard.
+vim.keymap.set("n", "<leader>p", "<Cmd>NvSinnerPrompts<CR>", { silent = true, desc = "Prompt library → clipboard" })
+
 -- Find buffers (Telescope; the plugin lazy-loads on this command).
 vim.api.nvim_set_keymap("n", "<leader>fb", ":Telescope buffers<CR>", { noremap = true, silent = true })

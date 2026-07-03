@@ -123,6 +123,84 @@ function M.accent()
 	return (a and M.accents[a]) and a or "blue"
 end
 
+-- ─── Folder color packs ──────────────────────────────────────────────────────
+-- Which accent paints neo-tree's folders (:NvSinnerMenu "Folder color"). The
+-- values are ROLE NAMES, not hexes, so one table serves both variants and
+-- every accent pack: the pair is resolved through colors() at apply time.
+-- "accent" is the stock carbon look — folder names on the identity accent
+-- (base09, so they follow the accent pack) with the pink base12 icon; every
+-- other pack paints name + icon in one fixed accent. Like accent packs, this
+-- only recolors text accents — gray surfaces never change.
+M.folders = {
+	accent = { name = "base09", icon = "base12" }, -- stock (follows the accent pack)
+	teal = { name = "base07", icon = "base07" },
+	aqua = { name = "base08", icon = "base08" },
+	pink = { name = "base12", icon = "base12" },
+	green = { name = "base13", icon = "base13" },
+	purple = { name = "base14", icon = "base14" },
+	gray = { name = "base04", icon = "base03" }, -- monochrome tree
+}
+
+-- Which folder pack is active: "accent" (default) or a key of M.folders.
+-- Same flag convention: vim.g.nvsinner_folder wins over $NVSINNER_FOLDER.
+function M.folder()
+	local f = vim.g.nvsinner_folder or vim.env.NVSINNER_FOLDER
+	return (f and M.folders[f]) and f or "accent"
+end
+
+-- Resolved hex pair for the active folder pack, over the active variant AND
+-- accent pack: { name = "#…", icon = "#…" }. colors/carbon.lua reads this on
+-- every apply, so `:colorscheme carbon` restyles the tree live.
+function M.folder_colors()
+	local roles = M.folders[M.folder()]
+	local c = M.colors()
+	return { name = c[roles.name], icon = c[roles.icon] }
+end
+
+-- ─── Single-role color slots ─────────────────────────────────────────────────
+-- Generic version of the folder packs for element classes that take ONE color:
+-- each slot (:NvSinnerMenu row) recolors a whole class — info notifications,
+-- syntax variables, strings, functions. "default" keeps the stock carbon look
+-- (colors/carbon.lua's original per-group roles, which for functions is a MIX
+-- of roles — that's why stock can't be expressed as a single choice); any
+-- other value paints the entire class in that one accent. Choices are ROLE
+-- NAMES resolved through colors(), so "accent" follows the accent pack and
+-- every choice adapts to the light variant automatically.
+M.slot_choices = {
+	accent = "base09", -- the identity accent (follows the accent pack)
+	teal = "base07",
+	aqua = "base08",
+	magenta = "base10",
+	pink = "base12",
+	green = "base13",
+	purple = "base14",
+	plain = "base04", -- body-text gray
+}
+
+-- The slots and their flags (same vim.g > env > persisted convention).
+M.slots = {
+	notif = { g = "nvsinner_notif", env = "NVSINNER_NOTIF" }, -- NotifyINFO* accent
+	variables = { g = "nvsinner_variables", env = "NVSINNER_VARIABLES" },
+	strings = { g = "nvsinner_strings", env = "NVSINNER_STRINGS" },
+	functions = { g = "nvsinner_functions", env = "NVSINNER_FUNCTIONS" },
+}
+
+-- Active choice for a slot: "default" or a key of M.slot_choices.
+function M.slot(name)
+	local s = M.slots[name]
+	local v = vim.g[s.g] or vim.env[s.env]
+	return (v and M.slot_choices[v]) and v or "default"
+end
+
+-- Resolved hex for a slot, or nil when "default" (caller keeps stock roles).
+function M.slot_color(name)
+	local choice = M.slot(name)
+	if choice == "default" then
+		return nil
+	end
+	return M.colors()[M.slot_choices[choice]]
+end
+
 -- Roles for the background currently in effect (vim.o.background), with the
 -- active accent pack's overrides applied on top. Consumers re-resolve this on
 -- every ColorScheme re-apply, so switching the accent + `:colorscheme carbon`

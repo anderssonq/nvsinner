@@ -114,8 +114,11 @@ Then open `nvim` and run `:Lazy` / `:Mason` to confirm everything installed.
 init.lua                     Bootstraps lazy.nvim, requires lua/core/*, imports the plugin folders
 colors/carbon.lua            The "carbon" colorscheme (oxocarbon/IBM Carbon port, self-contained)
 lua/core/options.lua         Leaders + core vim options (required FIRST, before lazy)
-lua/core/settings.lua        Persistent :NvSinnerMenu settings (JSON in data dir) — seeds the carbon flags at boot (native)
+lua/core/settings.lua        Persistent :NvSinnerMenu settings (JSON in settings/) — seeds the carbon flags at boot (native)
 lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over core/settings (native)
+lua/core/prompts.lua         :NvSinnerPrompts — prompt-library modal over settings/prompts.json → OS clipboard (native)
+lua/core/help.lua            :NvSinnerHelp — command palette listing every NvSinner command; pick one to run it (native)
+settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
 lua/core/carbon.lua          Carbon base16 role palette + accent packs — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
@@ -214,9 +217,13 @@ line to `init.lua`** or its files will silently never load.
   `vim.g.nvsinner_transparent` / `$NVSINNER_TRANSPARENT` (drops every
   full-surface bg — editor, floats, panels — while chips/bars stay solid for
   legibility; `ui-touch.lua` also drops its focus lift and dim-bar strip in
-  transparent mode), and `vim.g.nvsinner_accent` / `$NVSINNER_ACCENT` (accent
-  pack, below). Documented for users in README's *Theme options (carbon)*,
-  which also carries the glass→carbon migration steps.
+  transparent mode), `vim.g.nvsinner_accent` / `$NVSINNER_ACCENT` (accent
+  pack, below), `vim.g.nvsinner_folder` / `$NVSINNER_FOLDER` (neo-tree
+  folder color pack, below), and the four single-role slot flags
+  `vim.g.nvsinner_notif|variables|strings|functions` /
+  `$NVSINNER_NOTIF|VARIABLES|STRINGS|FUNCTIONS` (below). Documented for users
+  in README's *Theme options (carbon)*, which also carries the glass→carbon
+  migration steps.
 - **Accent packs** — `M.accents` in `core/carbon.lua` defines four selectable
   identity accents (`blue` default / `magenta` / `green` / `purple`, IBM
   Carbon tones). A pack overrides ONLY the identity text-accent pair (`base09`
@@ -225,11 +232,36 @@ line to `init.lua`** or its files will silently never load.
   consumer re-resolves `M.colors()` on `ColorScheme`, switching the accent is
   just `vim.g.nvsinner_accent = <pack>` + `:colorscheme carbon` (which is what
   `core/settings.lua` does).
+- **Single-role color slots** — `M.slots` / `M.slot_choices` in
+  `core/carbon.lua` generalize the pack idea to element classes that take ONE
+  color: `notif` (the NotifyINFO* toast accent — WARN/ERROR keep their
+  semantic colors), `variables` (Identifier + `@variable*`/`@parameter`/
+  `@field`), `strings` (String/Character), `functions` (Function + the whole
+  `@function*`/`@method` family). Choices are role names (`accent` follows
+  the accent pack, plus teal/aqua/magenta/pink/green/purple/plain);
+  `"default"` makes `M.slot_color()` return nil and the colorscheme keep its
+  stock per-group roles (functions stock is a deliberate MIX of roles, which
+  is why stock can't be expressed as a single choice). Flags:
+  `vim.g.nvsinner_<slot>` / `$NVSINNER_<SLOT>`, persisted via `:NvSinnerMenu`.
+- **Folder color packs** — `M.folders` in `core/carbon.lua` maps a pack name
+  (`accent` default / `teal` / `aqua` / `pink` / `green` / `purple` / `gray`)
+  to a **role-name pair** `{ name, icon }` (roles, not hexes — so one table
+  serves both variants and every accent pack). `M.folder_colors()` resolves
+  the pair through `M.colors()`; `colors/carbon.lua` reads it for
+  `NeoTreeDirectoryName` / `NeoTreeDirectoryIcon` on every apply. The stock
+  `accent` pack reproduces the original look (name `base09` — follows the
+  accent pack — icon pink `base12`); the others paint name + icon in one
+  fixed accent, `gray` gives a monochrome tree. Like accents, only text
+  accents change — never surfaces.
 
 ### Settings & menu — `lua/core/settings.lua` + `lua/core/menu.lua` (native, required from `init.lua`)
-- `core/settings.lua` persists user choices as JSON in
-  `stdpath("data")/nvsinner-settings.json` and applies them:
-  `background` / `transparent` / `accent` (carbon flags), `tree_side` (neo-tree
+- `core/settings.lua` persists user choices as JSON in the distro's
+  **`settings/` folder** (`stdpath("config")/settings/nvsinner-settings.json`,
+  gitignored — next to the committed `settings/prompts.json`, so all
+  user-tweakable state sits in one place; a pre-`settings/` cache under
+  `stdpath("data")` is migrated on first load) and applies them:
+  `background` / `transparent` / `accent` / `folder` / `notif` / `variables` /
+  `strings` / `functions` (carbon flags), `tree_side` (neo-tree
   position), `ai_side` (AI/vertical terminal column side), `quiet` (mute
   INFO-level `vim.notify`; WARN/ERROR always pass). **Required right after
   `core.options` in `init.lua`** so it can seed the carbon `vim.g` flags before
@@ -244,8 +276,9 @@ line to `init.lua`** or its files will silently never load.
   *current* notify. `M.load({ file = … })` / `M.setup({ file = … })` are test
   seams (mirror `update.lua` / `health.lua`).
 - `core/menu.lua` defines **`:NvSinnerMenu`** — a Mason-style floating modal
-  over the six settings. Keyboard: `j`/`k` (or arrows) move, `h`/`l` /
-  `<CR>` / `<Space>` cycle a value, `1`-`6` jump, `q`/`<Esc>` close. Mouse:
+  over the eleven settings. Keyboard: `j`/`k` (or arrows) move, `h`/`l` /
+  `<CR>` / `<Space>` cycle a value, `1`-`9` jump (rows past 9 via j/k or
+  mouse), `q`/`<Esc>` close. Mouse:
   hovering moves the selection onto the row under the pointer (`<MouseMove>`,
   same feel as the dashboard menu — the buffer-local map also shadows
   ui-touch's LSP-hover handler over the modal) and a click cycles the row
@@ -260,6 +293,47 @@ line to `init.lua`** or its files will silently never load.
   is deliberately NO WinLeave auto-close: changing "AI column side" makes
   toggleterm jump windows to re-assert the layout, which would tear the modal
   down mid-interaction.
+
+### Prompt library — `lua/core/prompts.lua` + `settings/prompts.json` (native, required from `init.lua`)
+- **`:NvSinnerPrompts`** (also `<leader>p`) — a Mason-style floating modal over
+  the prompt library in `settings/prompts.json`: each entry shows its **title**
+  plus a muted **description** row; picking one copies the full prompt to the
+  **OS clipboard** (`+` and `*` registers, `pcall`-guarded for headless) with a
+  `📋` toast and closes — the pm.sh/fzf flow (pick → clipboard → paste into the
+  AI column's CLI). Keyboard mirrors `:NvSinnerMenu`: `j`/`k` (or arrows) move,
+  `<CR>`/`<Space>`/`l` copy, `1`-`9` jump, **`e` opens the JSON for editing**,
+  `q`/`<Esc>` close. Mouse: hover moves the selection, click copies. Styled
+  with the same `NvMenu*` groups (re-declared locally so the module stands
+  alone; identical values, so double-applying is harmless).
+- **The library is plain JSON, edited by hand** (`e` in the modal or open the
+  file): `{ "prompts": [ { title, description, content } ] }` where `content`
+  is a string **or an array of lines** (arrays are easier to hand-edit). The
+  file is re-read on every open, so edits show up without a restart; invalid
+  entries are skipped and a missing/corrupt file degrades to an in-modal
+  "No prompts found — press e" hint, never an error. `M.load({ file = … })` is
+  the test seam (mirrors `core/settings.lua`).
+- `settings/prompts.json` is **committed** (it ships the five default prompts:
+  PR description, strict code review, feature plan, bug fix, tests-from-pattern
+  — all with `[PLACEHOLDER]` slots to fill after pasting); the
+  `:NvSinnerMenu` cache next to it is **gitignored**.
+
+### Command palette — `lua/core/help.lua` (native, required from `init.lua`)
+- **`:NvSinnerHelp`** — a Mason-style floating modal listing the distro's own
+  commands (title + muted description); selecting one (keyboard `<CR>`/
+  `<Space>`/`l`, or a mouse click) **runs it and auto-closes** the modal, so it
+  doubles as the discoverability entry point for the `:NvSinner*` surface.
+  Navigation mirrors the other modals: `j`/`k` (or arrows) move, `1`-`9` jump,
+  hover moves the selection, `q`/`<Esc>` close. Same `NvMenu*` styling.
+- **The list is self-maintaining**: `M.refresh()` (re-run on every open) scans
+  `nvim_get_commands()` for names starting with `NvSinner` (excluding itself)
+  — for Lua commands the returned `definition` field carries the registered
+  `desc` (verified empirically), which becomes the description; a `DESCS`
+  table overrides it where a keymap hint helps, and `EXTRAS` appends
+  non-command entry points (`:checkhealth nvsinner`). A future `:NvSinnerFoo`
+  shows up automatically with its `desc`.
+- `M.run()` closes **before** executing on purpose: the target may open its own
+  modal (`:NvSinnerMenu`, `:NvSinnerPrompts`) or window (`:checkhealth`) and
+  must not land inside this float. It returns the command name (test seam).
 
 ### Touch / focus feedback — `lua/core/ui-touch.lua` (+ `lua/plugins/ui/illuminate.lua`)
 - Native module `lua/core/ui-touch.lua` (required from `init.lua`) makes focus
@@ -571,7 +645,9 @@ installable, separately-named Neovim distro ("NvSinner").
 |------|--------|
 | `<leader>f` / `<leader>sf` / `<leader>fb` | Telescope find files (incl. hidden dotfiles) / live grep / buffers |
 | `<leader>e` | Toggle Neo-tree (reveals the current file; side from `:NvSinnerMenu`) |
-| `:NvSinnerMenu` | Settings modal: theme, transparency, accent pack, panel sides, notifications |
+| `:NvSinnerMenu` | Settings modal: theme, transparency, accent pack, folder/notif/syntax colors, panel sides, notifications |
+| `<leader>p` / `:NvSinnerPrompts` | Prompt library modal — pick a reusable AI prompt, copy it to the clipboard (`e` edits `settings/prompts.json`) |
+| `:NvSinnerHelp` | Command palette — every NvSinner command with its description; pick one to run it (auto-closes) |
 | `<leader>m` | Markdown "Open view" — toggle the render-markdown reading view (also the clickable winbar button) |
 | `<cr>` / `gO` (in an image buffer) | Reopen image in Quick Look / open in Preview.app |
 | `<C-Space>` (insert) | nvim-cmp trigger completion |
@@ -630,8 +706,10 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/options_spec.lua` | leaders + core editor options |
 | `tests/core/carbon_spec.lua` | carbon role tables (dark/light), the background/transparency flags (`vim.g` + env), and `:colorscheme carbon` honoring both (opaque vs transparent surfaces) |
 | `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + resize helpers |
-| `tests/core/settings_spec.lua` | settings defaults, JSON save/load roundtrip + corrupt-file fallback, vim.g seeding precedence, the quiet notify filter, and the carbon accent packs |
+| `tests/core/settings_spec.lua` | settings defaults, JSON save/load roundtrip + corrupt-file fallback, vim.g seeding precedence, the quiet notify filter, and the carbon accent/folder packs + single-role color slots |
 | `tests/core/menu_spec.lua` | `:NvSinnerMenu` command, the modal float rendering every row, and move/cycle writing through to core/settings |
+| `tests/core/prompts_spec.lua` | `:NvSinnerPrompts` command, JSON loading (array/string content, corrupt-file fallback), the modal listing title+description rows, and copy() returning the prompt + closing |
+| `tests/core/help_spec.lua` | `:NvSinnerHelp` command, refresh() discovering NvSinner* commands (self excluded, late registrations included) + the checkhealth extra, the modal listing rows, and run() executing + auto-closing |
 | `tests/core/autoreload_spec.lua` | `autoread`, the FileChangedShell**Post** autocmds, and the edit toast firing on an external change |
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |

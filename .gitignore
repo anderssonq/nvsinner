@@ -38,7 +38,10 @@ log/
 .tmp/
 
 
-# testing files
+# Testing files
 test.js
 test.ts
 
+
+# NvSinner per-user settings cache (:NvSinnerMenu) — settings/prompts.json IS committed
+settings/nvsinner-settings.json
