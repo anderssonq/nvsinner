@@ -8,7 +8,8 @@
                               ░                                         
 ```
 A Neovim distribution managed with **lazy.nvim**, extended into a Cursor-like
-AI terminal IDE with a dark monochrome glassmorphism theme. Target editor:
+AI terminal IDE with a native **carbon** theme (an oxocarbon / IBM Carbon port —
+industrial grays, blue-forward accents; see `lua/core/carbon.lua`). Target editor:
 **Neovim 0.11+**. Installs as an isolated `NVIM_APPNAME=nvsinner`, so it runs
 side-by-side with any existing `~/.config/nvim` without touching it.
 
@@ -78,8 +79,8 @@ buffers reload automatically — see the auto-reload setup in `core/autoreload.l
 
 | File | Plugin | What it does |
 |------|--------|--------------|
-| `theme.lua` | kanagawa.nvim | Active colorscheme: dragon variant, glass floats (`#0a0a0f` bg) |
-| `lualine.lua` | lualine.nvim | Minimal monochrome global statusline |
+| `theme.lua` | — (native) | Active colorscheme: **carbon**, a self-contained oxocarbon/IBM Carbon port (`colors/carbon.lua` + `lua/core/carbon.lua`) |
+| `lualine.lua` | lualine.nvim | Global statusline with the carbon mode→accent chip |
 | `incline.lua` | incline.nvim | Floating filename label, top-right of each window |
 | `barbacue.lua` | barbecue.nvim | VS Code-style breadcrumbs (winbar) |
 | `dashboard.lua` | alpha-nvim | Start screen — "NvSinner" block logo + quick-action menu (mouse: hover highlights an item, click runs it); rotating dev quote |
@@ -87,6 +88,39 @@ buffers reload automatically — see the auto-reload setup in `core/autoreload.l
 | `cursorline.lua` | nvim-cursorline | Highlights current line and word under cursor |
 | `identmini.lua` | indentmini.nvim | Indentation guides |
 | `notify.lua` | nvim-notify | Pretty notifications (replaces `vim.notify`) |
+
+#### Theme options (carbon)
+
+The carbon theme has two feature flags. Each can be set per launch via an
+environment variable, or persistently with a `vim.g` global early in
+`lua/core/options.lua` (the `vim.g` value wins when both are set):
+
+| Flag | Values | Per launch | Persistent |
+|------|--------|-----------|------------|
+| Background variant | `dark` (default) / `light` | `NVSINNER_BACKGROUND=light nvsinner` | `vim.g.nvsinner_background = "light"` |
+| Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
+
+Transparent mode drops every full-surface background (editor, floats, side
+panels) so your terminal's own background/blur shows through; small solid
+elements (the statusline mode chip, the AI busy chip, the terminal focus bar,
+prompt panels) keep their color so the UI stays legible.
+
+#### Migrating from the glass theme (kanagawa-dragon)
+
+Nothing is required for a stock install — `:NvSinnerUpdate` (or `git pull`
+followed by `nvim --headless "+Lazy! restore" +qa`) picks up the new theme
+automatically, since the carbon colorscheme ships inside this repo. Two
+optional cleanups if you customized things:
+
+- **Leftover plugin:** kanagawa.nvim is no longer in the plugin set; run
+  `:Lazy clean` once to delete it from disk.
+- **Personal highlight tweaks:** anything referencing the old glass hexes
+  (`#0a0a0f`, `#111118`, `#c4746e`, …) should switch to palette roles —
+  `local c = require("core.carbon").colors()` and use `c.base00`, `c.base09`,
+  etc. (the full role table and design notes live in `lua/core/carbon.lua`).
+  Rough mapping: bg `#0a0a0f` → `base00`, glass `#111118` → `blend`, FG
+  `#c5c9d5` → `base04`, muted `#7a7f8d` → `base03`, accent `#c4746e` →
+  `base09` (identity) or `base10` (attention).
 
 ### 🔭 Navigation & search
 

@@ -21,8 +21,9 @@ personal Neovim 0.11+ config. Each file returns a lazy.nvim spec.
 - These windows are **special** and are deliberately skipped by `core/ui-touch.lua`'s
   `eligible()` guard (neo-tree, telescope) and excluded from `scrollbar.lua`. Don't
   add `winhighlight` overrides that fight that — keep their own theming intact but on
-  the glass palette (bg `#0a0a0f`, glass `#111118`, FG `#c5c9d5`, muted `#7a7f8d`,
-  single accent dragonRed `#c4746e`).
+  the carbon palette: roles from `lua/core/carbon.lua` (bg `base00 #161616`,
+  panels `base01`/`base02`, body `base04 #d0d0d0`, muted `base03`; semantic
+  accents — `base09` blue identity, `base10` magenta attention).
 - live grep depends on `ripgrep` being installed — note it if you add grep features.
 
 ## Conventions

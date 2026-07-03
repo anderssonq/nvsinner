@@ -12,7 +12,7 @@ Neovim 0.11+ config. Each file returns a lazy.nvim spec (one plugin per file).
 - `nvim-treesitter.lua` — **the single source of syntax color** for the whole
   config (LSP semantic tokens are deliberately disabled in `lsp/lsp-config.lua` so
   they never flatten the Treesitter palette). Manages parsers + highlighting. Be
-  careful: changes here ripple into how the entire glass theme looks.
+  careful: changes here ripple into how the entire carbon theme looks.
 - `comment.lua` — `Comment.nvim`: `gcc` toggle line comment, `gbc` toggle block
   comment.
 - `autopairs.lua` — `nvim-autopairs`: auto-close brackets/quotes (integrate with
@@ -22,8 +22,9 @@ Neovim 0.11+ config. Each file returns a lazy.nvim spec (one plugin per file).
 
 ## Hard constraints
 - Treesitter owns syntax color. If you change highlight groups, keep them on the
-  glass palette (bg `#0a0a0f`, glass `#111118`, FG `#c5c9d5`, muted `#7a7f8d`,
-  single accent dragonRed `#c4746e`) and don't fight the theme.
+  the carbon palette: roles from `lua/core/carbon.lua` (bg `base00 #161616`,
+  panels `base01`/`base02`, body `base04 #d0d0d0`, muted `base03`; semantic
+  accents — `base09` blue identity, `base10` magenta attention) and don't fight the theme.
 - Adding a treesitter parser: prefer adding to `ensure_installed` rather than relying
   on auto-install at runtime, and note any that need a compiler.
 

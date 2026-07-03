@@ -30,8 +30,9 @@ respect it.
 - Keep the split: **inline blame = git-blame.nvim**, **popup blame = gitsigns**.
   Never enable gitsigns `current_line_blame`.
 - Namespaces: gitsigns owns `<leader>h*`; diffview owns `<leader>g*`. Don't collide.
-- Theme any new git UI to the glass palette (bg `#0a0a0f`, glass `#111118`, FG
-  `#c5c9d5`, muted `#7a7f8d`, single accent dragonRed `#c4746e`).
+- Theme any new git UI to the carbon palette: roles from `lua/core/carbon.lua` (bg `base00 #161616`,
+  panels `base01`/`base02`, body `base04 #d0d0d0`, muted `base03`; semantic
+  accents — `base09` blue identity, `base10` magenta attention).
 
 ## Conventions
 - All Lua, comments in English, one plugin per file, lazy-load via event/cmd/keys.

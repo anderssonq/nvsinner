@@ -31,10 +31,12 @@ local LABEL_IDLE = "idle"
 local DOT_IDLE = "●"
 
 -- The "working" chip's highlight, re-applied on ColorScheme so it survives a
--- kanagawa reload. Accent = kanagawa dragonRed (the config's lone accent, matching
--- ui-touch/theme); dark fg so it reads on the bright chip in any focus state.
+-- colorscheme reload. Carbon pink (base12) chip with dark (base00) text — the
+-- same dark-text-on-accent chip language as the statusline mode blocks — so it
+-- reads in any focus state, including on the bright base11 focused bar.
 local function apply_hl()
-	vim.api.nvim_set_hl(0, "NvAiBusy", { fg = "#0a0a0f", bg = "#c4746e", bold = true })
+	local c = require("core.carbon").colors()
+	vim.api.nvim_set_hl(0, "NvAiBusy", { fg = c.base00, bg = c.base12, bold = true })
 end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = apply_hl })

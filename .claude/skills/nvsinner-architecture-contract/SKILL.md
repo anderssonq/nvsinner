@@ -136,36 +136,27 @@ file. Why both events: with `autoread` on and the buffer unmodified — the
 common case — Neovim reloads silently and fires *only* the Post event
 (verified empirically; the story is in `nvsinner-failure-archaeology`).
 
-### Single-accent glass palette
-One dark monochrome surface, one color accent. Base: kanagawa "dragon"
-(`lua/plugins/ui/theme.lua`). The hexes, each verified in source on 2026-07-02:
+### Carbon palette — one role table, semantic accents
+The theme is **carbon**, a native oxocarbon / IBM Carbon port (it
+replaced the kanagawa-dragon "glass" theme on 2026-07-03). One base16 role
+table defined ONCE in `lua/core/carbon.lua`; `colors/carbon.lua` is the real
+colorscheme (`:colorscheme carbon`), and every consumer (`ui-touch`,
+`ai-activity`, the UI chrome specs) requires the module and references roles —
+raw hexes never appear in consumers, which retires the old "manual palette
+sync" weak point at its root.
 
-| Role | Hex | Defined in |
-|---|---|---|
-| Editor bg (near-black) | `#0a0a0f` | `theme.lua` (`BG`), `ui-touch.lua` (`BG`), `ai-activity.lua` (NvAiBusy chip fg) |
-| Glass surface (floats, focused pane) | `#111118` | `theme.lua` (`GLASS`), `ui-touch.lua` (`GLASS`), `noice.lua` |
-| Float borders | `#333345` | `theme.lua` (`BORDER`), `noice.lua` |
-| Primary FG | `#c5c9d5` | `theme.lua` (`FG`), `noice.lua`, `incline.lua`, `barbacue.lua` |
-| Muted FG | `#7a7f8d` | `ui-touch.lua` (`BAR_DIM_FG`), `incline.lua` / `barbacue.lua` (`MUTED`) |
-| Accent — kanagawa dragonRed, the lone color | `#c4746e` | `ai-activity.lua` (`NvAiBusy` bg), `noice.lua`, `dashboard.lua`, `barbacue.lua`, `incline.lua` (each as `CRIMSON`) |
-| Dim terminal bar (unfocused) | `#16161d` | `ui-touch.lua` (`BAR_DIM`) |
-| Dim separator | `#2a2a38` | `ui-touch.lua` (`SEP_DIM`) |
-| Focused code-pane separator | `#5b5b70` | `ui-touch.lua` (`SEP_ACTIVE`) |
-| Focused terminal bar + separator | `#80949e` | `ui-touch.lua` (`SEP_TERM`) |
-| Focused cursorline wash | `#15151c` | `ui-touch.lua` (`CURSORLINE`) |
+Key dark values: bg `base00 #161616`, panels `base01 #262626`, body `base04
+#d0d0d0`, muted `base03 #525252`, floats recessed on `blend #131313`
+(borderless), focused-pane lift `lift #1c1c1c`. Accents are semantic: `base09
+#78a9ff` blue = identity/active, `base10 #ee5396` magenta = modified/attention,
+`base11 #33b1ff` = focused terminal bar (`SEP_TERM`), `base12 #ff7eb6` pink =
+the `NvAiBusy` busy chip. Full table (dark + light + diff washes):
+`lua/core/carbon.lua`.
 
-**Labeled divergence:** `CLAUDE.md` documents `NvTermFocusBar` /
-`NvTermFocusSeparator` as `#c4746e`; the code (`lua/core/ui-touch.lua:21`,
-`SEP_TERM`) has shipped `#80949e` since the initial commit (`git log -S`
-confirms `#c4746e` never appeared in that file). The code is ground truth; the
-doc value is stale. Same class of drift: `CLAUDE.md` says the autoreload toast
-dedup is 500ms, `lua/core/autoreload.lua:27` implements 250ms. Both are
-evidence for the "manual palette/doc sync" weak point below.
-
-Why one accent: the whole UI (incline, barbecue, noice, dashboard, the busy
-chip) reads as one instrument panel, and any crimson pixel means exactly one
-thing — "active / attention". Off-palette plugin defaults (the old incline
-blue, barbecue's tokyonight colors) were removed for this reason; do not
+Why gray-dominant with few accents: the whole UI (incline, barbecue, noice,
+dashboard, the busy chip) reads as one instrument panel, and each colored pixel
+means exactly one thing. Off-palette plugin defaults (the old incline blue,
+barbecue's tokyonight colors) were removed for this reason; do not
 reintroduce them.
 
 ### Winbar as the terminal focus cue (not a separator)
@@ -222,7 +213,7 @@ terminal. Each rejected alternative was disproven in a real render — the
 methodology lives in `nvsinner-empirical-verification`, the stories in
 `nvsinner-failure-archaeology`, the underlying Neovim mechanics in
 `neovim-internals-reference`. The busy state renders as an accent chip
-(`NvAiBusy`, `#c4746e` bg) so it reads even on a dim unfocused bar; toggleterm
+(`NvAiBusy`, carbon `base12 #ff7eb6` bg) so it reads even on a dim unfocused bar; toggleterm
 tags each buffer with `b:nv_term_label` (`AI · <n>` for ids 100+, `term <n>`
 for 1–9) which `winbar()` prefixes.
 
@@ -234,7 +225,7 @@ for 1–9) which `winbar()` prefixes.
 |---|---|---|---|
 | 1 | Leaders are set before any lazy `keys` spec is read (`core.options` is the first require in `init.lua`) | `init.lua:20`, `lua/core/options.lua:6-7`; `tests/core/options_spec.lua` | Every `<leader>` plugin keymap binds to `\` |
 | 2 | Every `lua/plugins/<category>/` folder has a matching `{ import = "plugins.<category>" }` in `init.lua` (six today) | `init.lua:32-37` | New category's plugins silently never load |
-| 3 | Palette hexes stay identical across every `ColorScheme`-reapplied group: `theme.lua` `apply_glass_highlights`, `ui-touch.lua` `apply_hl`, `noice.lua` `glass_hl`, `ai-activity.lua` `NvAiBusy`, plus incline/barbacue/dashboard constants | Manual sync only — no test | Mismatched surfaces; the "one panel, one accent" read dies (already drifted doc-side, see §2) |
+| 3 | Every color consumer references `lua/core/carbon.lua` roles (no literal hexes outside carbon.lua + dashboard's ramp midpoints) | grep audit only — no test | An inline hex silently forks the palette; the "one panel" read dies |
 | 4 | toggleterm ids: AI panels reserve 100–108 (`id = 99 + n`); horizontals use 1–9 | `lua/plugins/terminal/toggleterm.lua:76,130` | An AI panel claims id 1 and `<leader>t` re-toggles the AI column instead of opening a terminal |
 | 5 | The `on_lines` callback touches only the plain Lua `state` table + `uv.now()` — never `vim.*` API (fast event context) | `lua/core/ai-activity.lua:83-95` | Errors or corruption inside libuv callbacks |
 | 6 | The terminal winbar expression bakes the buffer number in (`winbar(<buf>)`); never rely on `vim.g.statusline_winid` in winbar code | `lua/core/ui-touch.lua:83-85`, `lua/core/ai-activity.lua:58`; `tests/core/ui_touch_spec.lua` | Bar renders empty in real use |
@@ -257,11 +248,12 @@ Rules-as-gates form of these (what a reviewer should block) lives in
   rewrites are discarded with no undo prompt — by design, but there is no
   guard, no "buffer was modified" escalation, nothing. The toast tells you
   *after* the fact.
-- **Palette duplication is manual sync, and it has already drifted.** At least
-  seven files hard-code hexes; nothing tests them against each other. The
-  doc-side drift is live today: `CLAUDE.md` says the terminal focus bar is
-  `#c4746e` while the code has always shipped `#80949e`, and it says the toast
-  dedup is 500ms while the code says 250ms.
+- **Palette drift is now structural, not manual — but docs can still lag.**
+  Code-side duplication was retired on 2026-07-03: every consumer pulls roles
+  from `lua/core/carbon.lua`, so the old seven-file hex sync no longer exists.
+  Doc-side sync (CLAUDE.md, agent files, these skills) remains manual — the
+  historical glass-era drift (`#c4746e` vs `#80949e`, 500ms vs 250ms toast
+  dedup) shows how it happens.
 - **The busy/idle detector is an output heuristic.** Any terminal output =
   busy; 1.2s of quiet = idle. It cannot distinguish an agent genuinely working
   from the agent's own cosmetic spinner redraws (both stream output), and it

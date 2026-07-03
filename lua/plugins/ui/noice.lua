@@ -1,9 +1,9 @@
--- Glass cmdline + message UI (noice.nvim).
+-- Carbon cmdline + message UI (noice.nvim).
 --
--- Moves the `:` command line and search into a centered floating glass box
+-- Moves the `:` command line and search into a centered floating box
 -- (command-palette style), routes messages through nvim-notify, and gives the
--- popup-menu a matching border — so the whole bottom-left noise becomes a clean
--- floating surface that matches the kanagawa glass theme.
+-- popup-menu a matching surface — so the whole bottom-left noise becomes a
+-- clean recessed panel that matches the carbon theme (borderless, on `blend`).
 --
 -- NOTE: LSP hover/signature are deliberately LEFT OFF. The markdown treesitter
 -- highlighter crashes on Neovim 0.12.x when parsing transient floats (same bug
@@ -51,19 +51,21 @@ return {
 			},
 		})
 
-		-- Tie the noice surfaces to the glass palette (theme.lua):
-		-- bg #111118 glass, border #333345. Re-applied on ColorScheme so it
-		-- survives a kanagawa reload (mirrors theme.lua / ui-touch.lua).
-		local function glass_hl()
+		-- Tie the noice surfaces to the carbon palette (lua/core/carbon.lua):
+		-- recessed `blend` panels with invisible borders (the oxocarbon
+		-- telescope look). Re-applied on ColorScheme so it
+		-- survives a colorscheme reload (mirrors ui-touch.lua).
+		local function carbon_hl()
+			local c = require("core.carbon").colors()
 			local set = vim.api.nvim_set_hl
-			set(0, "NoiceCmdlinePopup", { bg = "#111118", fg = "#c5c9d5" })
-			set(0, "NoiceCmdlinePopupBorder", { bg = "#111118", fg = "#333345" })
-			set(0, "NoicePopupmenu", { bg = "#111118", fg = "#c5c9d5" })
-			set(0, "NoicePopupmenuBorder", { bg = "#111118", fg = "#333345" })
-			set(0, "NoicePopupmenuSelected", { bg = "#1c1c26", fg = "#c4746e", bold = true })
-			set(0, "NoiceCmdlineIcon", { fg = "#c4746e" }) -- the prompt glyph in crimson
+			set(0, "NoiceCmdlinePopup", { bg = c.blend, fg = c.base05 })
+			set(0, "NoiceCmdlinePopupBorder", { bg = c.blend, fg = c.blend })
+			set(0, "NoicePopupmenu", { bg = c.blend, fg = c.base04 })
+			set(0, "NoicePopupmenuBorder", { bg = c.blend, fg = c.blend })
+			set(0, "NoicePopupmenuSelected", { bg = c.base02, fg = c.base08, bold = true })
+			set(0, "NoiceCmdlineIcon", { fg = c.base09 }) -- the prompt glyph in accent blue
 		end
-		glass_hl()
-		vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = glass_hl })
+		carbon_hl()
+		vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = carbon_hl })
 	end,
 }

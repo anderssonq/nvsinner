@@ -1,7 +1,8 @@
--- Per-window filename badge (top-right of each split), recolored to the dark
--- glass theme: the ACTIVE window's badge glows in the lone crimson accent
--- (kanagawa dragonRed), every other window stays muted on base. The filetype
--- icon keeps its own colour as foreground (no coloured block) to stay monochrome.
+-- Per-window filename badge (top-right of each split), recolored to the carbon
+-- theme: the ACTIVE window's badge is marked with the blue identity accent
+-- (base09), every other window stays muted on a panel gray. The "modified" dot
+-- uses base10 (carbon's attention magenta). The filetype icon keeps its own
+-- colour as foreground (no coloured block) so surfaces stay gray-dominant.
 return {
 	"b0o/incline.nvim",
 	event = "VeryLazy",
@@ -9,12 +10,14 @@ return {
 	config = function()
 		local devicons = require("nvim-web-devicons")
 
-		-- Glass palette (kept in sync with lua/plugins/theme.lua + ui-touch.lua).
-		local CRIMSON = "#c4746e" -- lone accent: the active window
-		local FG = "#c5c9d5"
-		local MUTED = "#7a7f8d"
-		local BG_ACTIVE = "#1c1c26" -- subtle glass lift for the active badge
-		local BG_INACTIVE = "#121219"
+		-- Carbon palette roles (single source: lua/core/carbon.lua).
+		local c = require("core.carbon").colors()
+		local ACCENT = c.base09 -- blue identity accent: the active window
+		local MODIFIED = c.base10 -- magenta: unsaved-changes marker
+		local FG = c.base04
+		local MUTED = c.base03
+		local BG_ACTIVE = c.base02 -- lifted chip for the active badge
+		local BG_INACTIVE = c.base01
 
 		require("incline").setup({
 			window = {
@@ -33,10 +36,9 @@ return {
 				local is_current = vim.api.nvim_get_current_buf() == props.buf
 
 				local bg = is_current and BG_ACTIVE or BG_INACTIVE
-				local fg = is_current and CRIMSON or MUTED
 
 				return {
-					is_current and { "● ", guifg = CRIMSON, guibg = bg } or "",
+					is_current and { "● ", guifg = ACCENT, guibg = bg } or "",
 					ft_icon and { ft_icon, " ", guifg = ft_color, guibg = bg } or "",
 					{
 						filename,
@@ -44,7 +46,7 @@ return {
 						guifg = is_current and FG or MUTED,
 						guibg = bg,
 					},
-					modified and { " ●", guifg = CRIMSON, guibg = bg } or "",
+					modified and { " ●", guifg = MODIFIED, guibg = bg } or "",
 					guibg = bg,
 				}
 			end,

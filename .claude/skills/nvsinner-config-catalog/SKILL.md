@@ -66,40 +66,49 @@ Note: `splitright` is load-bearing — it is why the AI column's
 > dedup is 500 ms; the code says **250 ms**. The code wins. See also §3 for the
 > terminal-bar color drift.
 
-## 3. Palette — canonical hexes and every file that repeats them
+## 3. Palette — carbon roles, single source
 
-Canonical glass palette (defined in `lua/plugins/ui/theme.lua` and mirrored in
-`lua/core/ui-touch.lua`):
+The palette is the **carbon** base16 role table (oxocarbon / IBM Carbon port),
+defined ONCE in `lua/core/carbon.lua` (dark + light variants + design notes).
+Every consumer — `colors/carbon.lua` (the colorscheme), `lua/core/ui-touch.lua`,
+`lua/core/ai-activity.lua`, and the UI chrome specs — pulls roles via
+`require("core.carbon").colors()`; raw hexes never appear in consumers.
 
-| Role | Hex | Defined in |
+Key role values (dark, the reference variant):
+
+| Role | Hex | Meaning / notable consumers |
 |---|---|---|
-| base bg | `#0a0a0f` | theme.lua `BG`, ui-touch.lua `BG`, ai-activity.lua (NvAiBusy fg) |
-| glass surface | `#111118` | theme.lua `GLASS`, ui-touch.lua `GLASS`, noice.lua, lualine.lua |
-| float border | `#333345` | theme.lua `BORDER`, noice.lua |
-| primary FG | `#c5c9d5` | theme.lua `FG`, barbacue.lua, dashboard.lua, incline.lua, lualine.lua, noice.lua |
-| muted FG | `#7a7f8d` | ui-touch.lua `BAR_DIM_FG`, barbacue.lua `MUTED`, dashboard.lua, incline.lua, lualine.lua |
-| lone accent (kanagawa dragonRed) | `#c4746e` | ai-activity.lua `NvAiBusy` bg, barbacue.lua `CRIMSON`, dashboard.lua `CRIMSON`, incline.lua, noice.lua |
-| dim separator | `#2a2a38` | ui-touch.lua `SEP_DIM` |
-| focused code-pane separator | `#5b5b70` | ui-touch.lua `SEP_ACTIVE` |
-| focused-terminal bar/separator | **`#80949e`** | ui-touch.lua `SEP_TERM` |
-| unfocused terminal bar bg | `#16161d` | ui-touch.lua `BAR_DIM` |
-| focused cursorline | `#15151c` | ui-touch.lua `CURSORLINE` |
+| `base00` | `#161616` | editor bg; dark text on accent chips |
+| `base01` | `#262626` | panels, CursorLine, dim term bar, WinSeparator |
+| `base02` | `#393939` | Visual, prompt panels, active incline chip |
+| `base03` | `#525252` | comments (italic), muted/inactive text |
+| `base04` | `#d0d0d0` | main body text (never pure white) |
+| `base05` | `#f2f2f2` | brightest fg: float text, cmp match |
+| `base09` | `#78a9ff` | blue — keywords, Type, the identity accent (incline dot, dashboard keys, NvMdBtn, cmdline icon) |
+| `base10` | `#ee5396` | magenta — errors, markdown headings, modified markers |
+| `base11` | `#33b1ff` | light blue — focused terminal bar (`SEP_TERM`), CurSearch |
+| `base12` | `#ff7eb6` | pink — `@function`, insert mode, `NvAiBusy` busy chip bg |
+| `blend`  | `#131313` | recessed float bg (borderless floats) |
+| `lift`   | `#1c1c1c` | focused-pane surface (`NvFocusNormal`) |
 
-> ⚠️ **Known doc drift (2026-07-02):** CLAUDE.md describes the focused-terminal
-> bar (`NvTermFocusBar`/`NvTermFocusSeparator`) as `#c4746e` dragonRed. The code
-> has always shipped `SEP_TERM = "#80949e"` (a desaturated steel-blue). The
-> accent chip `NvAiBusy` IS `#c4746e`. When editing either file, match the CODE.
+Full table (base00–base15 + diff washes, dark AND light): `lua/core/carbon.lua`.
+Statusline mode→accent map (lualine.lua): normal `base09`, insert `base12`,
+visual `base14`, replace `base08`, command `base13`, terminal `base11`.
 
-Files containing hex colors as of 2026-07-02 (full list — anything new outside
-this list is a palette-audit finding): `lua/core/ai-activity.lua`,
-`lua/core/ui-touch.lua`, `lua/plugins/ui/{theme,noice,lualine,incline,
-illuminate,identmini,dashboard,barbacue}.lua`. Secondary shades used by
-dashboard/incline/illuminate/barbacue (logo gradient `#e8e8ee…#3c3c4e`, hover
-`#20202c`, lifts `#1c1c26`/`#121219`, illuminate washes `#1b1b24`/`#211b22`,
-barbecue `DIM #54546d`/`CONTEXT #9aa0b4`, indent guide `#676767`) are
-monochrome-family and allowed; new *colored* hexes besides `#c4746e` are not.
+Theme feature flags (resolved by `core/carbon.lua`; `vim.g` wins over env;
+pinned by `tests/core/carbon_spec.lua`):
 
-Re-audit: `grep -rn '#[0-9a-fA-F]\{6\}' lua/ --include='*.lua'`
+| Flag | Default | Set via |
+|---|---|---|
+| background variant | `"dark"` | `vim.g.nvsinner_background` or `$NVSINNER_BACKGROUND` (`"light"` for the light table) |
+| transparency | off | `vim.g.nvsinner_transparent` or `$NVSINNER_TRANSPARENT` (`true`/`1` drops surface bgs; chips/bars stay solid) |
+
+Sanctioned hand-tuned hexes OUTSIDE the role table: the four diff washes (in
+carbon.lua itself) and dashboard.lua's logo-ramp midpoint grays
+(`#aeaeae`/`#8d8d8d`/`#6f6f6f`, plus subtitle `#a2a9b0`) — monochrome-family
+only. Any other literal hex in `lua/` is a palette-audit finding.
+
+Re-audit: `grep -rn '#[0-9a-fA-F]\{6\}' lua/ --include='*.lua' | grep -v lua/core/carbon.lua`
 
 ## 4. Lazy-loading trigger map
 
@@ -140,7 +149,7 @@ lazy.nvim loads it eagerly (this config does not set `defaults.lazy = true`).
 | ui/notify.lua | nvim-notify | `event = "VeryLazy"` |
 | ui/scrollbar.lua | satellite.nvim | `event = {BufReadPost, ...}` |
 | ui/smooth-scroll.lua | neoscroll.nvim | `event = "VeryLazy"` |
-| ui/theme.lua | kanagawa.nvim | `lazy = false`, `priority = 1000` (must theme at startup) |
+| ui/theme.lua | — (local virtual spec; scheme in `colors/carbon.lua`) | `lazy = false`, `priority = 1000` (must theme at startup) |
 | ui/which-key.lua | which-key.nvim | `event = "VeryLazy"` + `keys` |
 
 ## 5. Terminal / AI axes — `lua/plugins/terminal/toggleterm.lua`

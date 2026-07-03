@@ -26,14 +26,17 @@ lazy.nvim) — they are NOT lazy.nvim specs.
   subtle CursorLine, focused-terminal full-width winbar, and debounced
   `<MouseMove>` LSP-doc hover (`relative="mouse"`, non-focusable). An `eligible()`
   guard skips neo-tree/telescope/dashboard/floats. Highlights live in `apply_hl()`
-  re-applied on `ColorScheme` — **keep its palette in sync with `theme.lua`**.
+  re-applied on `ColorScheme` — **all values are carbon roles pulled from
+  `lua/core/carbon.lua`** (the single palette source and design doc).
 
 ## Hard constraints
 - LSP hover/signature markdown floats crash on Neovim 0.12.x — that's why
   `ui-touch.lua` renders hover as plain text. Do not switch it to a markdown float.
-- Palette (must match theme.lua): bg `#0a0a0f`, glass `#111118`, FG `#c5c9d5`,
-  muted `#7a7f8d`, single accent kanagawa dragonRed `#c4746e`. Do not introduce
-  off-palette colors.
+- Palette: carbon roles from `lua/core/carbon.lua` (bg `base00 #161616`, panels
+  `base01`, body `base04 #d0d0d0`, muted `base03`; accents by meaning — `base09`
+  blue identity, `base10` magenta attention, `base11` terminal focus, `base12`
+  pink busy). Never hardcode a hex in a core module — `require("core.carbon")`
+  and reference a role.
 - All Lua, comments in English. If you add a new `require` to a core module, add it
   to `init.lua` in the right order.
 

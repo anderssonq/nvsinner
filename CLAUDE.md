@@ -112,7 +112,9 @@ Then open `nvim` and run `:Lazy` / `:Mason` to confirm everything installed.
 
 ```
 init.lua                     Bootstraps lazy.nvim, requires lua/core/*, imports the plugin folders
+colors/carbon.lua            The "carbon" colorscheme (oxocarbon/IBM Carbon port, self-contained)
 lua/core/options.lua         Leaders + core vim options (required FIRST, before lazy)
+lua/core/carbon.lua          Carbon base16 role palette — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
@@ -171,25 +173,53 @@ line to `init.lua`** or its files will silently never load.
   `ANTHROPIC_API_KEY`. Buffers auto-reload when the CLI edits files on disk (see
   *Auto-reload*).
 
-### Theme — `lua/plugins/ui/theme.lua`
-- Active colorscheme: **kanagawa "dragon"**, dark monochrome glassmorphism.
-- Background `#0a0a0f`; floats use glass `#111118` with `#333345` borders. Glass
-  highlights are re-applied via a `ColorScheme` autocmd so they survive
-  lazy-loaded plugins.
+### Theme — carbon (oxocarbon / IBM Carbon port)
+- Active colorscheme: **carbon**, a self-contained port of oxocarbon.nvim
+  (Nyoom Engineering, inspired by the IBM Carbon Design System) — industrial
+  grayscale core, blue-forward accents, color only where it carries meaning.
+  No external theme plugin; the design doctrine is documented in
+  `lua/core/carbon.lua` itself.
+- **Three files, one palette:** `lua/core/carbon.lua` holds the base16 role
+  palette (`base00`…`base15`, `blend`, `lift`; dark + light variants) and is the
+  SINGLE source of truth — the colorscheme, the core modules, and every UI
+  chrome spec `require` it; raw hexes never appear in consumers.
+  `colors/carbon.lua` is the real colorscheme (`:colorscheme carbon`) applying
+  the full highlight→role mapping (editor UI, syntax, treesitter, diagnostics,
+  diff washes, markdown, telescope/cmp/notify/neo-tree, terminal ANSI).
+  `lua/plugins/ui/theme.lua` is a local virtual lazy spec (`lazy = false,
+  priority = 1000`) whose only job is applying it at startup.
+- Key roles (dark): bg `base00 #161616`, panels `base01 #262626`, body text
+  `base04 #d0d0d0` (never pure white), comments `base03 #525252` italic, floats
+  recessed on `blend #131313` with **invisible borders**, focused-pane lift
+  `lift #1c1c1c`. Identity accent: `base09 #78a9ff` (blue); attention/modified:
+  `base10 #ee5396` (magenta); busy chip: `base12 #ff7eb6` (pink); focused
+  terminal bar: `base11 #33b1ff` (carbon's terminal-mode accent).
+- Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
+  colorscheme reloads and lazy-loaded plugins.
+- **Feature flags** (resolved by `core/carbon.lua`; `vim.g` wins over env):
+  `vim.g.nvsinner_background` / `$NVSINNER_BACKGROUND` (`"dark"` default,
+  `"light"` boots the light variant) and `vim.g.nvsinner_transparent` /
+  `$NVSINNER_TRANSPARENT` (drops every full-surface bg — editor, floats,
+  panels — while chips/bars stay solid for legibility; `ui-touch.lua` also
+  drops its focus lift and dim-bar strip in transparent mode). Documented for
+  users in README's *Theme options (carbon)*, which also carries the
+  glass→carbon migration steps.
 
 ### Touch / focus feedback — `lua/core/ui-touch.lua` (+ `lua/plugins/ui/illuminate.lua`)
 - Native module `lua/core/ui-touch.lua` (required from `init.lua`) makes focus
-  and the mouse feel tactile, layered on the glass theme:
-  - **Active-window border + glow** — the focused window/terminal gets a glass
-    `Normal` (`NvFocusNormal` `#111118`) plus an accent separator and a subtle
-    `CursorLine`; everything else stays on the base `#0a0a0f` with a tenue
-    `WinSeparator` `#2a2a38`. **Focused terminals** (AI column / horizontal
-    terminal) additionally get a **full-width top bar** (a `winbar`, `WinBar:`
-    `NvTermFocusBar` `#80949e`) plus a brighter separator (`NvTermFocusSeparator`
-    `#80949e`) — a 1px split line
+  and the mouse feel tactile, layered on the carbon theme (roles pulled from
+  `lua/core/carbon.lua`):
+  - **Active-window border + glow** — the focused window/terminal gets a lifted
+    `Normal` (`NvFocusNormal` on `lift #1c1c1c`) plus an accent separator and a
+    subtle `CursorLine` (`base01`); everything else stays on `base00 #161616`
+    with a near-invisible `WinSeparator` (`base01`). **Focused terminals** (AI
+    column / horizontal terminal) additionally get a **full-width top bar** (a
+    `winbar`, `WinBar:` `NvTermFocusBar` on `base11 #33b1ff` — carbon's
+    terminal-mode accent, dark text on a solid chip) plus a matching brighter
+    separator (`NvTermFocusSeparator`) — a 1px split line
     was too faint on the near-black bg, so the bar
     carries the focus cue. The bar is **always present** (dim `NvTermBarDim`
-    `#16161d` when unfocused, bright when focused) so the terminal never reflows;
+    `base01` when unfocused, bright when focused) so the terminal never reflows;
     it just brightens. This works in all three terminal layouts (horizontal-only,
     vertical-only, both). Toggled via `WinEnter`/`WinLeave` autocmds setting
     per-window `winhighlight` (and `winbar` for terminals). Special
@@ -201,19 +231,20 @@ line to `init.lua`** or its files will silently never load.
     `term_bar(win)` in `ui-touch.lua` (the buffer number is baked in — see
     *Agent activity* for why), so the bar shows a braille spinner + `working…` while the
     terminal is producing output and `● idle` when it goes quiet. Busy is drawn in
-    an accent **chip** (`NvAiBusy`, crimson) so it stays visible even when the
-    terminal is unfocused; for that the unfocused bar `NvTermBarDim` now carries a
-    readable muted `fg` (`#7a7f8d`) instead of `fg == bg` (which hid the label).
+    an accent **chip** (`NvAiBusy`, carbon pink `base12`) so it stays visible even
+    when the terminal is unfocused; for that the unfocused bar `NvTermBarDim`
+    carries a readable muted `fg` (`base03`) instead of `fg == bg` (which hid the
+    label).
     See *Agent activity* below for the detector.
   - **Mouse hover** — `mousemoveevent` is on; a debounced `<MouseMove>` handler
     shows the LSP doc (or the line's diagnostics as fallback) for the symbol
     under the *pointer* in a `relative="mouse"` float, no `<K>` needed. The float
     is non-focusable and torn down on cursor move / mode / layout change.
-  - Highlights live in an `apply_hl()` re-applied on `ColorScheme` (mirrors
-    `theme.lua`). Keep this palette in sync with `theme.lua`.
+  - Highlights live in an `apply_hl()` re-applied on `ColorScheme`. All values
+    are roles from `lua/core/carbon.lua` — never hardcode a hex here.
 - `illuminate.lua` — `vim-illuminate`: highlights every occurrence of the symbol
   under the cursor (the "actionable text" cue) via LSP → treesitter → regex, with
-  a glass underline (`IlluminatedWordText/Read/Write`). Lazy-loaded on
+  a panel-gray underline (`IlluminatedWordText/Read/Write`). Lazy-loaded on
   `BufReadPost`/`BufNewFile`; defaults map `<a-n>`/`<a-p>` to next/prev reference.
 - `cursorline.lua` — `nvim-cursorline` is **disabled** (`enabled = false`): its
   cursorword duplicated `illuminate` and its cursorline fought `ui-touch`. Kept
@@ -248,7 +279,8 @@ line to `init.lua`** or its files will silently never load.
   buffer number into each window's string (`…winbar(<buf>)`). It must NOT use
   `vim.g.statusline_winid`: that global is populated for 'statusline' evaluation
   but **not** for 'winbar' evaluation (verified), so relying on it made the bar
-  render empty in real use. Busy is wrapped in `%#NvAiBusy#…%*` (a crimson chip,
+  render empty in real use. Busy is wrapped in `%#NvAiBusy#…%*` (a carbon-pink
+  `base12` chip,
   `apply_hl` re-applied on `ColorScheme`) so it shows even on an unfocused/dim bar;
   idle is plain and inherits the focus-aware WinBar highlight. Tunables (`POLL_MS`,
   `IDLE_MS`, `SPINNER`, labels) live at the top of the file.
@@ -263,24 +295,31 @@ line to `init.lua`** or its files will silently never load.
   `TermOpen` trigger added to `ui-touch`'s focus autocmd re-applies focus once the
   buffer is a `terminal`, so the bar + spinner show on the very first open.
 
-### UI chrome — one palette, one accent
-Everything below is themed to the glass palette (bg `#0a0a0f`, glass `#111118`,
-FG `#c5c9d5`, muted `#7a7f8d`) with **one** colour accent: kanagawa dragonRed
-`#c4746e` (the same accent `dashboard.lua` / `ui-touch.lua` use). When editing
-these, do **not** reintroduce off-palette colours (the old incline blue / the old
-barbecue tokyonight defaults were removed for exactly this reason).
-- `incline.lua` — per-window filename badge (top-right). Active window glows in
-  crimson on a glass lift; others stay muted on base. The filetype icon keeps its
-  own colour as *foreground* only (no coloured block) to stay monochrome.
+### UI chrome — one palette, meaningful accents
+Everything below pulls carbon roles from `lua/core/carbon.lua` (bg `base00`,
+panels `base01`/`base02`, body `base04`, muted `base03`, floats on `blend`) with
+accents used **semantically**: `base09` blue = identity/active, `base10` magenta
+= modified/attention, `base12` pink = busy, `base11` light blue = terminal focus.
+When editing these, do **not** hardcode hexes or introduce off-palette colours
+(the old incline blue / the old barbecue tokyonight defaults were removed for
+exactly this reason) — reference a role.
+- `lualine.lua` — statusline with the carbon **mode→accent** map:
+  the mode block is a solid accent chip with dark `base00` text (normal `base09`,
+  insert `base12`, visual `base14`, replace `base08`, command `base13`, terminal
+  `base11`); all other sections stay `base04` on `base00`.
+- `incline.lua` — per-window filename badge (top-right). Active window is marked
+  with a `base09` blue dot on a `base02` chip; others stay muted on `base01`.
+  Modified dot is `base10`. The filetype icon keeps its own colour as
+  *foreground* only (no coloured block) to stay gray-dominant.
 - `barbacue.lua` — `barbecue` breadcrumb winbar (path > LSP symbols) on code
-  windows, recolored: muted dirname/separators, FG basename, soft `#9aa0b4`
-  symbol icons, crimson reserved for the `modified` marker. Pairs with the
+  windows, recolored: muted dirname/separators, `base04` basename, soft `base09`
+  symbol icons, `base10` reserved for the `modified` marker. Pairs with the
   terminal winbar so every window has a consistent top bar. **markdown is in
   `exclude_filetypes`** so it doesn't fight `render-markdown.lua`'s "Open view"
   button for the same winbar line.
 - `render-markdown.lua` — `render-markdown.nvim` gated behind an **"Open view"**
   reading-view toggle. The button is a **centered, clickable** winbar chip
-  (`NvMdBtn`, crimson) on every markdown window (a `%=…%@…@…%X…%=` click region
+  (`NvMdBtn`, accent-blue `base09` on `blend`) on every markdown window (a `%=…%@…@…%X…%=` click region
   driving `_G.NvMdReader.click`); `<leader>m` toggles the same thing. Starts OFF
   (`enabled = false`) and renders only when opted in. **0.12.x crash fix:** the
   spec's `init` overrides the markdown `injections` query to keep only the
@@ -290,7 +329,8 @@ barbecue tokyonight defaults were removed for exactly this reason).
   later from `config()` is too late). Nothing else consumes the markdown TS tree,
   so the blast radius is exactly render-markdown.
 - `noice.lua` — `noice.nvim`: centered floating `:` cmdline (`command_palette`
-  preset), messages routed through `nvim-notify`, glass-themed popups
+  preset), messages routed through `nvim-notify`, carbon-recessed popups on
+  `blend` with invisible borders
   (`NoiceCmdlinePopup*` re-applied on `ColorScheme`). **LSP hover/signature are
   off on purpose** — the markdown treesitter highlighter crashes on Neovim
   0.12.x transient floats (same reason `ui-touch.lua` renders hover as plain
@@ -523,6 +563,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | Spec | Covers |
 |------|--------|
 | `tests/core/options_spec.lua` | leaders + core editor options |
+| `tests/core/carbon_spec.lua` | carbon role tables (dark/light), the background/transparency flags (`vim.g` + env), and `:colorscheme carbon` honoring both (opaque vs transparent surfaces) |
 | `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + resize helpers |
 | `tests/core/autoreload_spec.lua` | `autoread`, the FileChangedShell**Post** autocmds, and the edit toast firing on an external change |
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
@@ -566,10 +607,9 @@ manifest.
 
 Each skill ends with a **Provenance and maintenance** section (`Facts
 verified: <date>` + one-line re-verification commands) — facts drift, re-run
-those before trusting a value under active development. Authoring this
-library surfaced two doc/code mismatches in this very file, corrected above:
-the AI-edit toast dedup is **250ms** (Auto-reload section) and the
-focused-terminal bar/separator color is **`#80949e`**, not kanagawa dragonRed
-(Touch / focus feedback section) — dragonRed `#c4746e` remains the lone
-*accent* color, used for the `NvAiBusy` busy chip and UI highlights, not the
-terminal bar itself.
+those before trusting a value under active development. Note: the skills were
+authored against the previous kanagawa-dragon "glass" palette; the theme is now
+**carbon** (see *Theme* above), so any specific hex a skill quotes
+(bg `#0a0a0f`, glass `#111118`, dragonRed `#c4746e`, terminal bar `#80949e`, …)
+is historical — current values live in `lua/core/carbon.lua`, and this file
+remains the authoritative manifest.

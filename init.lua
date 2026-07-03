@@ -37,8 +37,9 @@ require("lazy").setup({
 		{ import = "plugins.navigation" },
 		{ import = "plugins.terminal" },
 	},
-	-- Colorscheme that will be used when installing plugins
-	install = { colorscheme = { "habamax" } },
+	-- Colorscheme that will be used when installing plugins (carbon ships in
+	-- this repo's colors/, so it's available even on a fresh install).
+	install = { colorscheme = { "carbon", "habamax" } },
 	-- Automatically check for plugin updates
 	checker = { enabled = true },
 })

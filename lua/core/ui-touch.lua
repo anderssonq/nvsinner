@@ -1,9 +1,9 @@
 -- ─── Touch / focus feedback ────────────────────────────────────────────────
--- Makes the editor feel "alive" to the mouse and to focus, on top of the glass
--- kanagawa-dragon theme:
+-- Makes the editor feel "alive" to the mouse and to focus, on top of the
+-- carbon theme:
 --
 --   1. Active-window border + glow — the focused window/terminal gets a subtle
---      glass background and an accent separator, so you can always tell where
+--      surface lift and an accent separator, so you can always tell where
 --      the focus is (the "borde tenue" cue, strongest on the terminal columns).
 --   2. Mouse hover — moving the MOUSE over a symbol shows its LSP doc (or, with
 --      no docs, the line's diagnostics) in a float anchored at the pointer, no
@@ -13,28 +13,32 @@
 -- All native (no plugin) and guarded so special windows — neo-tree, telescope,
 -- the dashboard, floats — are left untouched. Required from init.lua (core).
 
--- Glass palette (kept in sync with lua/plugins/ui/theme.lua).
-local BG = "#0a0a0f" -- base editor bg (inactive panes)
-local GLASS = "#111118" -- focused-pane "glass" glow
-local SEP_DIM = "#2a2a38" -- separator between unfocused panes (tenue)
-local SEP_ACTIVE = "#5b5b70" -- separator owned by a focused code pane (accent)
-local SEP_TERM = "#80949e" -- separator + focused-terminal top bar
-local BAR_DIM = "#16161d" -- unfocused terminal top strip (very subtle)
-local BAR_DIM_FG = "#7a7f8d" -- readable muted text on the dim bar (so the idle/activity label still shows when unfocused)
-local CURSORLINE = "#15151c" -- subtle current-line wash in the focused pane
-
--- Highlight groups. Re-applied on every ColorScheme so they survive the
--- kanagawa (re)load and any lazy-loaded plugin that redefines base groups.
+-- Highlight groups. Re-applied on every ColorScheme so they survive a
+-- colorscheme (re)load and any lazy-loaded plugin that redefines base groups.
+-- Carbon palette roles are resolved INSIDE the applier (single source + design
+-- notes: lua/core/carbon.lua) so the background/transparency flags — and a
+-- later `:set background=light | colorscheme carbon` — take effect on re-apply.
 local function apply_hl()
+	local carbon = require("core.carbon")
+	local c = carbon.colors()
+	-- Transparent mode: full-surface backgrounds (base bg, focused-pane lift,
+	-- dim bar strip) go NONE so the terminal shows through; the focus cue then
+	-- rides on the separators, the CursorLine and the solid terminal focus bar.
+	local transparent = carbon.transparent()
+	local base = transparent and c.none or c.base00 -- base editor bg (inactive panes)
+	local lift = transparent and c.none or c.lift -- focused-pane surface lift
+	local bar_dim = transparent and c.none or c.base01 -- unfocused terminal top strip
 	local set = vim.api.nvim_set_hl
-	set(0, "WinSeparator", { fg = SEP_DIM, bg = BG })
-	set(0, "NvFocusNormal", { bg = GLASS }) -- focused-pane background
-	set(0, "NvFocusSeparator", { fg = SEP_ACTIVE, bg = GLASS }) -- focused code-pane border
-	set(0, "NvTermFocusSeparator", { fg = SEP_TERM, bg = GLASS }) -- focused terminal border (brighter)
-	-- Full-width top bar that marks the focused terminal (bright) vs the rest (dim).
-	set(0, "NvTermFocusBar", { fg = BG, bg = SEP_TERM, bold = true })
-	set(0, "NvTermBarDim", { fg = BAR_DIM_FG, bg = BAR_DIM })
-	set(0, "CursorLine", { bg = CURSORLINE })
+	set(0, "WinSeparator", { fg = c.base01, bg = base }) -- near-invisible between unfocused panes
+	set(0, "NvFocusNormal", { bg = lift }) -- focused-pane background
+	set(0, "NvFocusSeparator", { fg = c.base02, bg = lift }) -- focused code-pane border
+	set(0, "NvTermFocusSeparator", { fg = c.base11, bg = lift }) -- focused terminal border (brighter)
+	-- Full-width top bar that marks the focused terminal (bright) vs the rest
+	-- (dim). base11 is carbon's terminal-mode accent; the dim strip keeps a
+	-- readable muted fg so the idle/activity label still shows when unfocused.
+	set(0, "NvTermFocusBar", { fg = c.base00, bg = c.base11, bold = true })
+	set(0, "NvTermBarDim", { fg = c.base03, bg = bar_dim })
+	set(0, "CursorLine", { bg = c.base01 }) -- current-line wash (carbon canonical)
 end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = apply_hl })

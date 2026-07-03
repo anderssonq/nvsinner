@@ -36,31 +36,32 @@ return {
 		}
 
 		-- ── Palette + highlights ─────────────────────────────────────────────
-		-- Monochrome top→bottom gradient on the logo to match the glass theme
-		-- (theme.lua), with a single muted-crimson accent for the "Sinner"
-		-- identity on shortcuts + footer.
+		-- Monochrome top→bottom gradient on the logo (evenly spaced steps of
+		-- the carbon gray ramp, base05 → base03), with the blue identity accent
+		-- (base09) for the "Sinner" identity on shortcuts + footer.
+		local c = require("core.carbon").colors()
 		local gradient = {
-			"#e8e8ee",
-			"#c5c9d5",
-			"#9aa0b4",
-			"#737a8e",
-			"#54546d",
-			"#3c3c4e",
+			c.base05,
+			c.base04,
+			"#aeaeae", -- ramp midpoints between base04 and base03
+			"#8d8d8d",
+			"#6f6f6f",
+			c.base03,
 		}
-		local CRIMSON = "#c4746e" -- kanagawa "dragonRed", the lone colour accent
-		local FG = "#c5c9d5"
+		local ACCENT = c.base09 -- carbon blue, the identity accent
+		local FG = c.base04
 
 		local function apply_dashboard_hl()
 			for i, color in ipairs(gradient) do
 				vim.api.nvim_set_hl(0, "NvSinnerLogo" .. i, { fg = color, bold = true })
 			end
-			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = CRIMSON, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = ACCENT, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = FG })
-			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = CRIMSON, italic = true })
-			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = "#9aa0b4", italic = true })
-			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = "#7a7f8d", italic = true })
-			-- Hover "pill" on the focused menu item (glass lift + brighter text).
-			vim.api.nvim_set_hl(0, "NvSinnerHover", { fg = "#e8e8ee", bg = "#20202c", bold = true })
+			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = ACCENT, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = "#a2a9b0", italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = c.base03, italic = true })
+			-- Hover "pill" on the focused menu item (panel lift + brighter text).
+			vim.api.nvim_set_hl(0, "NvSinnerHover", { fg = c.base05, bg = c.base02, bold = true })
 		end
 		apply_dashboard_hl()
 		-- Re-assert after any colorscheme reload (mirrors theme.lua's pattern).

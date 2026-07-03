@@ -53,10 +53,11 @@ return {
 		local reader = {}
 		reader.on = false
 
-		-- Glass-palette chip for the button (kept in sync with theme.lua): crimson
-		-- accent text on the glass float bg, so it reads as the lone accent.
+		-- Carbon chip for the button (roles from lua/core/carbon.lua): blue
+		-- identity accent (base09) on the recessed `blend` float surface.
 		local function apply_hl()
-			vim.api.nvim_set_hl(0, "NvMdBtn", { fg = "#c4746e", bg = "#111118", bold = true })
+			local c = require("core.carbon").colors()
+			vim.api.nvim_set_hl(0, "NvMdBtn", { fg = c.base09, bg = c.blend, bold = true })
 		end
 		apply_hl()
 		vim.api.nvim_create_autocmd("ColorScheme", { callback = apply_hl })

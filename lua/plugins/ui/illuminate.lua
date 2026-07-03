@@ -22,14 +22,15 @@ return {
 			},
 		})
 
-		-- Subtle glass underline so occurrences read as "actionable" without
-		-- breaking the monochrome look. Re-applied on ColorScheme so it survives
-		-- the kanagawa reload.
+		-- Subtle panel-gray underline so occurrences read as "actionable"
+		-- without breaking the gray-dominant carbon look (writes get one step
+		-- brighter). Re-applied on ColorScheme so it survives a reload.
 		local function hl()
+			local c = require("core.carbon").colors()
 			local set = vim.api.nvim_set_hl
-			set(0, "IlluminatedWordText", { underline = true, bg = "#1b1b24" })
-			set(0, "IlluminatedWordRead", { underline = true, bg = "#1b1b24" })
-			set(0, "IlluminatedWordWrite", { underline = true, bg = "#211b22" })
+			set(0, "IlluminatedWordText", { underline = true, bg = c.base01 })
+			set(0, "IlluminatedWordRead", { underline = true, bg = c.base01 })
+			set(0, "IlluminatedWordWrite", { underline = true, bg = c.base02 })
 		end
 		hl()
 		vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = hl })

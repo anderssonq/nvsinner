@@ -1,7 +1,7 @@
--- Breadcrumb winbar (path > LSP symbols) on code windows, recolored to the dark
--- glass theme so it speaks the same language as the rest of the UI: muted
--- dirname / separators, a clean FG basename, soft symbol icons, and the lone
--- crimson accent reserved for the "modified" marker.
+-- Breadcrumb winbar (path > LSP symbols) on code windows, recolored to the
+-- carbon theme so it speaks the same language as the rest of the UI: muted
+-- dirname / separators, a clean base04 basename, soft blue symbol icons, and
+-- carbon's attention magenta (base10) reserved for the "modified" marker.
 return {
 	"utilyre/barbecue.nvim",
 	name = "barbecue",
@@ -12,12 +12,13 @@ return {
 		"nvim-tree/nvim-web-devicons",
 	},
 	config = function()
-		-- Glass palette (kept in sync with lua/plugins/theme.lua).
-		local FG = "#c5c9d5"
-		local MUTED = "#7a7f8d"
-		local DIM = "#54546d"
-		local CRIMSON = "#c4746e" -- lone accent
-		local CONTEXT = "#9aa0b4" -- soft tone for LSP symbol icons
+		-- Carbon palette roles (single source: lua/core/carbon.lua).
+		local c = require("core.carbon").colors()
+		local FG = c.base04
+		local MUTED = c.base03
+		local DIM = c.base02
+		local MODIFIED = c.base10 -- carbon's attention magenta
+		local CONTEXT = c.base09 -- soft blue for LSP symbol icons (blue-forward)
 
 		require("barbecue").setup({
 			-- markdown owns its winbar for the "Open view" reading-view button
@@ -28,12 +29,12 @@ return {
 				normal = { fg = FG },
 				ellipsis = { fg = DIM },
 				separator = { fg = DIM },
-				modified = { fg = CRIMSON },
+				modified = { fg = MODIFIED },
 				dirname = { fg = MUTED },
 				basename = { fg = FG, bold = true },
-				context = { fg = CONTEXT },
+				context = { fg = FG },
 
-				-- Symbol/context icons: one soft tone across the board (monochrome).
+				-- Symbol/context icons: one soft blue tone across the board.
 				context_file = { fg = CONTEXT },
 				context_module = { fg = CONTEXT },
 				context_namespace = { fg = CONTEXT },

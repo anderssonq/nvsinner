@@ -112,16 +112,20 @@ full stories live in **nvsinner-failure-archaeology**.
 
 ### Palette & UI chrome
 
-8. **One palette, one accent — never introduce off-palette colors.** The
-   palette: bg `#0a0a0f`, glass `#111118`, FG `#c5c9d5`, muted `#7a7f8d`,
-   single accent kanagawa dragonRed `#c4746e`. Incident: incline shipped its
+8. **One palette, roles not hexes — never introduce off-palette colors.** The
+   palette is the carbon base16 role table (oxocarbon / IBM Carbon port; design
+   notes in `lua/core/carbon.lua`): bg `base00 #161616`, panels `base01`/`base02`, body `base04`,
+   muted `base03`, floats `blend #131313`; accents are semantic — `base09` blue
+   (identity/active), `base10` magenta (modified/attention), `base11` (terminal
+   focus), `base12` pink (busy). Incident: incline shipped its
    default blue and barbecue its tokyonight defaults; both were explicitly
    recolored out (`.tmp/06-28-26_01_nvim-config-restructure-PR-DESCRIPTION.md`).
-9. **The palette is duplicated in `lua/plugins/ui/theme.lua` and
-   `lua/core/ui-touch.lua` (`apply_hl()`), and the two copies must stay in
-   sync.** Both re-apply on `ColorScheme` so lazy-loaded plugins can't clobber
-   them. Any palette edit is by definition a cross-category change (rule in
-   section 1).
+9. **The palette lives ONLY in `lua/core/carbon.lua`.** The colorscheme
+   (`colors/carbon.lua`), the core modules (`ui-touch`, `ai-activity`), and the
+   UI chrome specs all `require("core.carbon")` and reference roles; consumers
+   re-apply on `ColorScheme` so lazy-loaded plugins can't clobber them. Never
+   duplicate a hex into a consumer. A role-value change is still by definition a
+   cross-category change (rule in section 1).
 10. **Treesitter is the single source of syntax color.** The `"*"` LSP
     config's `on_attach` in `lua/plugins/lsp/lsp-config.lua` nils
     `client.server_capabilities.semanticTokensProvider`; removing that line
@@ -262,7 +266,7 @@ Re-verification one-liners for anything that may drift:
 - Semantic tokens nil / automatic_enable / native enable list: `grep -n "semanticTokensProvider\|automatic_enable\|vim.lsp.enable" lua/plugins/lsp/lsp-config.lua`
 - Noice hover/signature still off: `grep -n "enabled = false" lua/plugins/ui/noice.lua`
 - mini.animate scroll still off: `grep -n "scroll" lua/plugins/ui/mini-animate.lua`
-- Palette copies in sync: `grep -n "#0a0a0f\|#111118\|#c4746e\|#7a7f8d" lua/plugins/ui/theme.lua lua/core/ui-touch.lua`
+- Palette single-source: `grep -rn "#[0-9a-f]\{6\}" lua/core lua/plugins --include='*.lua' | grep -v "lua/core/carbon.lua"` (expect only dashboard.lua's logo-ramp midpoint grays)
 - Reserved AI ids: `grep -n "99 + n\|id = n" lua/plugins/terminal/toggleterm.lua`
 - Update uses restore: `grep -n "restore" lua/core/update.lua install.sh`
 - Single vim.cmd exception: `grep -c "vim.cmd" lua/core/options.lua` (expect 1)
