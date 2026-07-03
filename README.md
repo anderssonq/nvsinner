@@ -15,6 +15,7 @@
 ![Neovim 0.11+](https://img.shields.io/badge/Neovim-0.11%2B-57A143?logo=neovim&logoColor=white)
 ![Made with Lua](https://img.shields.io/badge/Made%20with-Lua-2C2D72?logo=lua&logoColor=white)
 ![Managed by lazy.nvim](https://img.shields.io/badge/plugins-lazy.nvim-78a9ff)
+![License: MIT](https://img.shields.io/badge/License-MIT-78a9ff)
 
 [Features](#-features) • [Getting started](#-getting-started) • [The AI workflow](#-the-ai-workflow) • [Settings](#-settings--theming) • [Keybindings](#-full-keybindings-reference) • [Updating](#-updating)
 
@@ -466,3 +467,7 @@ It removes the four `nvsinner` dirs — config (`~/.config/nvsinner`), data
 (`~/.cache/nvsinner`) — and the `~/.local/bin/nvsinner` launcher. If your
 config dir is a symlink (e.g. a dev checkout), only the link is removed; the
 target is left intact. Or remove those five paths by hand.
+
+## 📄 License
+
+[MIT](LICENSE) — © 2026 Andersson Quintero.
