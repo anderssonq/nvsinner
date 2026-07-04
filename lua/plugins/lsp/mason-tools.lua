@@ -11,7 +11,7 @@ return {
 	dependencies = { "williamboman/mason.nvim" },
 	config = function()
 		require("mason-tool-installer").setup({
-			ensure_installed = { "stylua", "prettier", "eslint_d" },
+			ensure_installed = { "stylua", "prettier", "eslint_d", "shfmt" },
 			-- Install what's missing on start, but never auto-UPDATE: package
 			-- updates are the explicit opt-in :NvSinnerSync path, mirroring the
 			-- lazy-lock restore doctrine (ship pinned, float on request).

@@ -81,6 +81,20 @@ describe("core.prompts", function()
 		assert.matches("Beta", toasts[1], nil, true)
 	end)
 
+	it("ships eleven valid prompts in the committed library", function()
+		local shipped = vim.api.nvim_get_runtime_file("settings/prompts.json", false)[1]
+		assert.is_not_nil(shipped, "the committed settings/prompts.json must be on the rtp")
+		local items = prompts.load({ file = shipped })
+		assert.are.equal(11, #items)
+		for _, p in ipairs(items) do
+			assert.are.equal("string", type(p.title))
+			assert.are.equal("string", type(p.description))
+			assert.is_true(#p.content > 0, p.title .. " must have content")
+		end
+		-- Leave the seam pointing back at the spec's temp library.
+		prompts.load({ file = temp })
+	end)
+
 	it("opens with an edit hint when the library is empty", function()
 		write_library("{ not json !!!")
 		prompts.load({ file = temp })

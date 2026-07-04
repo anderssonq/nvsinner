@@ -74,6 +74,11 @@ return {
 				-- like the horizontals, instead of "AI · N".
 				vim.b[buf].nv_term_label = term.__nv_label or (id >= 100 and ("AI · " .. (id - 99)) or ("term " .. id))
 			end
+			-- Bump the session's MRU stamp so the send-to-AI bridge targets the
+			-- panel the user opened last (AI ids are 100+; session = id - 99).
+			if (term.id or 0) >= 100 then
+				require("core.ai-sessions").touch(term.id - 99)
+			end
 			if term.window and vim.api.nvim_win_is_valid(term.window) then
 				vim.api.nvim_set_current_win(term.window)
 			end
@@ -149,10 +154,18 @@ return {
 				-- on_panel_open forces the column full-height on the configured
 				-- side and re-tucks any horizontal terminal bottom-left.
 				on_open = on_panel_open,
+				-- Drop the session from the bridge registry when its CLI dies.
+				on_exit = function()
+					require("core.ai-sessions").unregister(n)
+				end,
 			})
 			-- Winbar title: plain-terminal sessions read "term" (like the
 			-- horizontals); CLI sessions keep the "AI · N" identity.
 			ai_panels[n].__nv_label = (choice and choice.plain) and "term" or nil
+			-- Register with the core session registry (send-to-AI bridge +
+			-- cockpit). Plain-terminal sessions register too: piping text into
+			-- a shell is just as useful.
+			require("core.ai-sessions").register(n, ai_panels[n])
 			return ai_panels[n]
 		end
 
@@ -353,5 +366,11 @@ return {
 				toggle_ai_panel(n)
 			end, { desc = "Toggle AI session " .. n })
 		end
+
+		-- Let the bridge open a session when a send finds none alive (and let
+		-- the <leader>ja picker reopen a hidden one).
+		require("core.ai-sessions").set_opener(function(n)
+			toggle_ai_panel(n or 1)
+		end)
 	end,
 }

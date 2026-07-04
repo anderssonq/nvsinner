@@ -35,10 +35,10 @@ the whole flow (clone → launcher → plugin bootstrap).
 brew install neovim ripgrep node   # neovim MUST be >= 0.11
 ```
 
-The formatting/linting binaries (`stylua`, `prettier`, `eslint_d`) auto-install
-via Mason on first boot (`mason-tool-installer`, see *LSP / formatting*), so no
-manual `brew install stylua` / `npm i -g prettier eslint_d` is needed —
-those remain valid manual fallbacks if the Mason install fails.
+The formatting/linting binaries (`stylua`, `prettier`, `eslint_d`, `shfmt`)
+auto-install via Mason on first boot (`mason-tool-installer`, see *LSP /
+formatting*), so no manual `brew install stylua` / `npm i -g prettier eslint_d`
+is needed — those remain valid manual fallbacks if the Mason install fails.
 
 The config uses `vim.uv` and the native `vim.lsp` API, so it will NOT work below
 0.11 — verify:
@@ -69,13 +69,14 @@ Clones lazy.nvim and every plugin pinned in `lazy-lock.json`.
 
 ### 4. LSP servers via Mason (automatic)
 
-`mason-lspconfig` auto-installs `lua_ls`, `ts_ls`, and `html` on first launch
-(`ensure_installed` in `lsp-config.lua`) — no manual step needed. The only
-optional manual install is `solargraph` (needs a Ruby toolchain; only if you
-edit Ruby):
+`mason-lspconfig` auto-installs `lua_ls`, `ts_ls`, `html`, `pyright`, `bashls`,
+`jsonls`, `yamlls`, and `cssls` on first launch (`ensure_installed` in
+`lsp-config.lua`) — no manual step needed. The toolchain-gated servers are
+optional manual installs: `solargraph` (Ruby), `gopls` (Go), `rust_analyzer`
+(Rust) — they are already enabled and light up once installed:
 
 ```bash
-# Optional (needs Ruby):
+# Optional (each needs its language toolchain):
 nvim --headless "+MasonInstall solargraph" +qa
 ```
 
@@ -126,8 +127,10 @@ settings/prompts.json        The prompt library (committed, user-editable); sett
 lua/core/carbon.lua          Carbon base16 role palette + accent packs — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
+lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, until the user takes over (native)
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
+lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
@@ -188,6 +191,24 @@ line to `init.lua`** or its files will silently never load.
   via the `__nv_label` override read by `on_panel_open`. Keyboard (`j`/`k`,
   `<CR>`, `1`-`4`, `q`/`<Esc>`) + mouse (click a row); styled with the NvMenu*
   groups from `core/menu.lua`.
+- **Send-to-AI bridge — `lua/core/ai-sessions.lua` (native, required from
+  `init.lua`)** — pipes editor context straight into an AI column's terminal
+  job via `chansend()`: `<leader>as` (visual mode) sends the selection,
+  `<leader>ab` sends a claude-style `@path ` mention for the current buffer
+  (cwd-relative, trailing space), `<leader>ad` sends the current line's
+  diagnostics with a `Fix this diagnostic in <file>:` header. Multi-line
+  payloads are **bracketed-paste wrapped** (`\27[200~ … \27[201~`) so a TUI CLI
+  receives ONE editable block instead of submitting each line; the bridge
+  **never auto-submits** (no trailing `\r`) — text lands in the CLI input for
+  review. Targeting: the terminal you are inside > the most-recently-used
+  session with an open column > MRU with a live (hidden) job; with none, it
+  calls the injected opener to open session 1 and warns you to resend once the
+  CLI is up (no queued auto-flush — CLI startup timing makes it flaky).
+  `toggleterm.lua` pushes sessions in (`register` on create, `touch` on open +
+  a `TermEnter` autocmd, `unregister` on exit, `set_opener` for the fallback);
+  the registry is core-native on purpose so the lualine badge, the `<leader>ja`
+  picker, and the tests reach it without loading toggleterm. `M._reset()` /
+  `M._payload()` are test seams.
 - The CLI handles its own auth/billing; the config does **not** read
   `ANTHROPIC_API_KEY`. Buffers auto-reload when the CLI edits files on disk (see
   *Auto-reload*).
@@ -317,10 +338,12 @@ line to `init.lua`** or its files will silently never load.
   entries are skipped and a missing/corrupt file degrades to an in-modal
   "No prompts found — press e" hint, never an error. `M.load({ file = … })` is
   the test seam (mirrors `core/settings.lua`).
-- `settings/prompts.json` is **committed** (it ships the five default prompts:
-  PR description, strict code review, feature plan, bug fix, tests-from-pattern
-  — all with `[PLACEHOLDER]` slots to fill after pasting); the
-  `:NvSinnerMenu` cache next to it is **gitignored**.
+- `settings/prompts.json` is **committed** (it ships eleven default prompts:
+  PR description, strict code review, feature plan, bug fix,
+  tests-from-pattern, commit message, refactor, explain code, docstrings,
+  security review, git conflict resolution — all with `[PLACEHOLDER]` slots to
+  fill after pasting); the `:NvSinnerMenu` cache next to it is **gitignored**.
+  Only entries 1–9 get digit shortcuts; 10–11 are reached via `j`/`k` or mouse.
 
 ### Command palette — `lua/core/help.lua` (native, required from `init.lua`)
 - **`:NvSinnerHelp`** — a Mason-style floating modal listing the distro's own
@@ -431,6 +454,29 @@ line to `init.lua`** or its files will silently never load.
   `focus()` would style it as a code pane and skip the terminal winbar; the
   `TermOpen` trigger added to `ui-touch`'s focus autocmd re-applies focus once the
   buffer is a `terminal`, so the bar + spinner show on the very first open.
+- **Third state: "needs input" (opportunistic, via OSC)** — a `TermRequest`
+  autocmd feeds `M._on_osc(buf, seq)` (test seam): OSC `133;B` (prompt-input
+  start — it fires AFTER the prompt renders, so the prompt's own output can't
+  clobber it via `on_lines`) sets `awaiting`; `133;C` (command start) clears
+  it; OSC `9` / `777` terminal notifications also set it. The winbar renders a
+  `◆ needs input` chip (`NvAiAwait`, `base10` — carbon's attention magenta —
+  re-applied on `ColorScheme`); any fresh output clears `awaiting` in
+  `on_lines` (output trumps a stale prompt mark; still a plain table write —
+  fast-context legal). Probed on NVIM 0.12.3: `TermRequest`'s `ev.data` is a
+  **table** `{ sequence = … }` (a string on 0.11 — the handler normalizes
+  both) and the callback is NOT a fast event context. **Honest limits:** this
+  only lights up for OSC emitters — shells with OSC-133 integration and CLIs
+  that send notification sequences (unverified for `claude`); the 1.2s idle
+  heuristic remains the primary signal. `_on_osc` repaints via the same
+  `nvim__redraw` path (the idle-skipping timer wouldn't).
+- **Cockpit API + badge** — `M.status(buf)` → `"working" | "awaiting" |
+  "idle" | nil` (nil for untracked buffers) is the public per-buffer state;
+  `lualine.lua` combines it with `core/ai-sessions.M.sessions()` into an
+  `lualine_x` badge (`AI: 2 working · 1 needs input`, empty with no sessions —
+  the existing 100ms statusline refresh keeps it live). `<leader>ja` opens a
+  `vim.ui.select` picker (telescope-ui-select skins it) that jumps to a
+  session's window (or reopens a hidden one via the toggleterm opener); like
+  `<leader>j2…`, it costs a bare `<leader>j` one `timeoutlen`.
 
 ### UI chrome — one palette, meaningful accents
 Everything below pulls carbon roles from `lua/core/carbon.lua` (bg `base00`,
@@ -443,7 +489,10 @@ exactly this reason) — reference a role.
 - `lualine.lua` — statusline with the carbon **mode→accent** map:
   the mode block is a solid accent chip with dark `base00` text (normal `base09`,
   insert `base12`, visual `base14`, replace `base08`, command `base13`, terminal
-  `base11`); all other sections stay `base04` on `base00`.
+  `base11`); all other sections stay `base04` on `base00`. `lualine_x` also
+  carries the **AI cockpit badge** (`AI: 2 working · 1 needs input`) built from
+  `core/ai-sessions.sessions()` + `core/ai-activity.status()` — plain text, no
+  accent chip, empty when no sessions exist (see *Agent activity*).
 - `incline.lua` — per-window filename badge (top-right). Active window is marked
   with a `base09` blue dot on a `base02` chip; others stay muted on `base01`.
   Modified dot is `base10`. The filetype icon keeps its own colour as
@@ -482,29 +531,48 @@ exactly this reason) — reference a role.
 - `scrollbar.lua` — `satellite.nvim`: slim decoration-based right-edge scrollbar
   overlaying git hunks / diagnostics / search / cursor. Excludes neo-tree,
   toggleterm, telescope, dashboard, etc.
+- `which-key.lua` — `which-key.nvim` with **group labels** in `opts.spec` for
+  the leader namespaces (`a` ai, `g` git, `h` hunks, `j` ai sessions, `l` lsp,
+  `s` search, `S` session, `t` terminal, `x` trouble); individual entries come
+  from each map's `desc`. Do NOT add an empty `config` function — it would
+  suppress the automatic `setup(opts)` (warned in the file).
 
 ### LSP / formatting
 - `lsp-config.lua` — `mason` + `mason-lspconfig`, then the **Neovim 0.11 native
   API**: `vim.lsp.config("*", { capabilities })` + `vim.lsp.enable({...})`.
-  Servers: `ts_ls`, `solargraph`, `html`, `lua_ls`. Do **not** reintroduce
+  Enabled servers: `ts_ls`, `solargraph`, `html`, `lua_ls`, `pyright`, `gopls`,
+  `rust_analyzer`, `bashls`, `jsonls`, `yamlls`, `cssls`. Do **not** reintroduce
   `require("lspconfig").<server>.setup()` (deprecated).
-  - `mason-lspconfig` carries `ensure_installed = { "lua_ls", "ts_ls", "html" }`
-    so a fresh NvSinner install auto-installs those on first boot (it's `event =
+  - `mason-lspconfig` carries `ensure_installed = { "lua_ls", "ts_ls", "html",
+    "pyright", "bashls", "jsonls", "yamlls", "cssls" }` — all node-standalone,
+    so a fresh NvSinner install auto-installs them on first boot (it's `event =
     "VeryLazy"` + depends on `mason.nvim` so the install fires even on the
     dashboard). `automatic_enable = false` on purpose: **we** enable servers via
     `vim.lsp.enable` *after* the `"*"` config lands — otherwise mason-lspconfig
     could start a server before `on_attach` nils semantic tokens (below) and the
-    `@lsp.*` repaint would come back. solargraph is left out of `ensure_installed`
-    (needs Ruby) but stays in `vim.lsp.enable` (harmless if not installed).
+    `@lsp.*` repaint would come back. The toolchain-gated servers — solargraph
+    (Ruby), gopls (Go), rust_analyzer (Rust) — are left out of
+    `ensure_installed` but stay in `vim.lsp.enable` (harmless if not
+    installed; they light up once the toolchain + server exist).
+  - **LSP keymaps are global on purpose** (not LspAttach/buffer-local): the
+    `vim.lsp.buf.*` calls no-op safely without a client and global maps keep
+    which-key listings stable. `<leader>rn` = rename. The Neovim 0.11
+    **builtins are documented, not remapped**: `grn` rename, `grr` references,
+    `gri` implementation, `gO` document symbols, `]d`/`[d` diagnostics.
+- `trouble.lua` — `trouble.nvim`: workspace diagnostics / symbols / quickfix
+  panel on the `<leader>x*` namespace (`xx` diagnostics, `xX` buffer-only,
+  `xs` symbols, `xl` loclist, `xq` qflist), lazy on `cmd`/`keys`. It only
+  *lists* diagnostics — `diagnostics.lua` keeps owning `vim.diagnostic.config`.
 - **Treesitter is the single source of syntax colour.** The `"*"` config's
   `on_attach` nils `client.server_capabilities.semanticTokensProvider`, so LSP
   semantic tokens (`@lsp.*`) never repaint the buffer ~1s after open and flatten
   the Treesitter palette. Remove that line if you ever want semantic highlighting.
 - `completions.lua` — `nvim-cmp` + LuaSnip. `<C-Space>` triggers completion.
 - `none-ls.lua` — `none-ls` + `none-ls-extras`; sources: `stylua`, `prettier`,
-  `eslint_d` (eslint_d comes from none-ls-extras and needs the binary on PATH).
+  `shfmt`, `eslint_d` (eslint_d comes from none-ls-extras and needs the binary
+  on PATH).
 - `mason-tools.lua` — `mason-tool-installer.nvim` auto-installs the none-ls
-  binaries (`stylua`, `prettier`, `eslint_d`) via Mason on first boot
+  binaries (`stylua`, `prettier`, `eslint_d`, `shfmt`) via Mason on first boot
   (`event = "VeryLazy"`, same trigger as mason-lspconfig, so it fires even on
   the dashboard). `auto_update = false` on purpose — package updates stay the
   opt-in `:NvSinnerSync` path. `:MasonToolsInstall` retries a failed install;
@@ -582,6 +650,24 @@ installable, separately-named Neovim distro ("NvSinner").
   Post event is required to catch the usual AI edit. A 250ms per-file dedup keeps
   the two events from double-toasting one write. Only loaded buffers fire either,
   so you're notified for files you actually have open.
+- **AI edit highlights — `lua/core/ai-edits.lua` (native, required from
+  `init.lua`)** — the lines an external write changed get a **full-width
+  background wash in the user's accent** (`NvAiEdit`: `base09` — follows the
+  :NvSinnerMenu accent pack — blended into `base00` at low alpha, computed
+  per-channel since highlights have no opacity; a CursorLine-subtle wash that
+  carries the accent hue, so code text keeps contrast and the marks never
+  read as git state; retinted live on ColorScheme). A per-buffer
+  snapshot of the last *user-blessed* content (first read, last save, last
+  clear) is `vim.diff`-ed against the reloaded buffer on
+  `FileChangedShellPost`; deliberately NOT re-snapshotted on every
+  `BufReadPost`, or the reload would overwrite the pre-reload content before
+  the diff runs. Marks survive while focus stays in the AI column and clear
+  the moment the user **takes over the file** — cursor move, edit, or insert
+  in that buffer (autocmds armed one scheduled tick late so the reload's own
+  cursor restore can't wipe them). Deletion-only hunks are skipped (no
+  surviving line to wash); buffers over `M.MAX_LINES` (20000) and
+  special buftypes are skipped. `M.mark`/`M.clear`/`M._reset`/`M._ns` are the
+  test seams.
 
 ### Updater — `lua/core/update.lua` (native, required from `init.lua`)
 - Defines the `:NvSinnerUpdate` command (à la `:NvChadUpdate` / `:AstroUpdate`):
@@ -704,11 +790,17 @@ installable, separately-named Neovim distro ("NvSinner").
 | `<leader>t` / `<leader>t2` … `<leader>t9` | Horizontal terminals 1–9 (independent) |
 | `<leader>j` / `<M-J>` / `<D-M-j>` | Toggle AI session 1 (terminal column; first open asks which CLI) |
 | `<leader>j2` … `<leader>j9` | Toggle AI sessions 2–9 (independent columns) |
+| `<leader>ja` | AI session picker — jump to (or reopen) a session, with its working/idle status |
+| `<leader>as` (visual) / `<leader>ab` / `<leader>ad` | Send to AI: selection / `@path` mention / current-line diagnostics (lands in the CLI input, never auto-submits) |
+| `<leader>sd` / `<leader>sk` / `<leader>sc` / `<leader>sr` | Telescope: diagnostics / keymaps / commands / resume last search |
+| `<leader>sh` / `<leader>ss` / `<leader>sR` | Telescope: help tags / document symbols / LSP references |
+| `<leader>xx` / `<leader>xX` / `<leader>xs` / `<leader>xl` / `<leader>xq` | Trouble: diagnostics / buffer diagnostics / symbols / loclist / qflist |
 | `]h` / `[h` | Next / previous git hunk (gitsigns) |
 | `<leader>hp` / `<leader>hs` / `<leader>hr` / `<leader>hb` | Hunk: preview / stage / reset / blame line |
 | `<leader>gd` / `<leader>gh` / `<leader>gH` / `<leader>gq` | Diffview: open diff / file history / repo history / close |
 | `s` / `S` / `gs` | leap forward / backward / cross-window |
-| `K` / `gd` / `<leader>lf` / `<leader>ca` | LSP hover / definition / format / code action |
+| `K` / `gd` / `<leader>lf` / `<leader>ca` / `<leader>rn` | LSP hover / definition / format / code action / rename |
+| `grn` / `grr` / `gri` / `gO` / `]d` / `[d` | Neovim 0.11 builtins (not remapped): rename / references / implementation / document symbols / next / prev diagnostic |
 | `<leader>SQ` / `<leader>Sc` / `<leader>Sl` | Session: quit no-save / restore cwd / restore last |
 | `gcc` / `gbc` | Toggle line / block comment |
 | `<C-y>` / `<C-u>` / `<C-r>` | Save / undo / redo (with notifications) |
@@ -718,7 +810,7 @@ installable, separately-named Neovim distro ("NvSinner").
 
 Neovim **0.11+** (hard requirement — uses `vim.uv` and the native `vim.lsp`
 API), `git`, `ripgrep` (live grep), `node` (for `prettier` / `eslint_d`), a Nerd
-Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`
+Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`, `shfmt`
 (auto-installed via Mason on first boot — see `mason-tools.lua`). For AI,
 install a CLI agent such as Claude Code (`claude`). See *Installation* above for
 exact commands.
@@ -759,11 +851,13 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + the resize step applied behaviorally (+20 cols) |
 | `tests/core/settings_spec.lua` | settings defaults, JSON save/load roundtrip + corrupt-file fallback, vim.g seeding precedence, the quiet notify filter, and the carbon accent/folder packs + single-role color slots |
 | `tests/core/menu_spec.lua` | `:NvSinnerMenu` command, the modal float rendering every row, and move/cycle writing through to core/settings |
-| `tests/core/prompts_spec.lua` | `:NvSinnerPrompts` command, JSON loading (array/string content, corrupt-file fallback), the modal listing title+description rows, and copy() returning the prompt + closing |
+| `tests/core/prompts_spec.lua` | `:NvSinnerPrompts` command, JSON loading (array/string content, corrupt-file fallback), the modal listing title+description rows, copy() returning the prompt + closing, and the shipped library carrying 11 valid entries |
 | `tests/core/help_spec.lua` | `:NvSinnerHelp` command, refresh() discovering NvSinner* commands (self excluded, late registrations included) + the checkhealth extra, the modal listing rows, and run() executing + auto-closing |
 | `tests/core/autoreload_spec.lua` | `autoread`, the FileChangedShell**Post** autocmds, and the edit toast firing on an external change |
+| `tests/core/ai_edits_spec.lua` | the NvAiEdit accent-wash group (bg-only, blended — never the raw accent), a real external rewrite washing exactly the changed/added lines after the autoread reload, clear() re-baselining the snapshot, the armed take-over autocmds wiping the marks, and special buffers being skipped |
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
-| `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid + a real streaming terminal flipping working→idle |
+| `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid, a real streaming terminal flipping working→idle, `status()` for untracked buffers, and the awaiting state (`_on_osc` on `133;B`/`133;C`/OSC 9, output clearing it, the `NvAiAwait` chip) |
+| `tests/core/ai_sessions_spec.lua` | registry register/unregister + sessions() snapshot, target() MRU semantics (open > live job, current-terminal override), send() into a real terminal job, bracketed-paste payload wrapping, the no-session opener fallback + warn, `@path` mention + diagnostics formatting, and the `<leader>as/ab/ad/ja` maps |
 | `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
 | `tests/core/sync_spec.lua` | `:NvSinnerSync` command exists, `outdated()` version comparison (stale/fresh/no-receipt/throwing lookup), `branch_jumps()` lockfile diffing (jump detection, added/removed ignored), and the mason-unavailable warning path |
 | `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |

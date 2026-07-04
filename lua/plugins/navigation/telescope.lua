@@ -10,7 +10,14 @@ return {
 	keys = {
 		{ "<leader>f", "<cmd>Telescope find_files<cr>", desc = "Find files" },
 		{ "<leader>sf", "<cmd>Telescope live_grep<cr>", desc = "Live grep" },
-		-- <leader>fb (buffers) is mapped in lua/vim-config.lua and also triggers
+		{ "<leader>sd", "<cmd>Telescope diagnostics<cr>", desc = "Search diagnostics" },
+		{ "<leader>sk", "<cmd>Telescope keymaps<cr>", desc = "Search keymaps" },
+		{ "<leader>sc", "<cmd>Telescope commands<cr>", desc = "Search commands" },
+		{ "<leader>sr", "<cmd>Telescope resume<cr>", desc = "Resume last search" },
+		{ "<leader>sh", "<cmd>Telescope help_tags<cr>", desc = "Search help" },
+		{ "<leader>ss", "<cmd>Telescope lsp_document_symbols<cr>", desc = "Document symbols" },
+		{ "<leader>sR", "<cmd>Telescope lsp_references<cr>", desc = "LSP references" },
+		-- <leader>fb (buffers) is mapped in lua/core/keymaps.lua and also triggers
 		-- this lazy load via the :Telescope command stub.
 	},
 	config = function()

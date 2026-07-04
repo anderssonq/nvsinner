@@ -17,9 +17,11 @@ return {
 		config = function()
 			require("mason-lspconfig").setup({
 				-- First-boot auto-install (the distro should need no manual
-				-- :MasonInstall). solargraph is intentionally omitted — it needs a
-				-- Ruby toolchain; install it by hand only if you edit Ruby.
-				ensure_installed = { "lua_ls", "ts_ls", "html" },
+				-- :MasonInstall). Everything here installs standalone via node —
+				-- no extra toolchain needed. solargraph (Ruby), gopls (Go) and
+				-- rust_analyzer (Rust) are intentionally omitted: they need their
+				-- language toolchains; install by hand only if you edit those.
+				ensure_installed = { "lua_ls", "ts_ls", "html", "pyright", "bashls", "jsonls", "yamlls", "cssls" },
 				-- We enable + configure servers ourselves via the native vim.lsp
 				-- API in nvim-lspconfig's config (the "*" config nils semantic
 				-- tokens to keep Treesitter as the single colour source). Don't let
@@ -57,12 +59,35 @@ return {
 					client.server_capabilities.semanticTokensProvider = nil
 				end,
 			})
-			vim.lsp.enable({ "ts_ls", "solargraph", "html", "lua_ls" })
+			-- Enabling a server whose binary is absent is harmless (it just never
+			-- starts), so the toolchain-gated servers (solargraph, gopls,
+			-- rust_analyzer) stay enabled here even though ensure_installed above
+			-- skips them: install the toolchain + server and they light up.
+			vim.lsp.enable({
+				"ts_ls",
+				"solargraph",
+				"html",
+				"lua_ls",
+				"pyright",
+				"gopls",
+				"rust_analyzer",
+				"bashls",
+				"jsonls",
+				"yamlls",
+				"cssls",
+			})
 
+			-- Global on purpose (not LspAttach/buffer-local): these call safe
+			-- vim.lsp.buf functions that no-op without a client, and global maps
+			-- keep which-key listings stable. Neovim 0.11 builtins cover the
+			-- rest: grn (rename), grr (references), gri (implementation),
+			-- gO (document symbols), ]d/[d (diagnostics) — documented in the
+			-- README/CLAUDE.md keymap tables rather than remapped.
 			vim.keymap.set("n", "K", vim.lsp.buf.hover, { desc = "LSP hover docs" })
 			vim.keymap.set("n", "<leader>lf", vim.lsp.buf.format, { desc = "Format Code" })
 			vim.keymap.set("n", "gd", vim.lsp.buf.definition, { desc = "Go to definition" })
 			vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code action" })
+			vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { desc = "Rename symbol" })
 		end,
 	},
 }

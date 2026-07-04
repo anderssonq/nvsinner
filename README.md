@@ -33,21 +33,39 @@ any existing `~/.config/nvim` without touching it.
   `kiro-cli`, `opencode`, …) in up to 9 persistent vertical columns
   (`<leader>j`, `<leader>j2`…`j9`). The first open shows a picker asking which
   CLI to launch; the CLI handles its own auth, no API key touches the config.
+- **Send-to-AI bridge** — pipe editor context straight into the AI column
+  without touching the clipboard: `<leader>as` sends the visual selection,
+  `<leader>ab` an `@path` mention, `<leader>ad` the current line's
+  diagnostics. Text lands in the CLI's input as one editable block — never
+  auto-submitted.
+- **AI edit highlights** — when the agent rewrites an open file, the changed
+  lines get a soft wash of your accent color right in the file pane (distinct
+  from git's gutter marks) and clear the moment you take the file over.
 - **Live agent activity** — every terminal carries a winbar with a session
-  label and a native busy/idle spinner (`⠹ working…` / `● idle`), so you can
-  see which agent is thinking without visiting its column.
+  label and a native busy/idle spinner (`⠹ working…` / `● idle`), plus an
+  opportunistic `◆ needs input` state when the program signals a prompt via
+  OSC sequences (shell integration / notifying CLIs). The statusline shows a
+  cockpit badge (`AI: 2 working · 1 idle`) across all sessions, and
+  `<leader>ja` opens a picker that jumps to any session.
 - **Disk-wins auto-reload** — when the agent edits a file, the open buffer
   reloads automatically and a `🤖 AI · edited <file>` toast names it.
-- **Prompt library** — `<leader>p` opens a modal of reusable AI prompts
-  (plain JSON, hand-editable) and copies your pick to the OS clipboard.
+- **Prompt library** — `<leader>p` opens a modal of eleven reusable AI
+  prompts (plain JSON, hand-editable) and copies your pick to the OS
+  clipboard.
 - **Mason-style modals** — `:NvSinnerMenu` (settings, persisted),
   `:NvSinnerPrompts`, and `:NvSinnerHelp` (a command palette that runs what
   you pick), all keyboard- and mouse-driven.
 - **Carbon theme, configurable in one place** — dark/light variants,
   transparency, four accent packs, and per-role color slots, all from a
   single palette file (`lua/core/carbon.lua`) — live-applied and persisted.
-- **Native-first** — focus glow, mouse-hover docs, agent activity, health
-  checks, and the updater are zero-dependency core modules, not plugins.
+- **Native-first** — focus glow, mouse-hover docs, agent activity, the
+  send-to-AI bridge, health checks, and the updater are zero-dependency core
+  modules, not plugins.
+- **Distro table stakes** — Trouble diagnostics panel (`<leader>x*`), LSP
+  rename (`<leader>rn`) alongside the Neovim 0.11 builtins, Telescope pickers
+  for diagnostics/keymaps/commands/resume (`<leader>s*`), which-key group
+  labels, and LSP servers for TypeScript, Lua, HTML/CSS/JSON/YAML, Python and
+  Bash out of the box (Go/Rust/Ruby light up when their toolchains exist).
 - **Fast** — almost everything is lazy-loaded; headless cold start ≈ 40 ms
   (median of 3, measured 2026-07-03). Check yours with `:Lazy profile`.
 - **Reproducible** — plugins are pinned in a committed `lazy-lock.json`;
@@ -63,7 +81,7 @@ any existing `~/.config/nvim` without touching it.
 | `ripgrep` | Telescope live grep |
 | `node` | `prettier` / `eslint_d` |
 | A **Nerd Font** | icons (FiraCode Nerd Font is bundled in `fonts/`) |
-| `eslint_d`, `prettier`, `stylua` | none-ls formatting/linting (auto-installed via Mason on first boot) |
+| `eslint_d`, `prettier`, `stylua`, `shfmt` | none-ls formatting/linting (auto-installed via Mason on first boot) |
 | an AI CLI, e.g. `claude` | AI terminal column (optional) |
 
 > [!IMPORTANT]
@@ -102,8 +120,9 @@ NVIM_APPNAME=nvsinner nvim     # lazy.nvim bootstraps + installs on first launch
 > dirs, so it never collides with another Neovim setup — your existing
 > `~/.config/nvim` is untouched.
 
-LSP servers (`lua_ls`, `ts_ls`, `html`) and the formatting/linting tools
-(`stylua`, `prettier`, `eslint_d`) auto-install via Mason on first launch — no
+LSP servers (`lua_ls`, `ts_ls`, `html`, `pyright`, `bashls`, `jsonls`,
+`yamlls`, `cssls`) and the formatting/linting tools (`stylua`, `prettier`,
+`eslint_d`, `shfmt`) auto-install via Mason on first launch — no
 manual `:MasonInstall` or `npm i -g` needed. On the first interactive launch a
 one-time toast points at `:checkhealth nvsinner` if any external tool is
 missing. Verify anytime with `:Lazy` and `:checkhealth`.
@@ -123,7 +142,19 @@ is configurable in `:NvSinnerMenu`.
 Every terminal's top bar shows a **session label and activity spinner**
 (`AI · 1 ⠹ working…` / `● idle`) driven by actual output, so a glance tells
 you whether an agent — or a long build in a `<leader>t` terminal — is still
-going.
+going. When the program signals a prompt (OSC 133 shell integration, or a
+terminal notification), the bar flips to `◆ needs input` — this only works
+for programs that emit those sequences; the output-based spinner covers
+everything else. The statusline adds a cockpit badge (`AI: 2 working ·
+1 idle`) summarizing every session, and `<leader>ja` opens a picker that
+jumps to (or reopens) any of them.
+
+**Send context without the clipboard:** select code and hit `<leader>as` to
+drop it into the AI column's input, `<leader>ab` to send an `@path` mention
+of the current file, `<leader>ad` to send the current line's diagnostics.
+Multi-line text arrives as one editable block (bracketed paste) and is never
+auto-submitted — you review and press Enter. With no session open yet, the
+bridge opens session 1 and asks you to resend.
 
 > [!WARNING]
 > Auto-reload is **disk-wins** by design: when the AI CLI edits a file on
@@ -132,13 +163,23 @@ going.
 > AI pane, the editor is the cockpit. Each reload fires a `🤖 AI · edited
 > <file>` toast so nothing changes silently.
 
+After each reload, the lines the agent changed get a **soft background wash
+in your accent color** (the one picked in `:NvSinnerMenu`, blended into the
+editor background like a tinted cursor-line so the code stays readable) right
+in the file pane — you see at a glance what the AI just touched while you're
+still reading its summary in the column. The marks clear as soon as you take
+over the file — move the cursor in it or start editing. For a persistent,
+reviewable diff use `<leader>gd` (Diffview) as usual.
+
 ### `:NvSinnerPrompts` — the prompt library
 
 Press `<leader>p` (or run `:NvSinnerPrompts`) to open a floating library of
-reusable AI prompts — PR description, strict code review, feature plan, bug
-fix, tests-from-pattern ship as defaults. Picking one **copies the full
-prompt to the OS clipboard**, ready to paste into the AI column's CLI (then
-fill in the `[PLACEHOLDERS]`).
+reusable AI prompts — eleven ship as defaults: PR description, strict code
+review, feature plan, bug fix, tests-from-pattern, commit message, refactor,
+explain code, docstrings, security review, and git conflict resolution.
+Picking one **copies the full prompt to the OS clipboard**, ready to paste
+into the AI column's CLI (then fill in the `[PLACEHOLDERS]`). Digits `1`–`9`
+jump to the first nine; reach the rest with `j`/`k` or the mouse.
 
 > [!TIP]
 > The library is plain JSON at `settings/prompts.json`: press `e` inside the
@@ -234,8 +275,10 @@ lua/core/prompts.lua           :NvSinnerPrompts prompt library modal
 lua/core/help.lua              :NvSinnerHelp command palette
 lua/core/keymaps.lua           Global keymaps (save/undo/redo, folds, split-resize, buffers)
 lua/core/autoreload.lua        Disk auto-reload + edit toast for the AI terminal workflow
+lua/core/ai-edits.lua          Underlines AI-written lines after a reload, until you take over
 lua/core/ui-touch.lua          Active-window glow + mouse-hover docs (native)
 lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal winbar
+lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run missing-tools toast
@@ -277,7 +320,7 @@ spec; new files in an existing category are picked up automatically.
 
 | File | Plugin | Keys |
 |------|--------|------|
-| `telescope.lua` | telescope.nvim | `<leader>f` files · `<leader>sf` grep · `<leader>fb` buffers |
+| `telescope.lua` | telescope.nvim | `<leader>f` files · `<leader>sf` grep · `<leader>fb` buffers · `<leader>sd/sk/sc/sr/sh/ss/sR` diagnostics/keymaps/commands/resume/help/symbols/references |
 | `neo-tree.lua` | neo-tree.nvim | `<leader>e` toggle file explorer (reveals current file) |
 | `leap.lua` | leap.nvim | `s` forward · `S` backward · `gs` across windows |
 | `smooth-scroll.lua` | neoscroll.nvim | `<PageUp>` / `<PageDown>` smooth scroll |
@@ -296,9 +339,10 @@ spec; new files in an existing category are picked up automatically.
 
 | File | Plugin | Keys / notes |
 |------|--------|--------------|
-| `lsp-config.lua` | mason + native `vim.lsp` | `K` hover · `gd` definition · `<leader>lf` format · `<leader>ca` code action · `:Mason` |
-| `none-ls.lua` | none-ls + extras | Formatters/linters: stylua, prettier, eslint_d |
-| `mason-tools.lua` | mason-tool-installer | Auto-installs stylua/prettier/eslint_d via Mason on first boot (`:MasonToolsInstall` retries) |
+| `lsp-config.lua` | mason + native `vim.lsp` | `K` hover · `gd` definition · `<leader>lf` format · `<leader>ca` code action · `<leader>rn` rename · `:Mason` |
+| `trouble.lua` | trouble.nvim | `<leader>xx` diagnostics · `<leader>xX` buffer · `<leader>xs` symbols · `<leader>xl`/`<leader>xq` loclist/qflist |
+| `none-ls.lua` | none-ls + extras | Formatters/linters: stylua, prettier, eslint_d, shfmt |
+| `mason-tools.lua` | mason-tool-installer | Auto-installs stylua/prettier/eslint_d/shfmt via Mason on first boot (`:MasonToolsInstall` retries) |
 | `diagnostics.lua` | tiny-inline-diagnostic | Rounded inline bubble for the cursor-line diagnostic |
 | `nvim-treesitter.lua` | nvim-treesitter | Syntax highlighting & indentation |
 
@@ -312,7 +356,7 @@ spec; new files in an existing category are picked up automatically.
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
 | `diffview.lua` | diffview.nvim | `<leader>gd` diff · `<leader>gh`/`<leader>gH` file/repo history · `<leader>gq` close |
 | `todocomment.lua` | todo-comments.nvim | Highlights `TODO` / `FIXME` / etc. |
-| `which-key.lua` | which-key.nvim | `<leader>?` shows buffer keymaps |
+| `which-key.lua` | which-key.nvim | `<leader>?` shows buffer keymaps · group labels for the leader namespaces |
 | `lsp/neoconf.lua` | neoconf.nvim | `:Neoconf` project-local settings |
 
 ## ⌨️ Full keybindings reference
@@ -327,6 +371,9 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>f` | n | Telescope find files |
 | `<leader>sf` | n | Telescope live grep |
 | `<leader>fb` | n | Telescope buffers |
+| `<leader>sd` / `<leader>sk` / `<leader>sc` | n | Telescope diagnostics / keymaps / commands |
+| `<leader>sr` / `<leader>sh` | n | Telescope resume last search / help tags |
+| `<leader>ss` / `<leader>sR` | n | Telescope document symbols / LSP references |
 | `<leader>e` | n | Toggle Neo-tree (reveals the current file; side set in `:NvSinnerMenu`) |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
 | `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down |
@@ -339,6 +386,11 @@ spec; new files in an existing category are picked up automatically.
 | `gd` | n | Go to definition |
 | `<leader>lf` | n | Format buffer |
 | `<leader>ca` | n | Code action |
+| `<leader>rn` | n | Rename symbol |
+| `grn` / `grr` / `gri` / `gO` | n | Neovim builtins: rename / references / implementation / document symbols |
+| `]d` / `[d` | n | Neovim builtins: next / previous diagnostic |
+| `<leader>xx` / `<leader>xX` | n | Trouble: workspace / buffer diagnostics |
+| `<leader>xs` / `<leader>xl` / `<leader>xq` | n | Trouble: symbols / location list / quickfix list |
 | `gcc` / `gbc` | n | Toggle line / block comment |
 | `ys` / `ds` / `cs` | n | Add / delete / change surround |
 | `<leader>m` | n | Markdown "Open view" — toggle the reading view (also the clickable winbar button) |
@@ -351,6 +403,10 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>t2` … `<leader>t9` | n | Toggle horizontal terminals 2–9 (independent) |
 | `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
+| `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
+| `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |
+| `<leader>ab` | n | Send an `@path` mention of the current buffer to the AI column |
+| `<leader>ad` | n | Send the current line's diagnostics to the AI column |
 | `<leader>p` | n | Prompt library (`:NvSinnerPrompts`) — copy a reusable AI prompt to the clipboard |
 | `<M-J>` | n, i, t | Toggle AI session 1 (sent by iTerm2's `⌘⌥J`) |
 | `<D-M-j>` | n, t | Toggle AI session 1 (GUI Neovim `⌘⌥J`) |

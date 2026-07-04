@@ -14,6 +14,64 @@ describe("core.ai-activity", function()
 		assert.is_not_nil(hl.bg, "NvAiBusy needs a background (the chip colour)")
 	end)
 
+	it("defines the NvAiAwait chip highlight", function()
+		local hl = vim.api.nvim_get_hl(0, { name = "NvAiAwait" })
+		assert.is_truthy(next(hl), "NvAiAwait should be defined")
+		assert.is_not_nil(hl.bg, "NvAiAwait needs a background (the chip colour)")
+	end)
+
+	it("reports status(): nil for untracked buffers", function()
+		local buf = vim.api.nvim_create_buf(true, false)
+		assert.is_nil(ai.status(buf), "a plain buffer is not tracked")
+		assert.is_nil(ai.status(nil))
+		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	describe("awaiting input (OSC prompt marks)", function()
+		it("flips to 'needs input' on 133;B, clears on 133;C and on fresh output", function()
+			vim.cmd("terminal cat")
+			local buf = vim.api.nvim_get_current_buf()
+			local job = vim.b[buf].terminal_job_id
+
+			-- The TermOpen attach created the state entry; feed the prompt mark
+			-- through the same normalized path the TermRequest autocmd uses.
+			ai._on_osc(buf, "\27]133;B")
+			assert.are.equal("awaiting", ai.status(buf))
+			local bar = ai.winbar(buf)
+			assert.matches("NvAiAwait", bar)
+			assert.matches("needs input", bar)
+
+			-- Command start clears it.
+			ai._on_osc(buf, "\27]133;C")
+			assert.are.equal("idle", ai.status(buf))
+
+			-- Set again, then stream real output: on_lines must clear awaiting
+			-- (fresh output trumps a stale prompt mark) and mark it working.
+			ai._on_osc(buf, "\27]133;B")
+			vim.fn.chansend(job, "clear it\n")
+			local became_busy = vim.wait(3000, function()
+				return ai.status(buf) == "working"
+			end, 50)
+			assert.is_true(became_busy, "output should flip awaiting → working")
+
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end)
+
+		it("treats OSC 9 notifications as 'needs input', ignores unknown sequences", function()
+			vim.cmd("terminal cat")
+			local buf = vim.api.nvim_get_current_buf()
+
+			ai._on_osc(buf, "\27]9;claude finished\7")
+			assert.are.equal("awaiting", ai.status(buf))
+
+			ai._on_osc(buf, "\27]133;C")
+			ai._on_osc(buf, "\27]4;totally unrelated")
+			assert.are.equal("idle", ai.status(buf), "unknown sequences must not change state")
+
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end)
+	end)
+
 	describe("winbar(buf)", function()
 		it("returns empty for nil / invalid buffers", function()
 			assert.are.equal("", ai.winbar(nil))

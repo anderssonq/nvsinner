@@ -50,6 +50,12 @@ M.tools = {
 		used_by = "JS/TS linting (none-ls)",
 		install = "auto via Mason (:MasonToolsInstall)  — or npm install -g eslint_d",
 	},
+	{
+		name = "shfmt",
+		cmd = "shfmt",
+		used_by = "shell-script formatting (none-ls)",
+		install = "auto via Mason (:MasonToolsInstall)  — or brew install shfmt",
+	},
 }
 
 -- Probe each tool with vim.fn.executable (fast, no subprocess). `with_version`

@@ -144,6 +144,152 @@
         "",
         "Output only the test file, ready to drop in at the correct path."
       ]
+    },
+    {
+      "title": "Commit Message",
+      "description": "Conventional Commits + Gitmoji message from a staged diff",
+      "content": [
+        "# Commit Message",
+        "",
+        "Act as a senior engineer writing a commit message in English for the staged change below.",
+        "",
+        "Staged diff:",
+        "```",
+        "[PASTE `git diff --staged`]",
+        "```",
+        "",
+        "Format: Conventional Commits + Gitmoji.",
+        "",
+        "- **Subject**: `<gitmoji> <type>(scope): imperative summary` — under 72 characters.",
+        "- **Body** (only if the change needs it): 1–3 sentences on WHY, not a restatement of the diff.",
+        "- If the diff mixes unrelated changes, say so and propose how to split it into separate commits.",
+        "",
+        "Do not describe changes that are not present in the diff."
+      ]
+    },
+    {
+      "title": "Refactor (behavior-preserving)",
+      "description": "Clean up code without changing what it does",
+      "content": [
+        "# Refactor (behavior-preserving)",
+        "",
+        "Act as a senior engineer refactoring the code below. The external behavior must stay IDENTICAL — same inputs, same outputs, same side effects.",
+        "",
+        "Code:",
+        "```",
+        "[PASTE CODE]",
+        "```",
+        "",
+        "Goal / pain point: [e.g. DUPLICATION / DEEP NESTING / UNCLEAR NAMES]",
+        "",
+        "Deliver:",
+        "1. **Assessment**: the concrete smells worth fixing, in priority order.",
+        "2. **Refactored code**: following the file's existing conventions and naming.",
+        "3. **Why each change is safe**: how behavior is preserved, and which tests (existing or new) prove it.",
+        "",
+        "Do not change behavior or public interfaces."
+      ]
+    },
+    {
+      "title": "Explain Code",
+      "description": "Walkthrough of unfamiliar code: flow, data, gotchas",
+      "content": [
+        "# Explain Code",
+        "",
+        "Act as a senior engineer walking a teammate through unfamiliar code. Explain what IS there — work from the code, not from what similar code usually does.",
+        "",
+        "Code:",
+        "```",
+        "[PASTE CODE]",
+        "```",
+        "",
+        "What I already know / specific question (optional): [DESCRIBE]",
+        "",
+        "Cover:",
+        "1. **Purpose**: what this code is for, in two sentences.",
+        "2. **Flow**: the execution path, step by step, in reading order.",
+        "3. **Data**: the key structures/state and how they change.",
+        "4. **Gotchas**: non-obvious behavior, hidden coupling, error paths, and anything that would surprise a maintainer.",
+        "",
+        "Do not propose changes — explain only."
+      ]
+    },
+    {
+      "title": "Docstrings / API Docs",
+      "description": "Document functions/modules in the project's existing doc style",
+      "content": [
+        "# Docstrings / API Docs",
+        "",
+        "Act as a senior engineer documenting the code below. Match the project's existing documentation style exactly — same format, tag conventions, and tone as the reference.",
+        "",
+        "Existing documented example (style reference):",
+        "```",
+        "[PASTE ONE ALREADY-DOCUMENTED FUNCTION/MODULE]",
+        "```",
+        "",
+        "Code to document:",
+        "```",
+        "[PASTE CODE]",
+        "```",
+        "",
+        "Requirements:",
+        "- Document parameters, return values, raised errors, and side effects.",
+        "- State non-obvious behavior and constraints; skip restating what the signature already says.",
+        "- Output the code WITH the documentation added, ready to paste back.",
+        "",
+        "Document what the code does, not what it should do."
+      ]
+    },
+    {
+      "title": "Security Review",
+      "description": "Injection, auth, secrets, validation — findings ranked by severity",
+      "content": [
+        "# Security Review",
+        "",
+        "Act as a senior application-security engineer reviewing the code below. Report only what the code shows evidence for — no speculative findings.",
+        "",
+        "Code / diff:",
+        "```",
+        "[PASTE CODE OR DIFF]",
+        "```",
+        "",
+        "Context: [e.g. PUBLIC API HANDLER / INTERNAL CLI / AUTH FLOW]",
+        "",
+        "Check for:",
+        "1. Injection (SQL / command / template / path traversal)",
+        "2. Authentication & authorization gaps",
+        "3. Secrets or credentials in code, logs, or error messages",
+        "4. Missing input validation and unsafe deserialization",
+        "5. Insecure defaults (permissions, TLS, CORS, cookies)",
+        "",
+        "For each finding: **severity** (critical / high / medium / low), the exact location, the attack scenario, and a concrete fix. Rank the final list by severity.",
+        "",
+        "Report findings only — do not rewrite unrelated code."
+      ]
+    },
+    {
+      "title": "Git Conflict Resolution",
+      "description": "Merge conflicting hunks while preserving both sides' intent",
+      "content": [
+        "# Git Conflict Resolution",
+        "",
+        "Act as a senior engineer resolving a merge conflict. Understand what EACH side was trying to do before merging them.",
+        "",
+        "Conflicted file (with markers):",
+        "```",
+        "[PASTE THE FILE INCLUDING <<<<<<< / ======= / >>>>>>> MARKERS]",
+        "```",
+        "",
+        "Intent of my branch: [DESCRIBE]",
+        "Intent of the other branch: [DESCRIBE OR PASTE ITS COMMIT MESSAGES]",
+        "",
+        "Deliver:",
+        "1. **Per-hunk analysis**: what each side changed and whether the intents are compatible.",
+        "2. **Resolved file**: markers removed, both intents preserved, ready to stage.",
+        "3. **Verification**: what to run or check to confirm the merge is correct.",
+        "",
+        "Preserve the intent of both sides; flag anything you cannot safely merge instead of guessing."
+      ]
     }
   ]
 }

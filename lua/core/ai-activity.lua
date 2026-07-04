@@ -28,7 +28,9 @@ local IDLE_MS = 1200 -- quiet time before "working" flips back to "idle"
 local SPINNER = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
 local LABEL_BUSY = "working…"
 local LABEL_IDLE = "idle"
+local LABEL_AWAIT = "needs input"
 local DOT_IDLE = "●"
+local DOT_AWAIT = "◆"
 
 -- The "working" chip's highlight, re-applied on ColorScheme so it survives a
 -- colorscheme reload. Carbon pink (base12) chip with dark (base00) text — the
@@ -37,6 +39,9 @@ local DOT_IDLE = "●"
 local function apply_hl()
 	local c = require("core.carbon").colors()
 	vim.api.nvim_set_hl(0, "NvAiBusy", { fg = c.base00, bg = c.base12, bold = true })
+	-- "Needs input" chip: base10 magenta — carbon's attention/modified accent —
+	-- because a prompt waiting on the user IS the attention case.
+	vim.api.nvim_set_hl(0, "NvAiAwait", { fg = c.base00, bg = c.base10, bold = true })
 end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = apply_hl })
@@ -69,7 +74,26 @@ function M.winbar(buf)
 	if s and s.busy then
 		return "%=%#NvAiBusy# " .. prefix .. SPINNER[frame] .. " " .. LABEL_BUSY .. " %*%="
 	end
+	if s and s.awaiting then
+		return "%=%#NvAiAwait# " .. prefix .. DOT_AWAIT .. " " .. LABEL_AWAIT .. " %*%="
+	end
 	return "%=" .. prefix .. DOT_IDLE .. " " .. LABEL_IDLE .. "%="
+end
+
+-- Public cockpit API: coarse status of a tracked terminal buffer.
+-- Returns "working" | "awaiting" | "idle", or nil for untracked buffers.
+function M.status(buf)
+	local s = buf and state[buf]
+	if not s then
+		return nil
+	end
+	if s.busy then
+		return "working"
+	end
+	if s.awaiting then
+		return "awaiting"
+	end
+	return "idle"
 end
 
 -- Attach the output listener to a terminal buffer (idempotent).
@@ -88,7 +112,8 @@ local function attach(buf)
 		on_lines = function(_, b)
 			local s = state[b]
 			if s then
-				s.busy, s.last = true, uv.now()
+				-- Fresh output always trumps a stale "needs input" prompt mark.
+				s.busy, s.last, s.awaiting = true, uv.now(), false
 			end
 		end,
 		on_detach = function(_, b)
@@ -128,11 +153,55 @@ local function tick()
 	end
 end
 
+-- ─── "Needs input" via OSC sequences (opportunistic) ────────────────────────
+-- Programs that emit shell-integration prompt marks (OSC 133) or terminal
+-- notifications (OSC 9 / OSC 777) tell us they are sitting at a prompt; we
+-- surface that as a third state between working and idle. HONEST LIMITS: this
+-- only lights up for emitters — OSC-133-integrated shells and CLIs that send
+-- notification sequences. CLIs that emit nothing (unverified for claude) just
+-- fall back to the 1.2s idle heuristic, which stays the primary signal.
+-- Probed on NVIM 0.12.3 (2026-07): TermRequest's ev.data is a TABLE
+-- { sequence = "\27]133;B" } (string on 0.11), and the callback is NOT a fast
+-- event context — vim.* calls are safe there.
+function M._on_osc(buf, seq)
+	local s = state[buf]
+	if not s or type(seq) ~= "string" then
+		return
+	end
+	local mark = seq:match("133;([A-D])")
+	if mark == "B" then
+		-- Prompt-input start (fires AFTER the prompt is drawn, so the prompt's
+		-- own rendering can't clobber it via on_lines) → wants the user.
+		s.awaiting, s.busy = true, false
+	elseif mark == "C" then
+		-- Command execution started → no longer waiting on the user.
+		s.awaiting = false
+	elseif seq:match("^\27%]9;") or seq:match("^\27%]777;") then
+		-- Terminal notification → treat as "wants attention / input".
+		s.awaiting, s.busy = true, false
+	else
+		return
+	end
+	-- The tick() loop skips redraws while everything is idle, so repaint the
+	-- winbar here (same nvim__redraw path — :redrawstatus misses winbars).
+	if not pcall(vim.api.nvim__redraw, { statusline = true, winbar = true, flush = true }) then
+		vim.cmd("redrawstatus!")
+	end
+end
+
 -- Wire up terminals as they open (and any already alive, e.g. after :source).
 vim.api.nvim_create_autocmd("TermOpen", {
 	group = vim.api.nvim_create_augroup("nv_ai_activity", { clear = true }),
 	callback = function(args)
 		attach(args.buf)
+	end,
+})
+vim.api.nvim_create_autocmd("TermRequest", {
+	group = "nv_ai_activity",
+	callback = function(args)
+		-- Normalize the payload shape across 0.11 (string) / 0.12 (table).
+		local seq = type(args.data) == "table" and args.data.sequence or args.data
+		M._on_osc(args.buf, seq)
 	end,
 })
 for _, buf in ipairs(vim.api.nvim_list_bufs()) do

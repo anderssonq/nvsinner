@@ -11,6 +11,9 @@ return {
 			sources = {
 				null_ls.builtins.formatting.stylua,
 				null_ls.builtins.formatting.prettier,
+				-- Shell scripts (install.sh/uninstall.sh live in this very repo).
+				-- Binary auto-installed via mason-tools.lua.
+				null_ls.builtins.formatting.shfmt,
 				-- Loaded from none-ls-extras (no longer a core builtin).
 				-- Requires the `eslint_d` binary on your PATH to actually run.
 				--
