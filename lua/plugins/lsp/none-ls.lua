@@ -1,5 +1,7 @@
 return {
 	"nvimtools/none-ls.nvim",
+	-- Lazy: formatters/linters only matter once a real file is open.
+	event = { "BufReadPre", "BufNewFile" },
 	-- eslint_d diagnostics were moved out of none-ls core into this extras repo.
 	dependencies = { "nvimtools/none-ls-extras.nvim" },
 	config = function()

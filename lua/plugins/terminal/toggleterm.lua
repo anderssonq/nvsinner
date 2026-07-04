@@ -1,6 +1,13 @@
 return {
 	"akinsho/toggleterm.nvim",
 	version = "*",
+	-- Eager ON PURPOSE (a documented exception to the lazy-load convention):
+	-- the <leader>t*/<leader>j*/<M-J>/<D-M-j> keymaps are defined inside
+	-- config() as closures over the memoised panel tables, so the plugin must
+	-- load at startup for those maps to exist at all. Moving them to a `keys`
+	-- spec would mean restructuring the panel memoisation — do that if this
+	-- ever shows up in startup profiles.
+	lazy = false,
 	config = function()
 		require("toggleterm").setup({
 			-- Global default for the <leader>t terminals: ALWAYS horizontal (bottom).

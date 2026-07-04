@@ -45,6 +45,9 @@ require("lazy").setup({
 	-- Colorscheme that will be used when installing plugins (carbon ships in
 	-- this repo's colors/, so it's available even on a fresh install).
 	install = { colorscheme = { "carbon", "habamax" } },
-	-- Automatically check for plugin updates
-	checker = { enabled = true },
+	-- No background update checker: plugin versions are pinned to the committed
+	-- lazy-lock.json (:NvSinnerUpdate restores to it; :NvSinnerSync is the
+	-- explicit opt-in float-to-latest path), so a boot-time "updates available"
+	-- check would only run network fetches this config never acts on.
+	checker = { enabled = false },
 })

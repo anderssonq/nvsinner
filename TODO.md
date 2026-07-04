@@ -6,15 +6,22 @@ what's left.
 
 ## Nice to have
 
-- [ ] **Optional formatters via Mason** (stylua, prettier, eslint_d) so the
-      distro needs zero manual `npm i -g` / `brew install` for formatting. Would
-      need `mason-tool-installer` or an `ensure_installed` tools list.
-- [ ] **Screenshots / GIF** in the README (dashboard, AI column, glass theme).
-- [ ] **CI** that boots the config headless + runs `make test` on push.
-- [ ] **Versioned releases / tags** once the repo is split out.
+- [ ] **Screenshots / GIF** in the README (dashboard, AI column, carbon theme).
+      *Needs a human with a GUI terminal — can't be captured headlessly.*
+- [ ] **Versioned releases / tags.** The repo is split out, so this is just
+      picking a version (e.g. `v1.0.0`), tagging, and pushing — a publishing
+      decision for the maintainer.
 
 ## Done (see NVSINNER.md for detail)
 
+- [x] **Formatters via Mason** — `lua/plugins/lsp/mason-tools.lua`
+      (`mason-tool-installer.nvim`) auto-installs `stylua`, `prettier`, and
+      `eslint_d` on first boot; no manual `npm i -g` / `brew install` needed.
+      `auto_update = false` (updates stay the opt-in `:NvSinnerSync` path);
+      `:checkhealth nvsinner` hints point at `:MasonToolsInstall`.
+- [x] **CI** — `.github/workflows/ci.yml`: installs stable Neovim, restores the
+      pinned plugin set (`Lazy! restore` against `lazy-lock.json`, cached), does
+      a headless boot check that fails on startup errors, then runs `make test`.
 - [x] **Distribution polish — PATH help, uninstall, first-run health.**
       `install.sh` no longer just warns about `~/.local/bin`: it prints the exact
       `export PATH` line naming the likely shell rc (zsh/bash/fish), but never

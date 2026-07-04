@@ -2,6 +2,8 @@
 -- what the CLI agent writes to disk, and make terminals immediately typable on
 -- focus. Both are autocmd-driven; no plugin involved.
 
+local M = {}
+
 -- ─── Auto-reload files changed on disk ──────────────────────────────────────
 -- When the AI CLI (claude, etc.) in the terminal column edits a file, refresh
 -- the buffer in place instead of showing the W11/W12 "file changed" prompt.
@@ -61,8 +63,12 @@ vim.api.nvim_create_autocmd({ "FocusGained", "BufEnter", "WinEnter", "TermLeave"
 -- Also poll on a light timer so the code pane refreshes even while you stay
 -- focused in the AI terminal (Vim has no CursorHold in terminal mode). The
 -- check is cheap; it only reloads buffers whose file actually changed on disk.
-local autoread_timer = vim.uv.new_timer()
-autoread_timer:start(
+-- Kept on M so the handle is never garbage-collected: an unreferenced active
+-- luv timer can be reaped and silently stop the disk poll — the same guard as
+-- core/ai-activity.lua's M._timer. (Nothing closes over this handle, so a
+-- plain local would be collectible once this chunk returns.)
+M._timer = assert(vim.uv.new_timer())
+M._timer:start(
 	1000,
 	1000,
 	vim.schedule_wrap(function()
@@ -94,3 +100,5 @@ vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
 		end
 	end,
 })
+
+return M

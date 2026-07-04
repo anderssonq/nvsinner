@@ -29,23 +29,26 @@ M.tools = {
 		used_by = "prettier / eslint_d runtime",
 		install = "brew install node  (or your distro's nodejs)",
 	},
+	-- stylua/prettier/eslint_d are auto-installed by Mason on first boot
+	-- (mason-tool-installer); the hints below are the manual fallback if that
+	-- install failed or hasn't run yet (:MasonToolsInstall retries it).
 	{
 		name = "stylua",
 		cmd = "stylua",
 		used_by = "Lua formatting (none-ls)",
-		install = "brew install stylua  (or cargo install stylua)",
+		install = "auto via Mason (:MasonToolsInstall)  — or brew install stylua",
 	},
 	{
 		name = "prettier",
 		cmd = "prettier",
 		used_by = "JS/TS/HTML formatting (none-ls)",
-		install = "npm install -g prettier",
+		install = "auto via Mason (:MasonToolsInstall)  — or npm install -g prettier",
 	},
 	{
 		name = "eslint_d",
 		cmd = "eslint_d",
 		used_by = "JS/TS linting (none-ls)",
-		install = "npm install -g eslint_d",
+		install = "auto via Mason (:MasonToolsInstall)  — or npm install -g eslint_d",
 	},
 }
 

@@ -51,9 +51,12 @@ Runs `nvim --startuptime`, prints the total and the 10 slowest entries.
 Real output (2026-07-02): `total startup: 112.697 ms` on one run, ~62 ms on
 another — **headless startuptime varies ±2× run-to-run** (cache warmth, machine
 load). Take 3 runs and use the median before believing a regression. The
-slowest entries were `sourcing init.lua` and `require('null-ls')` —
-`lua/plugins/lsp/none-ls.lua` has no lazy trigger, so it loads at startup
-(catalogued in `nvsinner-config-catalog` §4).
+slowest entries were `sourcing init.lua` and `require('null-ls')` — at the
+time of that measurement `lua/plugins/lsp/none-ls.lua` had no lazy trigger
+and loaded at startup; since 2026-07-04 it is deferred to
+`event = {BufReadPre, BufNewFile}` (catalogued in `nvsinner-config-catalog`
+§4), so `require('null-ls')` should no longer appear in a bare-boot profile —
+re-measure before citing the old numbers.
 
 Interpretation: columns are `clock  self+sourced  self: event`. A plugin
 appearing here that should be lazy = its trigger is wrong or missing.
@@ -67,8 +70,9 @@ Probes a headless instance of the real config for the load-bearing maps
 (`<leader>j`, `<leader>t`, `<leader>fb`, resize keys in n **and** t modes,
 `<C-Y>`, terminal `<Esc>`). Real output ends with `ALL KEYMAPS PRESENT`
 (exit 0); any `MISS` line exits 1. Note: `<leader>j`/`<leader>t` come from
-`lua/plugins/terminal/toggleterm.lua`, which loads at startup — if these two
-are missing but core maps are fine, toggleterm didn't load.
+`lua/plugins/terminal/toggleterm.lua`, which loads at startup (explicit
+`lazy = false`, deliberate) — if these two are missing but core maps are
+fine, toggleterm didn't load.
 
 ## 4. Palette drift audit — `scripts/palette-audit.sh`
 

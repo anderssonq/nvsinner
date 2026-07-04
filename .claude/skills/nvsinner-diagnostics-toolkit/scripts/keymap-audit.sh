@@ -12,9 +12,9 @@ out=$(nvim --headless -c "lua vim.defer_fn(function()
     { 'n', '<leader>j',  'AI session 1' },
     { 'n', '<leader>t',  'horizontal terminal 1' },
     { 'n', '<leader>fb', 'telescope buffers' },
-    { 'n', '<C-,>',      'width +20% (normal)' },
-    { 't', '<C-,>',      'width +20% (terminal)' },
-    { 't', '<C-;>',      'height +5% (terminal)' },
+    { 'n', '<C-,>',      'width +20 cols (normal)' },
+    { 't', '<C-,>',      'width +20 cols (terminal)' },
+    { 't', '<C-;>',      'height +5 rows (terminal)' },
     { 'n', '<C-Y>',      'save with toast' },
     { 't', '<Esc>',      'leave terminal mode' },
   }

@@ -58,6 +58,18 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    nvsinner` ([lua/core/health.lua](lua/core/health.lua) +
    [lua/nvsinner/health.lua](lua/nvsinner/health.lua)) plus a one-time first-run
    toast. README documents Health check + Uninstalling.
+8. ✅ **Mason-managed formatters.** A new
+   [lua/plugins/lsp/mason-tools.lua](lua/plugins/lsp/mason-tools.lua)
+   (`mason-tool-installer.nvim`, `event = "VeryLazy"` like `mason-lspconfig`)
+   auto-installs `stylua`, `prettier`, and `eslint_d` via Mason on first boot —
+   no manual `npm i -g` / `brew install` for formatting. `auto_update = false`
+   on purpose: package updates stay the opt-in `:NvSinnerSync` path.
+   `:checkhealth nvsinner` hints now point at `:MasonToolsInstall` as the
+   retry, with brew/npm as manual fallbacks.
+9. ✅ **CI.** [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on
+   push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
+   `Lazy! restore` against the pinned lockfile, a headless boot check that
+   fails on startup errors, then the full `make test` suite.
 
 ## Status
 
@@ -68,6 +80,8 @@ install-or-update flow, an in-editor `:NvSinnerUpdate`, first-boot Mason
 auto-install, and NvSinner branding across the dashboard + README. On the dev
 machine `~/.config/nvsinner` is a **symlink** to this repo (`~/.config/nvim`) so
 both `nvim` and `nvsinner` load the same files. The distribution-polish items
-(PATH help, `uninstall.sh`, first-run health surfacing) are now done too.
-**Remaining:** the "nice to have" items tracked in [TODO.md](TODO.md) — Mason-managed
-formatters, README screenshots/GIF, CI, and versioned releases.
+(PATH help, `uninstall.sh`, first-run health surfacing) are done, and so are
+Mason-managed formatters and CI.
+**Remaining:** the "nice to have" items tracked in [TODO.md](TODO.md) — README
+screenshots/GIF (needs a human with a GUI terminal) and versioned releases (a
+maintainer publishing decision).

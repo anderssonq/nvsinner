@@ -1,12 +1,6 @@
-```
-██▄   ██ ░▒    ░      ▄███▓▒░ ░█ ██▄   ██ ██▄   ██ ░▒▓██ ▒▄   █████░▄   
-█▓░▒▄ ▀█ ▒▓    ▒░    ▀█▀ ▄    ██ █▓░▒▄ ▀█ █▓░▒▄ ▀█    ░  ▀▓░▄ ██   ▀░▒▄ 
-▓▒ ▀▓▒▄░ ▐█▌   ▓▒       ▀░▒▄  ██ ▓▒ ▀▓▒▄░ ▓▒ ▀▓▒▄░   ░▒▀  ▀▀  ▓█▄█▄░▄▒▓▀
-▒░   ▀▓█  ░▒▄ ▄█▌        ▄▒▓▀ █▓ ▒░   ▀▓█ ▒░   ▀▓█   ▒▓   ▄▀▀ ▒▓ ▀██░▀  
-░     ▒▓   ▀▓▒░▀  ░▒▓███░░▀   ▓▒ ░     ▒▓ ░     ▒▓ ░▒▓███ ░▀▀ ░▒   ▀██▄ 
-      ░▒     ▀                ▒░       ░▒       ░▒             ░     ▀█▀
-                              ░                                         
-```
+<p align="center">
+  <img src="assets/logo.svg" width="450" alt="Logo" />
+</p>
 
 <div align="center">
 
@@ -69,7 +63,7 @@ any existing `~/.config/nvim` without touching it.
 | `ripgrep` | Telescope live grep |
 | `node` | `prettier` / `eslint_d` |
 | A **Nerd Font** | icons (FiraCode Nerd Font is bundled in `fonts/`) |
-| `eslint_d`, `prettier`, `stylua` | none-ls formatting/linting |
+| `eslint_d`, `prettier`, `stylua` | none-ls formatting/linting (auto-installed via Mason on first boot) |
 | an AI CLI, e.g. `claude` | AI terminal column (optional) |
 
 > [!IMPORTANT]
@@ -108,8 +102,9 @@ NVIM_APPNAME=nvsinner nvim     # lazy.nvim bootstraps + installs on first launch
 > dirs, so it never collides with another Neovim setup — your existing
 > `~/.config/nvim` is untouched.
 
-LSP servers (`lua_ls`, `ts_ls`, `html`) auto-install via Mason on first
-launch — no manual `:MasonInstall` needed. On the first interactive launch a
+LSP servers (`lua_ls`, `ts_ls`, `html`) and the formatting/linting tools
+(`stylua`, `prettier`, `eslint_d`) auto-install via Mason on first launch — no
+manual `:MasonInstall` or `npm i -g` needed. On the first interactive launch a
 one-time toast points at `:checkhealth nvsinner` if any external tool is
 missing. Verify anytime with `:Lazy` and `:checkhealth`.
 
@@ -303,6 +298,7 @@ spec; new files in an existing category are picked up automatically.
 |------|--------|--------------|
 | `lsp-config.lua` | mason + native `vim.lsp` | `K` hover · `gd` definition · `<leader>lf` format · `<leader>ca` code action · `:Mason` |
 | `none-ls.lua` | none-ls + extras | Formatters/linters: stylua, prettier, eslint_d |
+| `mason-tools.lua` | mason-tool-installer | Auto-installs stylua/prettier/eslint_d via Mason on first boot (`:MasonToolsInstall` retries) |
 | `diagnostics.lua` | tiny-inline-diagnostic | Rounded inline bubble for the cursor-line diagnostic |
 | `nvim-treesitter.lua` | nvim-treesitter | Syntax highlighting & indentation |
 
@@ -386,8 +382,8 @@ spec; new files in an existing category are picked up automatically.
 | `<C-Y>` | n | Save file (with notification) |
 | `<C-U>` / `<C-R>` | n | Undo / redo (with notification) |
 | `<C-Up>` | n | Grow window height (+2) |
-| `<C-,>` / `<C-.>` | n, t | Grow / shrink window width (±20%) — also from inside a terminal (resize the AI column) |
-| `<C-;>` / `<C-'>` | n, t | Grow / shrink window height (±5%) — also from inside a terminal |
+| `<C-,>` / `<C-.>` | n, t | Grow / shrink window width (±20 columns) — also from inside a terminal (resize the AI column) |
+| `<C-;>` / `<C-'>` | n, t | Grow / shrink window height (±5 rows) — also from inside a terminal |
 | `<leader>?` | n | Show buffer-local keymaps (which-key) |
 | `<cr>` / `gO` | n (image buffer) | Reopen image in Quick Look / open in Preview.app |
 

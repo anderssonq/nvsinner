@@ -24,10 +24,15 @@ describe("core.keymaps", function()
 		assert.is_true(map_exists("t", "<C-'>"))
 	end)
 
-	it("exposes the split-resize helper functions globally", function()
-		assert.are.equal("function", type(_G.IncreaseWidth))
-		assert.are.equal("function", type(_G.DecreaseWidth))
-		assert.are.equal("function", type(_G.IncreaseHeight))
-		assert.are.equal("function", type(_G.DecreaseHeight))
+	it("resizes the split when the width map is triggered", function()
+		-- Behavioral: feed the <C-,> mapping and watch the window grow by the
+		-- documented absolute step (+20 columns — Vim ignores a trailing "%" on
+		-- :resize, so the step is columns, not a percentage).
+		vim.cmd("vsplit")
+		local before = vim.api.nvim_win_get_width(0)
+		local keys = vim.api.nvim_replace_termcodes("<C-,>", true, false, true)
+		vim.api.nvim_feedkeys(keys, "x", false)
+		assert.are.equal(before + 20, vim.api.nvim_win_get_width(0))
+		vim.cmd("only")
 	end)
 end)

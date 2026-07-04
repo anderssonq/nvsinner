@@ -1,0 +1,51 @@
+# CI: boot the config headless and run the plenary test suite.
+# Mirrors the "Validating changes" commands in CLAUDE.md: restore the pinned
+# plugin set (lazy-lock.json), boot headless surfacing startup errors, then
+# `make test`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim (stable, >= 0.11)
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Link config into the XDG path
+        run: |
+          mkdir -p ~/.config
+          ln -s "$GITHUB_WORKSPACE" ~/.config/nvim
+          nvim --version | head -1
+
+      - name: Cache plugins (keyed on lazy-lock.json)
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/nvim/lazy
+          key: lazy-${{ runner.os }}-${{ hashFiles('lazy-lock.json') }}
+
+      - name: Restore pinned plugins
+        run: nvim --headless "+Lazy! restore" +qa
+
+      - name: Headless boot check
+        run: |
+          out=$(nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 500)" 2>&1) || true
+          printf '%s\n' "$out"
+          # Fail on startup errors / stack traces in :messages.
+          if printf '%s\n' "$out" | grep -qE "^E[0-9]+:|Error detected|stack traceback"; then
+            echo "::error::startup errors detected"
+            exit 1
+          fi
+
+      - name: Run test suite
+        run: make test

@@ -1,6 +1,15 @@
 return {
 	-- The repo moved from github (ggandor/leap.nvim) to Codeberg.
 	url = "https://codeberg.org/andyg/leap.nvim",
+	-- Lazy: load on the first jump key. These entries only tell lazy WHEN to
+	-- load — the real <Plug> maps for the same keys are created in config(),
+	-- and lazy re-feeds the pressed key after loading, so the first press
+	-- already jumps.
+	keys = {
+		{ "s", mode = { "n", "x", "o" }, desc = "Leap forward" },
+		{ "S", mode = { "n", "x", "o" }, desc = "Leap backward" },
+		{ "gs", mode = { "n", "x", "o" }, desc = "Leap cross-window" },
+	},
 	config = function()
 		local leap = require("leap")
 		-- `case_sensitive` was removed; case sensitivity is now driven by Vim's

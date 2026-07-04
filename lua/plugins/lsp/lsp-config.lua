@@ -59,10 +59,10 @@ return {
 			})
 			vim.lsp.enable({ "ts_ls", "solargraph", "html", "lua_ls" })
 
-			vim.keymap.set("n", "K", vim.lsp.buf.hover, {})
+			vim.keymap.set("n", "K", vim.lsp.buf.hover, { desc = "LSP hover docs" })
 			vim.keymap.set("n", "<leader>lf", vim.lsp.buf.format, { desc = "Format Code" })
-			vim.keymap.set("n", "gd", vim.lsp.buf.definition, {})
-			vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, {})
+			vim.keymap.set("n", "gd", vim.lsp.buf.definition, { desc = "Go to definition" })
+			vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code action" })
 		end,
 	},
 }

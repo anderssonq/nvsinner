@@ -289,9 +289,11 @@ local hl = {
 	CmpItemKindTypeParameter = { fg = c.base01, bg = c.base07 },
 
 	-- ── nvim-notify (§7): border/icon/title per level ────────────────────────
-	NotifyERRORBorder = { fg = c.base08, bg = bgf },
-	NotifyERRORIcon = { fg = c.base08 },
-	NotifyERRORTitle = { fg = c.base08 },
+	-- Errors are base10 across the theme (ErrorMsg, DiagnosticError) — the
+	-- toast border/icon/title follow the same semantic accent.
+	NotifyERRORBorder = { fg = c.base10, bg = bgf },
+	NotifyERRORIcon = { fg = c.base10 },
+	NotifyERRORTitle = { fg = c.base10 },
 	NotifyWARNBorder = { fg = c.base14, bg = bgf },
 	NotifyWARNIcon = { fg = c.base14 },
 	NotifyWARNTitle = { fg = c.base14 },

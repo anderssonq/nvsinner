@@ -32,9 +32,13 @@ the whole flow (clone → launcher → plugin bootstrap).
 
 ```bash
 # macOS (Homebrew). Linux: swap brew for apt/dnf/pacman + cargo/npm equivalents.
-brew install neovim ripgrep node stylua   # neovim MUST be >= 0.11
-npm install -g prettier eslint_d           # JS/TS formatter + linter (need node)
+brew install neovim ripgrep node   # neovim MUST be >= 0.11
 ```
+
+The formatting/linting binaries (`stylua`, `prettier`, `eslint_d`) auto-install
+via Mason on first boot (`mason-tool-installer`, see *LSP / formatting*), so no
+manual `brew install stylua` / `npm i -g prettier eslint_d` is needed —
+those remain valid manual fallbacks if the Mason install fails.
 
 The config uses `vim.uv` and the native `vim.lsp` API, so it will NOT work below
 0.11 — verify:
@@ -499,6 +503,12 @@ exactly this reason) — reference a role.
 - `completions.lua` — `nvim-cmp` + LuaSnip. `<C-Space>` triggers completion.
 - `none-ls.lua` — `none-ls` + `none-ls-extras`; sources: `stylua`, `prettier`,
   `eslint_d` (eslint_d comes from none-ls-extras and needs the binary on PATH).
+- `mason-tools.lua` — `mason-tool-installer.nvim` auto-installs the none-ls
+  binaries (`stylua`, `prettier`, `eslint_d`) via Mason on first boot
+  (`event = "VeryLazy"`, same trigger as mason-lspconfig, so it fires even on
+  the dashboard). `auto_update = false` on purpose — package updates stay the
+  opt-in `:NvSinnerSync` path. `:MasonToolsInstall` retries a failed install;
+  `core/health.lua`'s hints point at it, with brew/npm as manual fallbacks.
 
 ### Git
 - `git-blame.lua` — `git-blame.nvim`: always-on inline blame as virtual text
@@ -546,8 +556,10 @@ exactly this reason) — reference a role.
   `timeoutlen` (which-key shows the menu) before falling back to session 1;
   press a digit right after `<leader>j` to jump straight to that session.
 - Resize via the global split-resize keymaps in `core/keymaps.lua`: `<C-,>` /
-  `<C-.>` (width ±20%, use for the vertical AI panel) and `<C-;>` / `<C-'>`
-  (height ±5%, use for the horizontal terminal). Both work from terminal mode.
+  `<C-.>` (width ±20 columns, use for the vertical AI panel) and `<C-;>` /
+  `<C-'>` (height ±5 rows, use for the horizontal terminal). Both work from
+  terminal mode. (The steps are absolute — Vim silently ignores a trailing `%`
+  on `:resize`, so the old "±20%" wording was never percentual.)
 
 See [NVSINNER.md](NVSINNER.md) for the plan to package this config as an
 installable, separately-named Neovim distro ("NvSinner").
@@ -556,7 +568,10 @@ installable, separately-named Neovim distro ("NvSinner").
 - When the AI CLI edits a file from the terminal column, the on-disk version is
   reloaded into the buffer automatically (no W11/W12 prompt). Done via
   `autoread` + a `FileChangedShell` handler that sets `v:fcs_choice = "reload"`,
-  plus `checktime` on focus/window-enter events and a 1s `vim.uv` timer.
+  plus `checktime` on focus/window-enter events and a 1s `vim.uv` timer. The
+  timer handle is anchored on the module table (`M._timer`) — an unreferenced
+  active luv timer can be GC-reaped and silently stop the poll (same guard as
+  `ai-activity.lua`).
 - Trade-off: **disk wins** — unsaved in-Vim edits to a buffer the AI changes are
   discarded. Intended for the viewer-style workflow (edit in the AI pane).
 - **Edit toast** — a small `vim.notify` (`🤖 AI · edited <file>`) names the file an
@@ -697,13 +712,14 @@ installable, separately-named Neovim distro ("NvSinner").
 | `<leader>SQ` / `<leader>Sc` / `<leader>Sl` | Session: quit no-save / restore cwd / restore last |
 | `gcc` / `gbc` | Toggle line / block comment |
 | `<C-y>` / `<C-u>` / `<C-r>` | Save / undo / redo (with notifications) |
-| `<C-,>` `<C-.>` `<C-;>` `<C-'>` | Resize splits: width ±20% / height ±5% (also work in terminal mode, e.g. to resize the AI chat) |
+| `<C-,>` `<C-.>` `<C-;>` `<C-'>` | Resize splits: width ±20 cols / height ±5 rows (also work in terminal mode, e.g. to resize the AI chat) |
 
 ## External requirements
 
 Neovim **0.11+** (hard requirement — uses `vim.uv` and the native `vim.lsp`
 API), `git`, `ripgrep` (live grep), `node` (for `prettier` / `eslint_d`), a Nerd
-Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`. For AI,
+Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`
+(auto-installed via Mason on first boot — see `mason-tools.lua`). For AI,
 install a CLI agent such as Claude Code (`claude`). See *Installation* above for
 exact commands.
 
@@ -740,7 +756,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 |------|--------|
 | `tests/core/options_spec.lua` | leaders + core editor options |
 | `tests/core/carbon_spec.lua` | carbon role tables (dark/light), the background/transparency flags (`vim.g` + env), and `:colorscheme carbon` honoring both (opaque vs transparent surfaces) |
-| `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + resize helpers |
+| `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + the resize step applied behaviorally (+20 cols) |
 | `tests/core/settings_spec.lua` | settings defaults, JSON save/load roundtrip + corrupt-file fallback, vim.g seeding precedence, the quiet notify filter, and the carbon accent/folder packs + single-role color slots |
 | `tests/core/menu_spec.lua` | `:NvSinnerMenu` command, the modal float rendering every row, and move/cycle writing through to core/settings |
 | `tests/core/prompts_spec.lua` | `:NvSinnerPrompts` command, JSON loading (array/string content, corrupt-file fallback), the modal listing title+description rows, and copy() returning the prompt + closing |

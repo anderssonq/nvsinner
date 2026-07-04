@@ -71,7 +71,10 @@ return {
 			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = c.base09, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = c.base04 })
 			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = c.base09, italic = true })
-			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = "#a2a9b0", italic = true })
+			-- base04 (body text): the subtitle reads brighter than the base03
+			-- attribution line below it, and the role adapts to the light variant
+			-- (the old hardcoded #a2a9b0 was off-palette and dark-only).
+			vim.api.nvim_set_hl(0, "NvSinnerSubtitle", { fg = c.base04, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = c.base03, italic = true })
 			-- Hover "pill" on the focused menu item (panel lift + brighter text).
 			vim.api.nvim_set_hl(0, "NvSinnerHover", { fg = c.base05, bg = c.base02, bold = true })

@@ -105,15 +105,19 @@ pinned by `tests/core/carbon_spec.lua`):
 
 Sanctioned hand-tuned hexes OUTSIDE the role table: the four diff washes (in
 carbon.lua itself) and dashboard.lua's logo-ramp midpoint grays
-(`#aeaeae`/`#8d8d8d`/`#6f6f6f`, plus subtitle `#a2a9b0`) — monochrome-family
-only. Any other literal hex in `lua/` is a palette-audit finding.
+(`#b6b6b6`/`#9c9c9c`/`#838383`/`#6a6a6a`) — monochrome-family only. (The
+dashboard subtitle's old off-palette `#a2a9b0` was replaced with the `base04`
+role on 2026-07-04.) Any other literal hex in `lua/` is a palette-audit
+finding.
 
 Re-audit: `grep -rn '#[0-9a-fA-F]\{6\}' lua/ --include='*.lua' | grep -v lua/core/carbon.lua`
 
 ## 4. Lazy-loading trigger map
 
-Read from each spec on 2026-07-02. "startup" = no trigger in the spec, so
-lazy.nvim loads it eagerly (this config does not set `defaults.lazy = true`).
+Read from each spec on 2026-07-04. "startup" = loads eagerly (this config
+does not set `defaults.lazy = true`); the only sanctioned eager plugins are
+theme.lua and toggleterm.lua (both carry an explicit `lazy = false` with an
+inline justification).
 
 | File | Plugin | Trigger |
 |---|---|---|
@@ -128,14 +132,15 @@ lazy.nvim loads it eagerly (this config does not set `defaults.lazy = true`).
 | lsp/completions.lua | nvim-cmp | `event = "InsertEnter"` |
 | lsp/diagnostics.lua | tiny-inline-diagnostic.nvim | `event = "LspAttach"`, `priority = 1000` |
 | lsp/lsp-config.lua | mason(+lspconfig) | `cmd = "Mason"` / `event = "VeryLazy"` / `event = {BufReadPre, ...}` (three specs) |
+| lsp/mason-tools.lua | mason-tool-installer.nvim | `event = "VeryLazy"` (auto-installs stylua/prettier/eslint_d; `auto_update = false`) |
 | lsp/neoconf.lua | neoconf.nvim | `cmd = "Neoconf"` |
-| lsp/none-ls.lua | none-ls.nvim | **startup** (no trigger) |
-| navigation/leap.lua | leap.nvim (**Codeberg url**: `codeberg.org/andyg/leap.nvim`) | **startup** (no trigger) |
+| lsp/none-ls.lua | none-ls.nvim | `event = {BufReadPre, BufNewFile}` |
+| navigation/leap.lua | leap.nvim (**Codeberg url**: `codeberg.org/andyg/leap.nvim`) | `keys = s/S/gs` (modes n/x/o) |
 | navigation/neo-tree.lua | neo-tree.nvim | `cmd = "Neotree"` + `keys` |
 | navigation/nvim-window-picker.lua | nvim-window-picker | `event = "VeryLazy"`, `version = "2.*"` |
 | navigation/telescope.lua | telescope.nvim | `cmd = "Telescope"` + `keys` |
 | terminal/persistence.lua | persistence.nvim | `event = "BufReadPre"` |
-| terminal/toggleterm.lua | toggleterm.nvim | **startup** (no trigger; defines its own keymaps in `config`) |
+| terminal/toggleterm.lua | toggleterm.nvim | **startup** (explicit `lazy = false` — deliberate, documented in the spec: its keymaps are closures over memoised panel tables built in `config()`) |
 | ui/barbacue.lua | barbecue.nvim | `event = {BufReadPost, ...}` |
 | ui/colorizer.lua | nvim-colorizer.lua | `event = {BufReadPost, ...}` |
 | ui/cursorline.lua | nvim-cursorline | **`enabled = false`** (disabled, kept as one-line revert) |
