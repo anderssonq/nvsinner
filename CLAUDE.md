@@ -131,6 +131,7 @@ lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, un
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
+lua/core/ai-ask.lua          :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
@@ -207,8 +208,34 @@ line to `init.lua`** or its files will silently never load.
   `toggleterm.lua` pushes sessions in (`register` on create, `touch` on open +
   a `TermEnter` autocmd, `unregister` on exit, `set_opener` for the fallback);
   the registry is core-native on purpose so the lualine badge, the `<leader>ja`
-  picker, and the tests reach it without loading toggleterm. `M._reset()` /
-  `M._payload()` are test seams.
+  picker, and the tests reach it without loading toggleterm. `M.send_to(e,
+  text, opts)` sends to an EXPLICIT session entry (registry entry or
+  `sessions()` row; job_id read live from `e.term`) — `M.send` is now a thin
+  auto-target wrapper over it. `M._reset()` / `M._payload()` are test seams.
+- **Ask-AI modal — `lua/core/ai-ask.lua` (native, required from `init.lua`)**
+  — the IDE-style "select → ask" flow: visual `<leader>x` (free — trouble's
+  `<leader>x*` maps are normal-mode only) opens a help.lua-style modal with
+  **Fix / Refactor / Explain / Ask custom question**. Capture ordering is
+  load-bearing: selection (`sessions.selection_text()`), line range, and
+  cwd-relative path are read FIRST (getregion is only valid in visual mode),
+  then visual mode is left synchronously (`nvim_feedkeys(<Esc>, "nx")`, same
+  dance as `<leader>as`), THEN the modal opens. Picking builds a header +
+  location + code payload (`Fix this code in lua/core/foo.lua:10-25:` …;
+  custom question becomes the header via `vim.ui.input`) and dispatches
+  through the bridge — never auto-submitted. With >1 registered session a
+  `vim.ui.select` (same label formula as `<leader>ja`) asks which; with 0,
+  `send()`'s opener fallback applies. `:NvSinnerAskAI` reruns on the last
+  selection (`'<`/`'>` marks). **Double-click** also opens it: a global
+  `<2-LeftMouse>` map (n+x) selects the word under the pointer (`normal! viw`
+  — a superset of the default double-click word-select) or uses the active
+  visual selection, then runs the same capture→Esc→open flow. It bails
+  silently in floats, non-file buftypes, unnamed buffers, and on
+  whitespace-only words; buffer-local `<2-LeftMouse>` maps (neo-tree, …) win
+  over it. `M.double_click()` is public because mouse events can't be
+  synthesized headless. Ctx lives in module state (vim.ui.* callbacks
+  are async), cleared after dispatch/cancel. `M.build(key, ctx, question)` /
+  `M._reset()` / `M._ctx()` are the test seams; NvMenu* styling re-declared
+  locally like the other modals.
 - The CLI handles its own auth/billing; the config does **not** read
   `ANTHROPIC_API_KEY`. Buffers auto-reload when the CLI edits files on disk (see
   *Auto-reload*).
@@ -533,8 +560,9 @@ exactly this reason) — reference a role.
   toggleterm, telescope, dashboard, etc.
 - `which-key.lua` — `which-key.nvim` with **group labels** in `opts.spec` for
   the leader namespaces (`a` ai, `g` git, `h` hunks, `j` ai sessions, `l` lsp,
-  `s` search, `S` session, `t` terminal, `x` trouble); individual entries come
-  from each map's `desc`. Do NOT add an empty `config` function — it would
+  `s` search, `S` session, `t` terminal, `x` trouble — `x` is dual: trouble in
+  normal mode, the Ask-AI modal in visual mode, labeled via a `mode = "x"`
+  spec entry); individual entries come from each map's `desc`. Do NOT add an empty `config` function — it would
   suppress the automatic `setup(opts)` (warned in the file).
 
 ### LSP / formatting
@@ -792,6 +820,7 @@ installable, separately-named Neovim distro ("NvSinner").
 | `<leader>j2` … `<leader>j9` | Toggle AI sessions 2–9 (independent columns) |
 | `<leader>ja` | AI session picker — jump to (or reopen) a session, with its working/idle status |
 | `<leader>as` (visual) / `<leader>ab` / `<leader>ad` | Send to AI: selection / `@path` mention / current-line diagnostics (lands in the CLI input, never auto-submits) |
+| `<leader>x` (visual) / double-click / `:NvSinnerAskAI` | Ask-AI modal over the selection (double-click asks about the word under the pointer): Fix / Refactor / Explain / custom question (session picker with >1 AI session) |
 | `<leader>sd` / `<leader>sk` / `<leader>sc` / `<leader>sr` | Telescope: diagnostics / keymaps / commands / resume last search |
 | `<leader>sh` / `<leader>ss` / `<leader>sR` | Telescope: help tags / document symbols / LSP references |
 | `<leader>xx` / `<leader>xX` / `<leader>xs` / `<leader>xl` / `<leader>xq` | Trouble: diagnostics / buffer diagnostics / symbols / loclist / qflist |
@@ -858,6 +887,7 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid, a real streaming terminal flipping working→idle, `status()` for untracked buffers, and the awaiting state (`_on_osc` on `133;B`/`133;C`/OSC 9, output clearing it, the `NvAiAwait` chip) |
 | `tests/core/ai_sessions_spec.lua` | registry register/unregister + sessions() snapshot, target() MRU semantics (open > live job, current-terminal override), send() into a real terminal job, bracketed-paste payload wrapping, the no-session opener fallback + warn, `@path` mention + diagnostics formatting, and the `<leader>as/ab/ad/ja` maps |
+| `tests/core/ai_ask_spec.lua` | build() headers (fix/refactor/explain, one-line range collapse, custom question), visual-mode capture via the `<leader>x` map (ctx + back to normal mode), the modal rendering the four actions, run() sending into a real terminal, the vim.ui.input custom flow (cancel sends nothing), the >1-session vim.ui.select branch hitting send_to(), send_to() dead-entry fallback, double_click() (word capture + modal, active-selection reuse, silent bail in special buffers/whitespace), and the maps + :NvSinnerAskAI existing |
 | `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
 | `tests/core/sync_spec.lua` | `:NvSinnerSync` command exists, `outdated()` version comparison (stale/fresh/no-receipt/throwing lookup), `branch_jumps()` lockfile diffing (jump detection, added/removed ignored), and the mason-unavailable warning path |
 | `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |

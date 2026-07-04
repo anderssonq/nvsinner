@@ -38,6 +38,11 @@ any existing `~/.config/nvim` without touching it.
   `<leader>ab` an `@path` mention, `<leader>ad` the current line's
   diagnostics. Text lands in the CLI's input as one editable block — never
   auto-submitted.
+- **Ask AI modal** — select code and hit `<leader>x` (or just **double-click
+  a word**) for the IDE-style quick-action menu: **Fix / Refactor / Explain /
+  Ask custom question**. The chosen prompt (with the file path and line
+  range) plus the selection lands in the AI column's input; with more than
+  one session open, a picker asks which one.
 - **AI edit highlights** — when the agent rewrites an open file, the changed
   lines get a soft wash of your accent color right in the file pane (distinct
   from git's gutter marks) and clear the moment you take the file over.
@@ -155,6 +160,17 @@ of the current file, `<leader>ad` to send the current line's diagnostics.
 Multi-line text arrives as one editable block (bracketed paste) and is never
 auto-submitted — you review and press Enter. With no session open yet, the
 bridge opens session 1 and asks you to resend.
+
+**Ask AI about a selection:** select code and hit `<leader>x` to open the
+Ask-AI modal — **Fix**, **Refactor**, **Explain**, or **Ask custom question**
+(typed in a small input). The action becomes a prompt header carrying the
+file's path and line range (`Fix this code in lua/core/foo.lua:10-25:`),
+followed by the selected code, and lands in the AI column's input like every
+other bridge send. With more than one AI session registered, a picker asks
+which session to send to. `:NvSinnerAskAI` reruns it on the last selection,
+and **double-clicking a word** in a code pane opens the same modal over that
+word (an active visual selection is used instead when there is one; special
+panes like the tree and terminals are left alone).
 
 > [!WARNING]
 > Auto-reload is **disk-wins** by design: when the AI CLI edits a file on
@@ -279,6 +295,7 @@ lua/core/ai-edits.lua          Underlines AI-written lines after a reload, until
 lua/core/ui-touch.lua          Active-window glow + mouse-hover docs (native)
 lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal winbar
 lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja)
+lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run missing-tools toast
@@ -404,6 +421,8 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
 | `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
+| `<leader>x` | x | Ask AI about the selection — Fix / Refactor / Explain / custom question modal (also `:NvSinnerAskAI`) |
+| double-click | n, x | Ask AI about the word under the pointer (or the active selection) — same modal |
 | `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |
 | `<leader>ab` | n | Send an `@path` mention of the current buffer to the AI column |
 | `<leader>ad` | n | Send the current line's diagnostics to the AI column |

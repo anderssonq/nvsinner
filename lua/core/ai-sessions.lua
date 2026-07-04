@@ -116,15 +116,16 @@ function M.target()
 	end)
 end
 
--- Send `text` into the target session's terminal job. Returns true on success.
+-- Send `text` into a SPECIFIC session entry (a registry entry or a row from
+-- M.sessions() — both carry .n and .term; job_id is read LIVE from the term so
+-- a snapshot row stays correct after a hide/reopen). Returns true on success.
 -- opts.focus = false skips jumping into the column after the send (default is
 -- to focus it and enter insert mode, so you land on the CLI input).
-function M.send(text, opts)
+function M.send_to(e, text, opts)
 	opts = opts or {}
 	if not text or text == "" then
 		return false
 	end
-	local e = M.target()
 	if not e or not job_alive(e.term.job_id) then
 		if opener then
 			opener(1)
@@ -141,6 +142,14 @@ function M.send(text, opts)
 		vim.cmd("startinsert!")
 	end
 	return true
+end
+
+-- Send `text` into the auto-resolved target session (M.target() MRU order).
+function M.send(text, opts)
+	if not text or text == "" then
+		return false
+	end
+	return M.send_to(M.target(), text, opts)
 end
 
 -- What actually goes down the wire (exposed as a test seam): multi-line text
