@@ -51,6 +51,30 @@ end
 -- Fine-grained height step (+2 rows), normal mode only.
 vim.keymap.set("n", "<C-Up>", "<Cmd>resize +2<CR>", { silent = true, desc = "Grow window height (+2)" })
 
+-- ─── NvSinner command shortcuts — the <leader>x* namespace ──────────────────
+-- Every NvSinner surface is reachable under <leader>x (visual <leader>x is
+-- already the Ask-AI modal). Trouble owns <leader>xx/xX/xs/xl/xq in normal
+-- mode, so these letters deliberately avoid those; that's also why symbols is
+-- `xo` (outline) — trouble's `xs` was there first. Sync is capital S on
+-- purpose: it rewrites lazy-lock.json, so it should not be a casual keystroke.
+local nvsinner_maps = {
+	{ "<leader>xm", "NvSinnerMenu", "NvSinner settings menu" },
+	{ "<leader>xh", "NvSinnerHelp", "NvSinner command palette" },
+	{ "<leader>xp", "NvSinnerPrompts", "Prompt library → clipboard" },
+	{ "<leader>xo", "NvSinnerSymbols", "Document symbols modal" },
+	{ "<leader>xu", "NvSinnerUpdate", "NvSinner update (pinned restore)" },
+	{ "<leader>xS", "NvSinnerSync", "NvSinner sync — floats plugins, rewrites lockfile" },
+	{ "<leader>xc", "checkhealth nvsinner", "NvSinner health check" },
+}
+for _, m in ipairs(nvsinner_maps) do
+	vim.keymap.set("n", m[1], "<Cmd>" .. m[2] .. "<CR>", { silent = true, desc = m[3] })
+end
+
+-- Document-symbols modal (:NvSinnerSymbols) — pick a symbol, jump to it.
+vim.keymap.set("n", "<leader>cs", function()
+	require("core.symbols").show_symbols()
+end, { silent = true, desc = "Document symbols modal" })
+
 -- Prompt library modal (:NvSinnerPrompts) — pick a prompt, copy to clipboard.
 vim.keymap.set("n", "<leader>p", "<Cmd>NvSinnerPrompts<CR>", { silent = true, desc = "Prompt library → clipboard" })
 

@@ -25,6 +25,11 @@ local function apply_hl()
 	set(0, "NvMenuValue", { fg = c.base09, bold = true })
 	set(0, "NvMenuMuted", { fg = c.base03, italic = true }) -- hints, ‹ › arrows
 	set(0, "NvMenuSel", { bg = c.base01 }) -- selected row wash (solid on purpose)
+	-- Solid modal surface, darker than the editor AND the regular floats, so
+	-- the modal reads as its own layer (solid on purpose — same rationale as
+	-- NvMenuSel: contrast must survive transparent mode).
+	set(0, "NvMenuNormal", { fg = c.base04, bg = c.shade })
+	set(0, "NvMenuBorder", { fg = c.base02, bg = c.shade })
 end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", {
@@ -209,8 +214,9 @@ function M.open()
 		row = math.max(1, math.floor((vim.o.lines - height) / 2) - 1),
 		col = math.max(0, math.floor((vim.o.columns - WIDTH) / 2)),
 	})
-	vim.wo[ui.win].winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder"
+	vim.wo[ui.win].winhighlight = "Normal:NvMenuNormal,FloatBorder:NvMenuBorder"
 	vim.wo[ui.win].cursorline = false
+	require("core.backdrop").attach(ui.win) -- dim the editor behind the modal
 
 	local function map(lhs, rhs)
 		vim.keymap.set("n", lhs, rhs, { buffer = ui.buf, nowait = true, silent = true })

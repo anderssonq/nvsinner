@@ -123,6 +123,8 @@ lua/core/settings.lua        Persistent :NvSinnerMenu settings (JSON in settings
 lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over core/settings (native)
 lua/core/prompts.lua         :NvSinnerPrompts — prompt-library modal over settings/prompts.json → OS clipboard (native)
 lua/core/help.lua            :NvSinnerHelp — command palette listing every NvSinner command; pick one to run it (native)
+lua/core/symbols.lua         :NvSinnerSymbols / <leader>cs — LSP document-symbols modal; pick a symbol to jump to it (native)
+lua/core/backdrop.lua        Dimming backdrop behind the NvSinner modals (full-screen winblend float, auto-closes with the modal) (native)
 settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
 lua/core/carbon.lua          Carbon base16 role palette + accent packs — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
@@ -258,7 +260,13 @@ line to `init.lua`** or its files will silently never load.
 - Key roles (dark): bg `base00 #161616`, panels `base01 #262626`, body text
   `base04 #d0d0d0` (never pure white), comments `base03 #525252` italic, floats
   recessed on `blend #131313` with **invisible borders**, focused-pane lift
-  `lift #1c1c1c`. Identity accent: `base09 #78a9ff` (blue); attention/modified:
+  `lift #1c1c1c`. The NvSinner modals (`:NvSinnerMenu`/`Help`/`Prompts`/
+  `Symbols`/AskAI) sit on the darker `shade #0d0d0d` surface
+  (`NvMenuNormal`/`NvMenuBorder`, solid on purpose — like `NvMenuSel`, the
+  contrast survives transparent mode) and dim the editor behind them via
+  `core/backdrop.lua` (a full-screen non-focusable `backdrop`-black float at
+  `winblend` 60, one zindex layer below the modal, torn down by a `WinClosed`
+  autocmd on the modal window). Identity accent: `base09 #78a9ff` (blue); attention/modified:
   `base10 #ee5396` (magenta); busy chip: `base12 #ff7eb6` (pink); focused
   terminal bar: `base11 #33b1ff` (carbon's terminal-mode accent).
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
@@ -374,9 +382,16 @@ line to `init.lua`** or its files will silently never load.
 
 ### Command palette — `lua/core/help.lua` (native, required from `init.lua`)
 - **`:NvSinnerHelp`** — a Mason-style floating modal listing the distro's own
-  commands (title + muted description); selecting one (keyboard `<CR>`/
+  commands (title + muted description), **grouped into sections** (ai / editor /
+  settings / maintenance / other — `SECTION_OF` maps each command, unknowns land
+  in "other") with a muted `─ NAME ───` rule header per section; the layout is
+  computed in `refresh()` (per-item `line` + a `line_map`) since headers make
+  rows non-uniform. Selecting one (keyboard `<CR>`/
   `<Space>`/`l`, or a mouse click) **runs it and auto-closes** the modal, so it
   doubles as the discoverability entry point for the `:NvSinner*` surface.
+  Discovered descriptions are sanitized (`strtrans` changing the string = the
+  `nvim_get_commands` definition mangled multi-byte/`<...>` chars → blank);
+  commands with rich descs get a `DESCS` override instead.
   Navigation mirrors the other modals: `j`/`k` (or arrows) move, `1`-`9` jump,
   hover moves the selection, `q`/`<Esc>` close. Same `NvMenu*` styling.
 - **The list is self-maintaining**: `M.refresh()` (re-run on every open) scans
@@ -559,10 +574,10 @@ exactly this reason) — reference a role.
   overlaying git hunks / diagnostics / search / cursor. Excludes neo-tree,
   toggleterm, telescope, dashboard, etc.
 - `which-key.lua` — `which-key.nvim` with **group labels** in `opts.spec` for
-  the leader namespaces (`a` ai, `g` git, `h` hunks, `j` ai sessions, `l` lsp,
-  `s` search, `S` session, `t` terminal, `x` trouble — `x` is dual: trouble in
-  normal mode, the Ask-AI modal in visual mode, labeled via a `mode = "x"`
-  spec entry); individual entries come from each map's `desc`. Do NOT add an empty `config` function — it would
+  the leader namespaces (`a` ai, `c` code, `g` git, `h` hunks, `j` ai sessions, `l` lsp,
+  `s` search, `S` session, `t` terminal, `x` trouble · nvsinner — `x` is
+  shared: trouble panels + the NvSinner command shortcuts in normal mode, the
+  Ask-AI modal in visual mode, labeled via a `mode = "x"` spec entry); individual entries come from each map's `desc`. Do NOT add an empty `config` function — it would
   suppress the automatic `setup(opts)` (warned in the file).
 
 ### LSP / formatting
@@ -811,6 +826,8 @@ installable, separately-named Neovim distro ("NvSinner").
 | `:NvSinnerMenu` | Settings modal: theme, transparency, accent pack, folder/notif/syntax colors, panel sides, notifications |
 | `<leader>p` / `:NvSinnerPrompts` | Prompt library modal — pick a reusable AI prompt, copy it to the clipboard (`e` edits `settings/prompts.json`) |
 | `:NvSinnerHelp` | Command palette — every NvSinner command with its description; pick one to run it (auto-closes) |
+| `<leader>cs` / `<leader>xo` / `:NvSinnerSymbols` | Document-symbols modal — the buffer's LSP symbols (indented tree, kind icons); pick one to jump to it |
+| `<leader>xm` / `<leader>xh` / `<leader>xp` / `<leader>xu` / `<leader>xS` / `<leader>xc` | NvSinner shortcuts: Menu / Help / Prompts / Update / Sync (capital S — rewrites the lockfile) / checkhealth. Letters avoid trouble's `xx`/`xX`/`xs`/`xl`/`xq` |
 | `:NvSinnerSync` | Opt-in float: `:Lazy sync` (rewrites `lazy-lock.json`) + update outdated Mason packages (`:NvSinnerUpdate` stays the pinned path) |
 | `<leader>m` | Markdown "Open view" — toggle the render-markdown reading view (also the clickable winbar button) |
 | `<cr>` / `gO` (in an image buffer) | Reopen image in Quick Look / open in Preview.app |
@@ -877,17 +894,19 @@ this config + plenary on the runtimepath (no plugins loaded, no side effects).
 |------|--------|
 | `tests/core/options_spec.lua` | leaders + core editor options |
 | `tests/core/carbon_spec.lua` | carbon role tables (dark/light), the background/transparency flags (`vim.g` + env), and `:colorscheme carbon` honoring both (opaque vs transparent surfaces) |
-| `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker) + the resize step applied behaviorally (+20 cols) |
+| `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker), the full `<leader>x*` NvSinner shortcut namespace routed to its commands, + the resize step applied behaviorally (+20 cols) |
 | `tests/core/settings_spec.lua` | settings defaults, JSON save/load roundtrip + corrupt-file fallback, vim.g seeding precedence, the quiet notify filter, and the carbon accent/folder packs + single-role color slots |
 | `tests/core/menu_spec.lua` | `:NvSinnerMenu` command, the modal float rendering every row, and move/cycle writing through to core/settings |
 | `tests/core/prompts_spec.lua` | `:NvSinnerPrompts` command, JSON loading (array/string content, corrupt-file fallback), the modal listing title+description rows, copy() returning the prompt + closing, and the shipped library carrying 11 valid entries |
-| `tests/core/help_spec.lua` | `:NvSinnerHelp` command, refresh() discovering NvSinner* commands (self excluded, late registrations included) + the checkhealth extra, the modal listing rows, and run() executing + auto-closing |
+| `tests/core/help_spec.lua` | `:NvSinnerHelp` command, refresh() discovering NvSinner* commands (self excluded, late registrations included) + the checkhealth extra, the modal listing rows, section rule headers + items landing on their refresh()-computed lines, the strtrans desc sanitizer (no mangled bytes ever render), the solid NvMenuNormal surface + backdrop pairing/teardown, and run() executing + auto-closing |
 | `tests/core/autoreload_spec.lua` | `autoread`, the FileChangedShell**Post** autocmds, and the edit toast firing on an external change |
 | `tests/core/ai_edits_spec.lua` | the NvAiEdit accent-wash group (bg-only, blended — never the raw accent), a real external rewrite washing exactly the changed/added lines after the autoread reload, clear() re-baselining the snapshot, the armed take-over autocmds wiping the marks, and special buffers being skipped |
 | `tests/core/ui_touch_spec.lua` | focus/term-bar highlights, `NvTermBarDim` fg≠bg, mouse/fillchars, and the per-window winbar baking the buffer number |
 | `tests/core/ai_activity_spec.lua` | `winbar(buf)` idle/label/invalid, a real streaming terminal flipping working→idle, `status()` for untracked buffers, and the awaiting state (`_on_osc` on `133;B`/`133;C`/OSC 9, output clearing it, the `NvAiAwait` chip) |
 | `tests/core/ai_sessions_spec.lua` | registry register/unregister + sessions() snapshot, target() MRU semantics (open > live job, current-terminal override), send() into a real terminal job, bracketed-paste payload wrapping, the no-session opener fallback + warn, `@path` mention + diagnostics formatting, and the `<leader>as/ab/ad/ja` maps |
 | `tests/core/ai_ask_spec.lua` | build() headers (fix/refactor/explain, one-line range collapse, custom question), visual-mode capture via the `<leader>x` map (ctx + back to normal mode), the modal rendering the four actions, run() sending into a real terminal, the vim.ui.input custom flow (cancel sends nothing), the >1-session vim.ui.select branch hitting send_to(), send_to() dead-entry fallback, double_click() (word capture + modal, active-selection reuse, silent bail in special buffers/whitespace), and the maps + :NvSinnerAskAI existing |
+| `tests/core/symbols_spec.lua` | `:NvSinnerSymbols` command + `<leader>cs`/`<leader>xo` maps, `_flatten()` on both LSP shapes (nested DocumentSymbol children indented, flat SymbolInformation, position-less entries skipped), the `nvsinner_symbols` float (nofile, non-modifiable, cursorline), run() jumping the source window to the picked symbol, and the no-LSP-client warn path |
+| `tests/core/backdrop_spec.lua` | `attach()` opening the full-screen non-focusable dim float below the modal (zindex, winblend 60, no focus steal), the WinClosed teardown, the invalid-window guard, and `NvMenuBackdrop` carrying the carbon `backdrop` role |
 | `tests/core/update_spec.lua` | `:NvSinnerUpdate` command exists, `is_git_repo` detection, and the not-a-git-clone warning path |
 | `tests/core/sync_spec.lua` | `:NvSinnerSync` command exists, `outdated()` version comparison (stale/fresh/no-receipt/throwing lookup), `branch_jumps()` lockfile diffing (jump detection, added/removed ignored), and the mason-unavailable warning path |
 | `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |

@@ -33,6 +33,7 @@ require("core.image-open") -- open images in macOS Quick Look instead of showing
 require("core.menu") -- :NvSinnerMenu — the settings modal over core/settings.lua
 require("core.prompts") -- :NvSinnerPrompts — prompt library modal (settings/prompts.json → clipboard)
 require("core.help") -- :NvSinnerHelp — command palette listing every NvSinner command (pick → run)
+require("core.symbols") -- :NvSinnerSymbols — document-symbols modal (<leader>cs, pick → jump)
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {

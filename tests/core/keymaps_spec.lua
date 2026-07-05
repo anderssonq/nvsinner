@@ -24,6 +24,23 @@ describe("core.keymaps", function()
 		assert.is_true(map_exists("t", "<C-'>"))
 	end)
 
+	it("maps the whole <leader>x* NvSinner shortcut namespace to its commands", function()
+		local want = {
+			xm = "NvSinnerMenu",
+			xh = "NvSinnerHelp",
+			xp = "NvSinnerPrompts",
+			xo = "NvSinnerSymbols",
+			xu = "NvSinnerUpdate",
+			xS = "NvSinnerSync",
+			xc = "checkhealth nvsinner",
+		}
+		for suffix, cmd in pairs(want) do
+			local m = vim.fn.maparg("<leader>" .. suffix, "n", false, true)
+			assert.is_true(type(m) == "table" and next(m) ~= nil, "<leader>" .. suffix .. " must be mapped")
+			assert.matches(cmd, m.rhs, nil, true, "<leader>" .. suffix .. " must run " .. cmd)
+		end
+	end)
+
 	it("resizes the split when the width map is triggered", function()
 		-- Behavioral: feed the <C-,> mapping and watch the window grow by the
 		-- documented absolute step (+20 columns — Vim ignores a trailing "%" on

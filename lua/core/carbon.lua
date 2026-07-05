@@ -54,6 +54,8 @@ M.dark = {
 	base14 = "#be95ff", -- purple: strings, DiagnosticWarn, visual-mode block
 	base15 = "#82cfff", -- pale blue: numbers, normal-mode block
 	blend = "#131313", -- recessed float/panel bg (floats sit BELOW the editor)
+	shade = "#0d0d0d", -- modal surface: darker than blend so the NvSinner modals contrast with the editor
+	backdrop = "#000000", -- dimming overlay behind the modals (blended via winblend)
 	lift = "#1c1c1c", -- focused-pane lift (base00 ↔ base01 midpoint)
 	none = "NONE",
 	-- Diff washes: desaturated/darkened accents, the only hand-tuned hexes in
@@ -83,6 +85,8 @@ M.light = {
 	base14 = "#be95ff",
 	base15 = "#FFAB91",
 	blend = "#FAFAFA",
+	shade = "#ececec", -- modal surface: darker than blend so the modals contrast on white
+	backdrop = "#000000", -- dimming overlay behind the modals (black works on white too)
 	lift = "#f7f7f7",
 	none = "NONE",
 	-- Pale tints of the dark washes so diffs read as tinted panels on white.

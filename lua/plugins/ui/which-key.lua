@@ -7,6 +7,7 @@ return {
 		-- from each map's `desc` (already set everywhere).
 		spec = {
 			{ "<leader>a", group = "ai" },
+			{ "<leader>c", group = "code" },
 			{ "<leader>g", group = "git" },
 			{ "<leader>h", group = "hunks" },
 			{ "<leader>j", group = "ai sessions" },
@@ -14,7 +15,7 @@ return {
 			{ "<leader>s", group = "search" },
 			{ "<leader>S", group = "session" },
 			{ "<leader>t", group = "terminal" },
-			{ "<leader>x", group = "trouble" },
+			{ "<leader>x", group = "trouble · nvsinner" },
 			-- <leader>x is dual: trouble namespace in normal mode, the Ask-AI
 			-- modal (core/ai-ask.lua) in visual mode.
 			{ "<leader>x", desc = "Ask AI about selection", mode = "x" },

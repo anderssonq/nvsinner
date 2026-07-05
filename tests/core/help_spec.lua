@@ -60,6 +60,50 @@ describe("core.help", function()
 		assert.are_not.equal(win, vim.api.nvim_get_current_win())
 	end)
 
+	it("groups commands under section rule headers, items on their computed lines", function()
+		help.open()
+		local buf = vim.api.nvim_get_current_buf()
+		local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+		local text = table.concat(lines, "\n")
+		-- The known sections render as "─ NAME ───…" rules.
+		for _, hdr in ipairs({ "─ AI ", "─ SETTINGS ", "─ MAINTENANCE " }) do
+			assert.matches(hdr, text, nil, true)
+		end
+		-- The layout is non-uniform (headers interleave), so every item must
+		-- actually sit on the buffer line refresh() computed for it.
+		for _, it in ipairs(help.refresh()) do
+			assert.matches(it.title, lines[it.line], nil, true)
+		end
+		help.close()
+	end)
+
+	it("never renders a description the command registry mangled", function()
+		-- nvim_get_commands' `definition` corrupts multi-byte chars and <...>
+		-- keycodes for Lua commands; the sanitizer must leave every discovered
+		-- description strtrans-clean (intact or blanked — never raw bytes).
+		vim.api.nvim_create_user_command("NvSinnerTestProbe", function() end, {
+			desc = "mangled — <leader>z probe",
+		})
+		local items = help.refresh()
+		vim.api.nvim_del_user_command("NvSinnerTestProbe")
+		for _, it in ipairs(items) do
+			assert.are.equal(vim.fn.strtrans(it.desc), it.desc, "raw bytes leaked into: " .. it.title)
+		end
+	end)
+
+	it("opens on the solid NvMenuNormal surface with a backdrop behind it", function()
+		local before = #vim.api.nvim_list_wins()
+		help.open()
+		local modal = vim.api.nvim_get_current_win()
+		assert.matches("NvMenuNormal", vim.wo[modal].winhighlight, nil, true)
+		assert.are.equal(before + 2, #vim.api.nvim_list_wins(), "modal + backdrop expected")
+		help.close()
+		vim.wait(200, function()
+			return #vim.api.nvim_list_wins() == before
+		end)
+		assert.are.equal(before, #vim.api.nvim_list_wins(), "backdrop must close with the modal")
+	end)
+
 	it("run() executes the selected command and auto-closes the modal", function()
 		local fired = false
 		vim.api.nvim_create_user_command("NvSinnerTestProbe", function()
