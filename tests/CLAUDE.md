@@ -38,6 +38,9 @@ effects). Deeper QA doctrine (evidence bar, new-spec template) lives in the
 | `tests/core/sync_spec.lua` | `:NvSinnerSync` command exists, `outdated()` version comparison (stale/fresh/no-receipt/throwing lookup), `branch_jumps()` lockfile diffing (jump detection, added/removed ignored), and the mason-unavailable warning path |
 | `tests/core/health_spec.lua` | `check_tools` present/absent detection, the first-run toast (warn-once via marker, silent when nothing missing), and `:checkhealth nvsinner` running |
 | `tests/core/image_open_spec.lua` | `BufReadCmd` replaces an image with the placeholder, `buftype=nofile` write-guard, `<cr>`/`gO` buffer maps, and no headless auto-preview |
+| `tests/core/git_blame_spec.lua` | the NvGitBlame comment-tone group, `_format()` porcelain parsing (uncommitted skipped), a real one-commit repo annotating the cursor line, uncommitted lines staying blank (buffer contents blamed), untracked/special-buffer skips, and `:NvSinnerBlameToggle` clearing on off |
+| `tests/core/illuminate_spec.lua` | the carbon LspReference* underlines, the visible-range fallback marking every occurrence word-boundary strict, `clear()` on movement, and the denylist/large-file/special-buffer guards |
+| `tests/core/sessions_spec.lua` | the persistence-parity `sessionoptions`, save()/load() cwd roundtrip, load() false with no session, `last()` mtime pick, the autosave gate (armed by a real file, paused by `stop()`), and the `:NvSinnerSession*` commands + `<leader>S` maps |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
 
 ## Conventions for new specs

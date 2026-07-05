@@ -70,11 +70,11 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   spec entry); individual entries come from each map's `desc`. Do NOT add an
   empty `config` function — it would suppress the automatic `setup(opts)`
   (warned in the file).
-- `illuminate.lua` — `vim-illuminate`: highlights every occurrence of the
-  symbol under the cursor (the "actionable text" cue) via LSP → treesitter →
-  regex, with a panel-gray underline (`IlluminatedWordText/Read/Write`).
-  Lazy-loaded on `BufReadPost`/`BufNewFile`; defaults map `<a-n>`/`<a-p>` to
-  next/prev reference.
+- `illuminate.lua` — `vim-illuminate` is **disabled** (`enabled = false`):
+  replaced by the native module `lua/core/illuminate.lua` (builtin
+  `vim.lsp.buf.document_highlight` + a visible-range word scan fallback for
+  parser-backed buffers, same delay/cutoff/denylist, panel-gray underlines on
+  the `LspReference*` groups). Kept as a one-line revert.
 - `cursorline.lua` — `nvim-cursorline` is **disabled** (`enabled = false`):
   its cursorword duplicated `illuminate` and its cursorline fought
   `core/ui-touch.lua`. Kept as a one-line revert.

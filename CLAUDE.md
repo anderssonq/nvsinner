@@ -46,6 +46,9 @@ lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + check
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
 lua/core/image-open.lua      Open image files in macOS Quick Look + metadata placeholder (native)
+lua/core/git-blame.lua       Inline git blame for the cursor line, async porcelain → eol virt_text (native, replaces git-blame.nvim)
+lua/core/illuminate.lua      Symbol-occurrence underline: LSP document_highlight + visible-range fallback (native, replaces vim-illuminate)
+lua/core/sessions.lua        :mksession sessions per cwd — :NvSinnerSession*, <leader>Sc/Sl/SQ (native, replaces persistence.nvim)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```
@@ -195,5 +198,8 @@ kanagawa-dragon "glass" palette; the theme is now **carbon**, so any specific
 hex a skill quotes is historical — current values live in
 `lua/core/carbon.lua`.
 
-See [NVSINNER.md](NVSINNER.md) for the original distro-packaging plan and
-[docs/installation.md](docs/installation.md) for setup.
+See [NVSINNER.md](NVSINNER.md) for the original distro-packaging plan,
+[docs/installation.md](docs/installation.md) for setup, and
+[docs/native-roadmap.md](docs/native-roadmap.md) for the plugin→native
+migration analysis and its wave plan (which plugins stay, which go native,
+and why).

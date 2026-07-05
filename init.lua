@@ -35,6 +35,9 @@ require("core.menu") -- :NvSinnerMenu — the settings modal over core/settings.
 require("core.prompts") -- :NvSinnerPrompts — prompt library modal (settings/prompts.json → clipboard)
 require("core.help") -- :NvSinnerHelp — command palette listing every NvSinner command (pick → run)
 require("core.symbols") -- :NvSinnerSymbols — document-symbols modal (<leader>cs, pick → jump)
+require("core.git-blame") -- native inline git blame for the cursor line (replaces git-blame.nvim)
+require("core.illuminate") -- native symbol-occurrence highlight: LSP document_highlight + TS fallback (replaces vim-illuminate)
+require("core.sessions") -- native :mksession sessions — :NvSinnerSession*, <leader>Sc/Sl/SQ (replaces persistence.nvim)
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {

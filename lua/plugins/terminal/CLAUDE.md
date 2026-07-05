@@ -52,5 +52,8 @@
 
 ## Sessions — `persistence.lua`
 
-- `persistence.nvim`: `<leader>SQ` quit no-save, `<leader>Sc` restore cwd
-  session, `<leader>Sl` restore last session.
+- `persistence.nvim` is **disabled** (`enabled = false`): replaced by the
+  native `:mksession` wrapper in `lua/core/sessions.lua` — same `<leader>SQ`
+  quit no-save, `<leader>Sc` restore cwd session, `<leader>Sl` restore last
+  session, plus `:NvSinnerSession*` commands. Sessions now live under
+  `stdpath("state")/sessions/`. Kept as a one-line revert.

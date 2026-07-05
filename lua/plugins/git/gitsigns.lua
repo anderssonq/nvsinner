@@ -1,7 +1,7 @@
 -- Git change markers in the sign column of code buffers: shows which lines were
 -- added / changed / deleted vs. the git index, plus hunk navigation and
 -- stage / reset / preview actions. (Inline per-line blame is handled separately
--- by git-blame.nvim; gitsigns only draws the gutter here.)
+-- by the native lua/core/git-blame.lua; gitsigns only draws the gutter here.)
 return {
 	"lewis6991/gitsigns.nvim",
 	-- Lazy: attach once a real file buffer is opened.

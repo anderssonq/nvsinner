@@ -9,6 +9,9 @@
   rollback recipe: `git restore lazy-lock.json` + `Lazy! restore`.
 - Treesitter is the single source of syntax colour — LSP semantic tokens are
   disabled in `lua/plugins/lsp/lsp-config.lua` (see that folder's CLAUDE.md).
-- `autopairs.lua`, `comment.lua` (`gcc` / `gbc` toggles), `surround.lua`,
-  `todocomment.lua` — standard lazy-loaded editing plugins; no special
-  contracts beyond the repo conventions.
+- `comment.lua` — `Comment.nvim` is **disabled** (`enabled = false`):
+  Neovim's builtin commenting (0.10+) covers it — `gcc` toggles the current
+  line, `gc{motion}` / visual `gc` toggle a region, commentstring-aware via
+  treesitter. Kept as a one-line revert.
+- `autopairs.lua`, `surround.lua`, `todocomment.lua` — standard lazy-loaded
+  editing plugins; no special contracts beyond the repo conventions.

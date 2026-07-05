@@ -4,6 +4,59 @@ Pending work to turn this config into a fully standalone, publishable Neovim
 distribution. Done items live in [NVSINNER.md](NVSINNER.md); this file tracks
 what's left.
 
+## Native migration (distro, not config pack)
+
+Full analysis and justifications: [docs/native-roadmap.md](docs/native-roadmap.md).
+Migrated plugins keep their spec as an `enabled = false` one-line-revert stub.
+
+### Migrated
+
+- [x] **incline.nvim** → `lua/core/filebadge.lua` (winbar file badge + markdown
+      "Open view" chip).
+- [x] **nvim-cursorline** → covered by `lua/core/ui-touch.lua` + illuminate.
+- [x] **kanagawa-dragon (theme plugin)** → native carbon (`lua/core/carbon.lua`
+      + `colors/carbon.lua`).
+- [x] **Comment.nvim** → Neovim 0.10+ builtin `gcc` / `gc{motion}` commenting.
+- [x] **git-blame.nvim** → `lua/core/git-blame.lua` (async porcelain blame of
+      the buffer contents → eol virtual text; `:NvSinnerBlameToggle`).
+- [x] **vim-illuminate** → `lua/core/illuminate.lua` (builtin LSP
+      `document_highlight` + visible-range fallback).
+- [x] **persistence.nvim** → `lua/core/sessions.lua` (`:mksession` per cwd;
+      `<leader>Sc/Sl/SQ` + `:NvSinnerSession*`).
+
+### Pending — Wave 1.5 (cheap wins)
+
+- [ ] **indentmini.nvim** → decoration-provider indent guides.
+- [ ] **nvim-colorizer** → hex-code regex → bg extmarks on the visible range.
+- [ ] **todo-comments.nvim** → TODO/FIXME regex extmarks (drops a plenary
+      consumer).
+- [ ] **nvim-window-picker** → letter-overlay floats (needs neo-tree's
+      `window_picker` seam).
+
+### Pending — Wave 2 (distro identity)
+
+- [ ] **alpha-nvim** → `core/dashboard.lua` (the spec is already ~90% custom
+      NvSinner code).
+- [ ] **nvim-notify** → `core/toast.lua` (owning `vim.notify` also unblocks the
+      noice decision).
+- [ ] **barbecue.nvim + nvim-navic** → LSP breadcrumbs inside
+      `core/filebadge.lua` (unifies winbar ownership).
+- [ ] **satellite.nvim** → native decoration-provider scrollbar (lowest
+      priority of the tier).
+
+### Pending — Wave 3 (flagships, future goals)
+
+- [ ] **telescope** → NvSinnerFind: `matchfuzzy()` + async fd/rg picker, the
+      sixth Mason-style modal.
+- [ ] **toggleterm** → native terminal manager (only behind the terminal-UX
+      campaign's edge-case matrix; reserved ids 100+ must survive).
+- [ ] **lualine** → native statusline (winbar-expression expertise transfers).
+- [ ] **noice** → evaluate drop vs replace once `core/toast.lua` exists.
+
+Everything else stays on purpose (engines and deep tools — treesitter, LSP
+stack, gitsigns, diffview, neo-tree, leap, which-key, …); the roadmap lists
+each with its rationale.
+
 ## Nice to have
 
 - [ ] **Screenshots / GIF** in the README (dashboard, AI column, carbon theme).

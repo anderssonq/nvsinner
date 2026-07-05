@@ -7,7 +7,7 @@
 -- mark — the same ASCII art as the README header (one identity everywhere).
 --
 -- Buttons are wired to THIS config's real features (telescope, neo-tree,
--- persistence, lazy) rather than the alpha defaults. Menu items are also
+-- the native core/sessions, lazy) rather than the alpha defaults. Menu items are also
 -- mouse-aware: hovering highlights the item (a "pill") and a click runs it.
 -- See CLAUDE.md.
 
@@ -110,7 +110,7 @@ return {
 			button("r", "  Recent files", "<cmd>Telescope oldfiles<cr>"),
 			button("g", "  Find text", "<cmd>Telescope live_grep<cr>"),
 			button("e", "  File explorer", "<cmd>Neotree toggle left<cr>"),
-			button("s", "  Restore session", "<cmd>lua require('persistence').load()<cr>"),
+			button("s", "  Restore session", "<cmd>NvSinnerSessionLoad<cr>"),
 			button("c", "  Configuration", "<cmd>Telescope find_files cwd=" .. config_dir .. "<cr>"),
 			button("l", "  Plugins (Lazy)", "<cmd>Lazy<cr>"),
 			button("q", "  Quit", "<cmd>qa<cr>"),

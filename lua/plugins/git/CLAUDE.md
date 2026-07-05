@@ -1,15 +1,18 @@
 # lua/plugins/git/ — git plugin ownership rules
 
-- `git-blame.lua` — `git-blame.nvim`: always-on inline blame as virtual text
-  (author / date / sha of the current line), lazy-loaded on `VeryLazy`.
+- `git-blame.lua` — `git-blame.nvim` is **disabled** (`enabled = false`):
+  replaced by the native inline blame in `lua/core/git-blame.lua` (async
+  `git blame --porcelain` of the buffer contents → eol virtual text,
+  `:NvSinnerBlameToggle`). Kept as a one-line revert. Inline blame is still
+  that module's job — the gitsigns rule below is unchanged.
 - `gitsigns.lua` — `gitsigns.nvim`: sign-column markers for added / changed /
   deleted lines vs. the git index (a thin `▎` bar), lazy-loaded on
   `BufReadPre` / `BufNewFile`. Hunk keymaps live in its `on_attach`: `]h` /
   `[h` navigate, `<leader>hp` preview, `<leader>hs` / `<leader>hr` stage /
   reset hunk, `<leader>hS` / `<leader>hR` stage / reset buffer, `<leader>hb`
-  blame popup. Keep the **inline** blame as git-blame.nvim's job and the
-  **popup** blame as gitsigns' — don't enable gitsigns `current_line_blame`
-  (it would double up).
+  blame popup. Keep the **inline** blame as `core/git-blame.lua`'s job and
+  the **popup** blame as gitsigns' — don't enable gitsigns
+  `current_line_blame` (it would double up).
 - `diffview.lua` — `diffview.nvim`: a full side-by-side `git diff` viewer
   (file panel + two versions of the file). Lazy-loaded on its `Diffview*`
   commands and keymaps: `<leader>gd` open working-tree-vs-index, `<leader>gh`

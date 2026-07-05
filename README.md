@@ -330,7 +330,7 @@ spec; new files in an existing category are picked up automatically.
 | `colorizer.lua` | nvim-colorizer | Inline color previews for hex/rgb |
 | `identmini.lua` | indentmini.nvim | Indentation guides |
 | `notify.lua` | nvim-notify | Pretty notifications (replaces `vim.notify`) |
-| `illuminate.lua` | vim-illuminate | Underlines every occurrence of the symbol under the cursor |
+| `illuminate.lua` | vim-illuminate | **Disabled** — replaced by the native occurrence highlight (`lua/core/illuminate.lua`) |
 | `scrollbar.lua` | satellite.nvim | Slim right-edge scrollbar with hunk/diagnostic/search marks |
 | `mini-animate.lua` | mini.animate | Window open/close/resize easing + cursor trail |
 
@@ -349,7 +349,7 @@ spec; new files in an existing category are picked up automatically.
 | File | Plugin | Keys |
 |------|--------|------|
 | `completions.lua` | nvim-cmp + LuaSnip | `<CR>` confirm · `<C-Space>` trigger · `<C-b>`/`<C-f>` scroll docs · `<C-e>` abort |
-| `comment.lua` | Comment.nvim | `gcc` line · `gbc` block · `gc{motion}` / `gb{motion}` |
+| `comment.lua` | Comment.nvim | **Disabled** — Neovim's builtin commenting covers it: `gcc` line · `gc{motion}` / visual `gc` |
 | `surround.lua` | nvim-surround | `ys{motion}{char}` add · `ds{char}` delete · `cs{old}{new}` change |
 | `autopairs.lua` | nvim-autopairs | Auto-closes brackets/quotes |
 
@@ -369,8 +369,8 @@ spec; new files in an existing category are picked up automatically.
 | File | Plugin | Keys |
 |------|--------|------|
 | `toggleterm.lua` | toggleterm.nvim | `<leader>t` / `<leader>t2…9` horizontal terms (20% height) · `<leader>j` / `<leader>j2…9` AI sessions |
-| `persistence.lua` | persistence.nvim | `<leader>SQ` / `<leader>Sc` / `<leader>Sl` sessions |
-| `git-blame.lua` | git-blame.nvim | Inline git blame virtual text |
+| `persistence.lua` | persistence.nvim | **Disabled** — native sessions in `lua/core/sessions.lua` keep `<leader>SQ` / `<leader>Sc` / `<leader>Sl` |
+| `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua` (`:NvSinnerBlameToggle`) |
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
 | `diffview.lua` | diffview.nvim | `<leader>gd` diff · `<leader>gh`/`<leader>gH` file/repo history · `<leader>gq` close |
 | `todocomment.lua` | todo-comments.nvim | Highlights `TODO` / `FIXME` / etc. |
@@ -409,7 +409,7 @@ spec; new files in an existing category are picked up automatically.
 | `]d` / `[d` | n | Neovim builtins: next / previous diagnostic |
 | `<leader>xx` / `<leader>xX` | n | Trouble: workspace / buffer diagnostics |
 | `<leader>xs` / `<leader>xl` / `<leader>xq` | n | Trouble: symbols / location list / quickfix list |
-| `gcc` / `gbc` | n | Toggle line / block comment |
+| `gcc` | n | Toggle line comment (Neovim builtin; `gc{motion}` / visual `gc` for regions) |
 | `ys` / `ds` / `cs` | n | Add / delete / change surround |
 | `<leader>m` | n | Markdown "Open view" — toggle the reading view (also the clickable winbar button) |
 
@@ -469,10 +469,10 @@ Plugins are lazy-loaded via lazy.nvim triggers:
 
 - `event = "InsertEnter"` — completion (`nvim-cmp`), autopairs.
 - `event = { "BufReadPost", "BufNewFile" }` — treesitter, LSP, colorizer,
-  indent guides, breadcrumbs, todo-comments, illuminate.
+  indent guides, breadcrumbs, todo-comments.
 - `event = { "BufReadPre", "BufNewFile" }` — gitsigns (sign-column markers).
-- `event = "VeryLazy"` — statusline, comments, scroll, notifications,
-  git-blame, surround, which-key, window-picker.
+- `event = "VeryLazy"` — statusline, scroll, notifications, surround,
+  which-key, window-picker.
 - `cmd` / `keys` — Telescope, Neo-tree, toggleterm AI column, diffview.
 
 Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load

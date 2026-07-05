@@ -523,3 +523,58 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   (headless/tests) and skips **floating** windows
   (`win_config.relative ~= ""`), so telescope's preview doesn't spawn a Quick
   Look storm; a `b:` flag makes it pop once per buffer.
+
+## Inline git blame — `git-blame.lua` (required from `init.lua`)
+
+- Replaces git-blame.nvim (its spec is kept disabled as a one-line revert).
+  The cursor line gets an eol virtual-text annotation
+  ` <summary> • <date> • <author> • <sha7>` in `NvGitBlame` (carbon `base03`
+  italic — the comment tone).
+- **Debounce discipline**: movement clears the annotation immediately (a
+  stale blame under a new cursor line reads as wrong data) and re-arms a
+  `vim.uv` timer (`M.DELAY` 350ms, handle anchored on `M._timer`). The timer
+  fires one async `git blame -L <line>,<line> --porcelain` via `vim.system`;
+  a **generation counter** drops any in-flight result whose request predates
+  the latest movement.
+- **The buffer contents are blamed**, not the file on disk (`--contents -`
+  with the buffer lines on stdin), so unsaved edits above the cursor don't
+  shift annotations onto the wrong commit. All-zero shas (uncommitted lines)
+  render nothing — no fake annotation.
+- Untracked/non-repo buffers are cached as **dead** after the first failed
+  blame (cleared on `BufWritePost`) so a scratch note doesn't spawn a git
+  process per cursor move. While typing (`CursorMovedI`/`InsertEnter`) it
+  only clears — re-blaming per keystroke is churn.
+- `:NvSinnerBlameToggle` flips the whole feature. Seams: `M._ns`,
+  `M.refresh(buf)` (immediate, no debounce — cursor autocmds don't fire
+  headless), `M._format(porcelain)`, `M._reset()`.
+
+## Symbol occurrences — `illuminate.lua` (required from `init.lua`)
+
+- Replaces vim-illuminate (spec kept disabled). Two providers: LSP buffers
+  use the builtin `vim.lsp.buf.document_highlight()` (rendered through
+  `LspReferenceText/Read/Write`, styled here with the panel-gray underlines —
+  `base01`, writes `base02`); buffers without a capable client get a
+  **visible-range word-boundary scan** (extmarks in `nvsinner_illuminate`),
+  gated to buffers with a treesitter parser so prose doesn't light up.
+- Parity constants from the old spec: `M.DELAY` 120ms, `M.MAX_LINES` 4000,
+  `M.DENYLIST` (neo-tree, alpha, dashboard, TelescopePrompt, toggleterm,
+  lazy, mason, help). Same clear-then-debounce shape as `git-blame.lua`
+  (`M._timer` anchored). Seams: `M._ns`, `M.refresh(buf)`, `M.clear(buf)`,
+  `M._reset()`.
+
+## Sessions — `sessions.lua` (required from `init.lua`)
+
+- Replaces persistence.nvim (spec kept disabled). A thin `:mksession`
+  wrapper: one session per cwd (percent-encoded path) under
+  `stdpath("state")/sessions/` — NVIM_APPNAME-scoped, so nvsinner sessions
+  never collide with another config's. `vim.o.sessionoptions` keeps the old
+  `options` list verbatim (`buffers,curdir,tabpages,winsize`).
+- **Autosave gate**: `VimLeavePre` saves only after a real file
+  (`buftype == ""`) was opened this run (quitting straight from the dashboard
+  must not overwrite a real session with an empty one), and not after
+  `stop()`. `stop()` pauses ONLY the autosave — explicit `save()`/`load()`
+  still work.
+- Surface: `<leader>Sc` restore cwd session, `<leader>Sl` restore the newest
+  session anywhere (mtime scan via `M.last()`), `<leader>SQ` quit no-save —
+  plus `:NvSinnerSessionLoad/Last/Stop` so `:NvSinnerHelp` lists them. Seams:
+  `M._reset({dir=…})`, `M._started()`.
