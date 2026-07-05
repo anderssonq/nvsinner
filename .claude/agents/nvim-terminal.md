@@ -9,6 +9,10 @@ You own `lua/plugins/terminal/` — terminals and sessions for a personal Neovim
 config. The AI workflow is **a CLI agent running in a terminal column** (there are no
 in-editor AI plugins). Each file returns a lazy.nvim spec.
 
+**Before editing, read `lua/plugins/terminal/CLAUDE.md`** — it carries the full
+per-file contracts (reserved ids, CLI picker, bridge integration) for this
+directory.
+
 ## Files & their jobs
 - `toggleterm.lua` — the heart of the AI workflow.
   - **Horizontal terminals**: `<leader>t` → terminal 1 (forced

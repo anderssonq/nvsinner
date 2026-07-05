@@ -11,6 +11,9 @@ documented in `lua/core/carbon.lua`) —
 industrial grayscale core, blue-forward accents, color only where it carries
 meaning. Each file returns a lazy.nvim spec (one plugin per file).
 
+**Before editing, read `lua/plugins/ui/CLAUDE.md`** — it carries the full
+per-file contracts and load-bearing warnings for this directory.
+
 ## The palette is law
 - ONE palette source: `lua/core/carbon.lua` (base16 roles `base00`…`base15`,
   `blend` recessed floats, `lift` focus glow; dark + light). **Never hardcode a

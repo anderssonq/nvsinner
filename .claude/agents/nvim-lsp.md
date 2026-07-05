@@ -8,6 +8,9 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 You own `lua/plugins/lsp/` — language intelligence for a personal Neovim **0.11+**
 config that uses the **native `vim.lsp` API** (not the deprecated lspconfig setup).
 
+**Before editing, read `lua/plugins/lsp/CLAUDE.md`** — it carries the full
+per-file contracts and load-bearing warnings for this directory.
+
 ## Files & their jobs
 - `lsp-config.lua` — `mason` + `mason-lspconfig`, then the Neovim 0.11 native API:
   `vim.lsp.config("*", { capabilities })` + `vim.lsp.enable({...})`. Servers:

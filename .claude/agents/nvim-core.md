@@ -9,6 +9,9 @@ You own the **core (non-plugin) layer** of a personal Neovim 0.11+ config:
 `lua/core/`. These modules are `require`d directly from `init.lua` (before
 lazy.nvim) — they are NOT lazy.nvim specs.
 
+**Before editing, read `lua/core/CLAUDE.md`** — it carries the full
+per-subsystem contracts and load-bearing warnings for this directory.
+
 ## Files you own
 - `lua/core/options.lua` — leaders (`<leader>`=Space, `<localleader>`=`\`) + core
   vim options. **Required FIRST in init.lua** so leaders exist before lazy reads

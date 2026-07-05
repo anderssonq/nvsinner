@@ -8,6 +8,9 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 You own `lua/plugins/editor/` — text-editing and syntax plugins for a personal
 Neovim 0.11+ config. Each file returns a lazy.nvim spec (one plugin per file).
 
+**Before editing, read `lua/plugins/editor/CLAUDE.md`** — it carries the full
+per-file contracts, including the nvim-treesitter `branch = "master"` pin.
+
 ## Files & their jobs
 - `nvim-treesitter.lua` — **the single source of syntax color** for the whole
   config (LSP semantic tokens are deliberately disabled in `lsp/lsp-config.lua` so

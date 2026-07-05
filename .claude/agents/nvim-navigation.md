@@ -8,6 +8,9 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 You own `lua/plugins/navigation/` — moving around files/buffers/windows in a
 personal Neovim 0.11+ config. Each file returns a lazy.nvim spec.
 
+**Before editing, read `lua/plugins/navigation/CLAUDE.md`** — it carries the
+per-file contracts for this directory.
+
 ## Files & their jobs
 - `telescope.lua` — `telescope.nvim` fuzzy finder. Keymaps: `<leader>f` find files,
   `<leader>sf` live grep (needs ripgrep), `<leader>fb` buffers.

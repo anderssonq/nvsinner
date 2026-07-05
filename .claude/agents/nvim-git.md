@@ -9,6 +9,9 @@ You own `lua/plugins/git/` — the git integration of a personal Neovim 0.11+ co
 Each file returns a lazy.nvim spec. There is a deliberate **division of labor** —
 respect it.
 
+**Before editing, read `lua/plugins/git/CLAUDE.md`** — it carries the full
+per-file contracts and ownership rules for this directory.
+
 ## Files & their jobs
 - `gitsigns.lua` — `gitsigns.nvim`: sign-column markers (thin `▎`) for
   added/changed/deleted vs the git index; lazy on BufReadPre/BufNewFile. Hunk
