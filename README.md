@@ -411,6 +411,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>xs` / `<leader>xl` / `<leader>xq` | n | Trouble: symbols / location list / quickfix list |
 | `gcc` | n | Toggle line comment (Neovim builtin; `gc{motion}` / visual `gc` for regions) |
 | `ys` / `ds` / `cs` | n | Add / delete / change surround |
+| `<leader>cs` | n | Document symbols modal (`:NvSinnerSymbols`) — pick a symbol to jump to it |
 | `<leader>m` | n | Markdown "Open view" — toggle the reading view (also the clickable winbar button) |
 
 ### Terminals & AI (toggleterm)
@@ -432,6 +433,23 @@ spec; new files in an existing category are picked up automatically.
 | `<D-M-j>` | n, t | Toggle AI session 1 (GUI Neovim `⌘⌥J`) |
 | `<Esc>` / `jk` | t | Leave terminal mode |
 | `<C-h/j/k/l>` | t | Move to window left/down/up/right |
+| `<C-w>` | t | Leave terminal mode + start a window command (`<C-w>` prefix) |
+
+### NvSinner commands (`<leader>x*` shortcuts)
+
+Normal-mode `<leader>x` is shared with Trouble (`xx`/`xX`/`xs`/`xl`/`xq`
+above); these letters deliberately avoid those. Visual `<leader>x` stays the
+Ask-AI modal.
+
+| Keys | Mode | Action |
+|------|------|--------|
+| `<leader>xm` | n | `:NvSinnerMenu` — settings modal |
+| `<leader>xh` | n | `:NvSinnerHelp` — command palette |
+| `<leader>xp` | n | `:NvSinnerPrompts` — prompt library (same as `<leader>p`) |
+| `<leader>xo` | n | `:NvSinnerSymbols` — document symbols modal (same as `<leader>cs`; `xo` = outline, Trouble owns `xs`) |
+| `<leader>xu` | n | `:NvSinnerUpdate` — update to the pinned plugin set |
+| `<leader>xS` | n | `:NvSinnerSync` — float plugins to latest (**rewrites `lazy-lock.json`**; capital on purpose) |
+| `<leader>xc` | n | `:checkhealth nvsinner` — external-tools health check |
 
 ### Git
 
