@@ -11,7 +11,7 @@
 --     itself: the badge plus the clickable "Open view" reading-view chip.
 --     The chip is a native %@…%X statusline click region driving
 --     _G.NvMdReader.click; the state and the label live in
---     lua/plugins/ui/render-markdown.lua.
+--     lua/core/markdown.lua.
 --
 -- All colors are carbon roles from lua/core/carbon.lua (re-applied on
 -- ColorScheme); the filetype icon keeps devicons' own color as foreground
@@ -104,7 +104,7 @@ end
 M.EXPR = "%{%v:lua.require'core.filebadge'.winbar()%}"
 
 --- Evaluator behind M.EXPR: right-aligned "Open view" chip (when
---- render-markdown has registered the reader) + the badge fragment.
+--- core/markdown.lua has registered the reader) + the badge fragment.
 function M.winbar()
 	local out = "%="
 	local reader = vim.bo[api.nvim_get_current_buf()].filetype == "markdown" and _G.NvMdReader or nil

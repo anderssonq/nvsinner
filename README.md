@@ -324,7 +324,7 @@ spec; new files in an existing category are picked up automatically.
 | `lualine.lua` | lualine.nvim | Global statusline with the carbon mode→accent chip |
 | `incline.lua` | incline.nvim | **Disabled** — replaced by the native winbar file badge (`lua/core/filebadge.lua`) |
 | `barbacue.lua` | barbecue.nvim | VS Code-style breadcrumbs (winbar) |
-| `render-markdown.lua` | render-markdown.nvim | Markdown reading view behind the "Open view" chip in the file-badge winbar (`<leader>m`) |
+| `render-markdown.lua` | render-markdown.nvim | **Disabled** — replaced by the native markdown reading view (`lua/core/markdown.lua`, same "Open view" chip + `<leader>m`) |
 | `dashboard.lua` | alpha-nvim | Start screen — the NvSinner ASCII mark + clickable quick-action menu; rotating dev quote |
 | `noice.lua` | noice.nvim | Centered floating `:` cmdline; messages routed through nvim-notify |
 | `colorizer.lua` | nvim-colorizer | **Disabled** — replaced by the native hex color chips (`lua/core/colorizer.lua`) |

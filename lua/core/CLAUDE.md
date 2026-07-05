@@ -314,7 +314,7 @@ One renderer (`M.parts(buf, focused)` → `M.fragment()`), two delivery paths:
   focus detected via `g:actual_curwin`). The line renders
   `󰈙 Open view │ ● 󰍔 file.md`: the "Open view" reading-view chip is a native
   `%@…%X` click region driving `_G.NvMdReader.click` — chip state/label/toggle
-  live in `lua/plugins/ui/render-markdown.lua`.
+  live in `lua/core/markdown.lua`.
 
 Highlights (`NvBadgeDot/File/FileNC/Mod/Chip/Sep`) are carbon roles applied in
 `apply_hl()` and re-applied on `ColorScheme`; per-icon-color groups are
@@ -648,3 +648,44 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   on `base09`) with a letter from `M.CHARS`, and `getcharstr()` picks
   (case-insensitive; anything unmapped/interrupt → nil). Overlays are always
   torn down. Seams: `M._candidates()`, `M._getchar` (stub point).
+
+## Markdown reading view — `markdown.lua` (required from `init.lua`)
+
+- Replaces render-markdown.nvim (spec kept disabled — but reverting is NOT a
+  one-liner: re-enabling the plugin must be paired with removing the
+  `require("core.markdown")` line from `init.lua`, or `_G.NvMdReader` and
+  `<leader>m` double-register). An opt-in, per-session reading view on
+  markdown buffers, OFF by default and deliberately not persisted in
+  core/settings: toggled via `<leader>m` (buffer-local, `FileType markdown`)
+  or the winbar "Open view" chip.
+- **The `_G.NvMdReader` seam**: the module itself is the global —
+  `.on` (bool), `.label()` (`"󰈙 Reading view · on"` / `"󰈙 Open view"`),
+  `.toggle()`, `.click()` — consumed duck-typed by `filebadge.lua`'s markdown
+  winbar evaluator (which draws the `%@…%X` click region). Keep the shape or
+  update filebadge in lockstep.
+- **Feature set (minimal on purpose)**: accent heading bars (overlay `▎` over
+  the `#…` run + `line_hl_group` `NvMdH1`–`H6`), `•`/`◦` bullet overlays,
+  checkbox glyphs (`󰄱`/`󰱒`, done lines dimmed `NvMdDone`), blockquote `▍`
+  bars + dim italic body, code-fence block shading (`NvMdCode`, bg-only on
+  `blend`), and full-width `─` horizontal rules. NO tables, link concealing,
+  or inline-code chips — this is a reading aid, not a renderer.
+- **Pattern-based on purpose — never the markdown TS tree.** Plain Lua
+  patterns over the visible range (same shape, event set and guards as
+  `colorizer.lua`/`todo.lua`; `eligible()` additionally requires
+  `filetype == "markdown"`). Parsing markdown with treesitter is the 0.12.x
+  `node:range` nil-node crash zone; the old plugin's startup injection-query
+  patch (keep only `markdown_inline`, drop the code-fence language directive)
+  now lives at the TOP of this module — core loads pre-lazy, before any
+  markdown LanguageTree caches its injection query — as insurance for future
+  TS consumers; deletable once upstream fixes the crash.
+- **Fence parity above the viewport**: `fence_open_at(buf, first)` counts
+  fence-delimiter parity over `[0, first)` so a block opened above the
+  visible window still shades; the pre-scan (fence shading only) is skipped
+  past `M.MAX_SCAN` (10000) lines. Inside a fence nothing else decorates (a
+  `# heading` in code is code). Any ```` ``` ````/`~~~` line toggles the
+  state — indented-code and mixed-fence edge cases are not modeled.
+- **Insert-mode skip**: the cursor line stays raw while inserting in the
+  current buffer (`TextChangedI` keeps it live, `InsertLeave` restores).
+  Toggling off clears the namespace on every loaded markdown buffer; the
+  autocmds stay installed and no-op while off. Seams: `M._ns`,
+  `M.refresh(buf, win)`, `M.MAX_SCAN`.

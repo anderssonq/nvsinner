@@ -43,6 +43,7 @@ House rule reminder: a migrated plugin's spec is **kept with
 | **nvim-colorizer** | **`core/colorizer.lua`** | **Wave 1.5** |
 | **todo-comments.nvim** | **`core/todo.lua`** | **Wave 1.5** |
 | **nvim-window-picker** | **`core/window-picker.lua`** | **Wave 1.5** |
+| **render-markdown.nvim** | **`core/markdown.lua`** (minimal reading view) | **Wave 1.6** |
 
 ## Wave 1 (landed) — justifications
 
@@ -148,7 +149,6 @@ House rule reminder: a migrated plugin's spec is **kept with
 | `leap` | motion-model depth (labels, multi-window). |
 | `nvim-surround`, `nvim-autopairs` | operator/pair edge cases exceed their tiny specs; near-zero cost (lazy, defaults). |
 | `which-key` | the discovery UI over the whole keymap tree; deep and load-bearing for the leader namespaces. |
-| `render-markdown` | heavy conceal rendering; already carefully caged (0.12.x injection patch). |
 | `mini.animate` + `neoscroll` | animation timing engines; low value to own. |
 | `nvim-web-devicons` | shared icon data for many keepers; drops out only when its dependents do. |
 | `telescope`, `toggleterm`, `lualine`, `noice`, `alpha`, `notify`, `barbecue`, `satellite` | staying **for now** — they are the Wave 2/3 targets above. |
@@ -157,8 +157,14 @@ House rule reminder: a migrated plugin's spec is **kept with
 
 37 plugin specs at the start of Wave 1 → 4 disabled in Wave 1 (comment,
 git-blame, illuminate, persistence), **4 more in Wave 1.5** (indentmini,
-colorizer, todo-comments, window-picker), 2 previously disabled (incline,
-cursorline). Wave 2 targets 5 (incl. navic). A completed Wave 2 leaves ~22
+colorizer, todo-comments, window-picker), **1 more in Wave 1.6**
+(render-markdown → `core/markdown.lua`: the used surface was the off-by-default
+"Open view" toggle, and the minimal reading view — heading bars, bullets,
+checkboxes, quote bars, fence shading, rules — fits the colorizer/todo
+visible-range pattern without ever touching the crash-prone markdown TS tree;
+the full conceal/table renderer the original "keep" verdict priced in was never
+used), 2 previously disabled (incline,
+cursorline). Wave 2 targets 5 (incl. navic). A completed Wave 2 leaves ~21
 active plugins, all of them either engines (treesitter, LSP, cmp) or deep
 tools (gitsigns, diffview, neo-tree) — and every pixel of NvSinner's visible
 identity rendered by native code.

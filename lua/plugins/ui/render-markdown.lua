@@ -1,27 +1,25 @@
--- Markdown reading view — render-markdown.nvim + a clickable "Open view"
--- action chip rendered by the native file badge (lua/core/filebadge.lua) at
--- the right end of the markdown winbar, in the same component as the
--- filename: "󰈙 Open view │ ● 󰍔 file.md". The chip is a native %@…%X winbar
--- click region driving _G.NvMdReader.click; this file owns the reader state,
--- the label, and the <leader>m toggle.
+-- render-markdown.nvim is **disabled**: replaced by the native reading view in
+-- lua/core/markdown.lua (pattern-based visible-range scan — heading bars,
+-- bullets, checkboxes, quote bars, fence shading, rules — same _G.NvMdReader
+-- seam, same <leader>m / winbar "Open view" chip). Kept as a revert path, but
+-- NOTE: reverting is NOT a one-liner — flipping `enabled = true` must be
+-- paired with removing the `require("core.markdown")` line from init.lua, or
+-- _G.NvMdReader and <leader>m double-register (the ft-lazy config() below
+-- would overwrite the global while the core module's autocmds keep firing).
 --
--- render-markdown renders headings / code blocks / bullets / tables inline for a
--- readable "reading view". It drives off the markdown treesitter parser, which
--- on Neovim 0.12.x crashes (node:range on a nil node — see nvim-treesitter.lua):
--- verified here, render-markdown's parse hit the exact bug in the markdown
--- *code-fence language-detection* injection directive. Mitigation: the init()
--- below overrides the markdown `injections` query to keep ONLY the
--- markdown_inline injection (so inline bold/italic/code/links still render) and
--- drop the crashing code-fence directive (fenced blocks are still styled by
--- render-markdown, just without inner treesitter syntax colors). Nothing else on
--- this config consumes the markdown TS tree (highlight is disabled), so the blast
--- radius is exactly render-markdown. The view also starts OFF (`enabled = false`)
--- and is opt-in via the button / <leader>m.
+-- Historical context kept for the revert: render-markdown drives the markdown
+-- treesitter parser, which on Neovim 0.12.x crashes (node:range on a nil node
+-- — see nvim-treesitter.lua) in the markdown *code-fence language-detection*
+-- injection directive. Mitigation: the init() below overrides the markdown
+-- `injections` query to keep ONLY the markdown_inline injection and drop the
+-- crashing directive. That patch now lives at the top of lua/core/markdown.lua
+-- (core loads pre-lazy, preserving the "before the first LanguageTree" timing).
 --
 -- markdown stays excluded from barbecue's breadcrumb winbar (see barbacue.lua)
 -- so core/filebadge.lua can own that winbar line.
 return {
 	"MeanderingProgrammer/render-markdown.nvim",
+	enabled = false,
 	ft = { "markdown" },
 	dependencies = {
 		"nvim-treesitter/nvim-treesitter",

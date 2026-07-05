@@ -32,6 +32,9 @@ Migrated plugins keep their spec as an `enabled = false` one-line-revert stub.
 - [x] **nvim-window-picker** → `lua/core/window-picker.lua` (letter-overlay
       floats; serves neo-tree's `require("window-picker")` via
       package.preload).
+- [x] **render-markdown.nvim** → `lua/core/markdown.lua` (minimal pattern-based
+      reading view — headings, bullets, checkboxes, quotes, fence shading,
+      rules; same `_G.NvMdReader` chip + `<leader>m`).
 
 ### Pending — Wave 2 (distro identity)
 ### From here on, we should review each repository to migrate those that haven't been updated in a long time.

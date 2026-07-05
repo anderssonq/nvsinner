@@ -33,19 +33,15 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   **markdown is in `exclude_filetypes`** so it doesn't fight
   `core/filebadge.lua`'s markdown winbar (badge + "Open view" chip) for the
   same line.
-- `render-markdown.lua` — `render-markdown.nvim` gated behind an **"Open
-  view"** reading-view toggle. The action chip is drawn by the native file
-  badge (`lua/core/filebadge.lua`) at the right end of the markdown winbar, in
-  the same component as the filename (`󰈙 Open view │ ● 󰍔 file.md`), as a
-  native `%@…%X` click region driving `_G.NvMdReader.click`. This file owns
-  the reader state, the label (`reader.label()`), and `<leader>m`. Starts OFF (`enabled = false`) and renders only when
-  opted in. **0.12.x crash fix:** the spec's `init` overrides the markdown
-  `injections` query to keep only the `markdown_inline` injection and drop the
-  code-fence language directive that hits the `node:range` nil-node crash —
-  set at STARTUP because a buffer's markdown LanguageTree caches its injection
-  query at construction (setting it later from `config()` is too late).
-  Nothing else consumes the markdown TS tree, so the blast radius is exactly
-  render-markdown.
+- `render-markdown.lua` — `render-markdown.nvim` is **disabled**
+  (`enabled = false`): replaced by the native reading view in
+  `lua/core/markdown.lua` (pattern-based visible-range scan — heading bars,
+  bullets, checkboxes, quote bars, fence shading, rules — same `_G.NvMdReader`
+  seam, same `<leader>m` / winbar "Open view" chip). The 0.12.x markdown
+  injection-query patch moved to the top of that core module. Kept as a revert
+  path, but reverting is NOT a one-liner: flipping `enabled = true` must be
+  paired with removing the `require("core.markdown")` line from `init.lua`, or
+  `_G.NvMdReader`/`<leader>m` double-register.
 - `noice.lua` — `noice.nvim`: centered floating `:` cmdline
   (`command_palette` preset), messages routed through `nvim-notify`,
   carbon-recessed popups on `blend` with invisible borders

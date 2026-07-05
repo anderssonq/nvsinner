@@ -53,6 +53,7 @@ lua/core/indent.lua          Current-scope indent guide: decoration-provider ove
 lua/core/colorizer.lua       #hex color chips on the visible range (native, replaces nvim-colorizer)
 lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
 lua/core/window-picker.lua   Letter-overlay window picker; serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
+lua/core/markdown.lua        Markdown reading view: heading bars, bullets, checkboxes, quote/fence/rule styling on the visible range (native, replaces render-markdown.nvim)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```
@@ -131,7 +132,7 @@ when you work under that directory. Read them before editing there:
 
 | Area | Contract file |
 |------|---------------|
-| Native core modules (AI bridge/ask, carbon theme, settings/menu, prompts, help, symbols/backdrop, ui-touch, filebadge, ai-activity, autoreload/ai-edits, update/sync/health, image-open) | `lua/core/CLAUDE.md` |
+| Native core modules (AI bridge/ask, carbon theme, settings/menu, prompts, help, symbols/backdrop, ui-touch, filebadge, ai-activity, autoreload/ai-edits, update/sync/health, image-open, markdown reading view) | `lua/core/CLAUDE.md` |
 | UI chrome (theme.lua, lualine, incline, barbecue, render-markdown, noice, mini.animate, scrollbar, which-key, illuminate, cursorline) | `lua/plugins/ui/CLAUDE.md` |
 | LSP / completion / formatting / diagnostics | `lua/plugins/lsp/CLAUDE.md` |
 | Terminals: toggleterm AI columns, CLI picker, reserved ids, persistence | `lua/plugins/terminal/CLAUDE.md` |
