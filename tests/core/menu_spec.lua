@@ -23,7 +23,7 @@ describe("core.menu", function()
 		assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative, "must be a float")
 		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
 		local rows = {
-			"Theme",
+			"Background theme",
 			"Transparency",
 			"Accent",
 			"Folder color",
@@ -41,6 +41,21 @@ describe("core.menu", function()
 		assert.matches("q close", text, nil, true) -- the keyboard hint line
 		menu.close()
 		assert.are_not.equal(win, vim.api.nvim_get_current_win())
+	end)
+
+	it("cycle() walks the background themes in carbon's declared order", function()
+		local saved = vim.g.nvsinner_theme
+		menu.open()
+		menu.move(-99) -- row 1: Background theme
+		assert.are.equal("carbon", settings.get("theme"))
+		menu.cycle(1)
+		assert.are.equal("moon", settings.get("theme"))
+		assert.are.equal("moon", vim.g.nvsinner_theme, "cycling must apply the flag live")
+		menu.cycle(-1) -- and back
+		assert.are.equal("carbon", settings.get("theme"))
+		menu.close()
+		vim.g.nvsinner_theme = saved
+		vim.cmd.colorscheme("carbon")
 	end)
 
 	it("cycle() changes and persists the selected setting", function()

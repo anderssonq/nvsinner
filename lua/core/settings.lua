@@ -10,11 +10,11 @@
 --
 -- Precedence contract (documented in lua/core/carbon.lua): vim.g wins over the
 -- environment. This module only SEEDS vim.g when neither vim.g nor the env var
--- is set, so `NVSINNER_BACKGROUND=light nvsinner` still overrides a persisted
+-- is set, so `NVSINNER_THEME=fjord nvsinner` still overrides a persisted
 -- choice for that launch.
 --
 -- Settings that other modules consume:
---   * background / transparent / accent / folder / notif / variables /
+--   * theme / transparent / accent / folder / notif / variables /
 --     strings / functions → carbon flags (theme.lua, colors/carbon.lua)
 --   * tree_side → neo-tree position (lua/plugins/navigation/neo-tree.lua)
 --   * ai_side   → AI/vertical terminal column side (lua/plugins/terminal/toggleterm.lua)
@@ -25,7 +25,7 @@
 local M = {}
 
 M.defaults = {
-	background = "dark", -- "dark" | "light"
+	theme = "carbon", -- background theme: key into require("core.carbon").themes
 	transparent = false, -- drop full-surface backgrounds
 	accent = "blue", -- key into require("core.carbon").accents
 	folder = "accent", -- neo-tree folder color: key into require("core.carbon").folders
@@ -71,6 +71,11 @@ function M.load(opts)
 				data[k] = decoded[k]
 			end
 		end
+		-- Migration: the pre-themes "background" ("dark"|"light") key becomes
+		-- the equivalent named theme; the stale key drops on the next save.
+		if decoded.theme == nil and decoded.background ~= nil then
+			data.theme = (decoded.background == "light") and "moon" or "carbon"
+		end
 	end
 	if migrating then
 		M.save()
@@ -98,7 +103,7 @@ end
 -- Re-apply the colorscheme so colors/carbon.lua + every ColorScheme-hooked
 -- consumer (ui-touch, ai-activity, chrome specs) re-resolve the carbon roles.
 local function reapply_theme()
-	vim.o.background = data.background
+	vim.o.background = require("core.carbon").background()
 	pcall(vim.cmd.colorscheme, "carbon")
 end
 
@@ -121,8 +126,8 @@ function M.apply_quiet()
 end
 
 local apply = {
-	background = function(v)
-		vim.g.nvsinner_background = v
+	theme = function(v)
+		vim.g.nvsinner_theme = v
 		reapply_theme()
 	end,
 	transparent = function(v)
@@ -193,7 +198,11 @@ end
 
 function M.setup(opts)
 	M.load(opts)
-	seed_flag("nvsinner_background", "NVSINNER_BACKGROUND", data.background)
+	-- The legacy NVSINNER_BACKGROUND env var still overrides (carbon.theme()
+	-- falls back to it when the theme flag is unset), so don't seed over it.
+	if vim.env.NVSINNER_BACKGROUND == nil then
+		seed_flag("nvsinner_theme", "NVSINNER_THEME", data.theme)
+	end
 	seed_flag("nvsinner_transparent", "NVSINNER_TRANSPARENT", data.transparent)
 	seed_flag("nvsinner_accent", "NVSINNER_ACCENT", data.accent)
 	seed_flag("nvsinner_folder", "NVSINNER_FOLDER", data.folder)

@@ -51,7 +51,7 @@ end
 local SLOT_VALUES = { "default", "accent", "teal", "aqua", "magenta", "pink", "green", "purple", "plain" }
 
 local ITEMS = {
-	{ key = "background", label = "Theme", values = { "dark", "light" } },
+	{ key = "theme", label = "Background theme", values = require("core.carbon").theme_names },
 	{ key = "transparent", label = "Transparency", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "accent", label = "Accent", values = { "blue", "magenta", "green", "purple" } },
 	{
@@ -97,7 +97,8 @@ local function render()
 		-- marker is multi-byte, so fixed columns would drift).
 		-- %-2d keeps the label column aligned once the list passes 9 rows.
 		local head = string.format(" %s %-2d ", (i == ui.sel) and "▸" or " ", i)
-		local label = string.format("%-16s", it.label)
+		-- 17 = the widest label ("Background theme") + one space of gap.
+		local label = string.format("%-17s", it.label)
 		local value = string.format("‹ %s ›", shown)
 		spans[i] = { head = #head, label = #head + #label, total = #head + #label + #value }
 		table.insert(lines, head .. label .. value)

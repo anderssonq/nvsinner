@@ -2,8 +2,8 @@
 -- Ported from oxocarbon.nvim (Nyoom Engineering / Shaun Singh), inspired by
 -- the IBM Carbon Design System. Roles come from lua/core/carbon.lua — the one
 -- palette (and design doc) shared with the core modules and the UI chrome specs. Applied with
--- `:colorscheme carbon`; respects vim.o.background ("dark" is the reference
--- variant, "light" swaps the palette through the same code path).
+-- `:colorscheme carbon`; the active background theme (vim.g.nvsinner_theme,
+-- "carbon" is the reference) swaps the palette through the same code path.
 --
 -- Design discipline (see lua/core/carbon.lua): gray-dominant surfaces, base04 body text
 -- (not white), italic base03 comments, syntax bg = NONE, floats recessed on

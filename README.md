@@ -223,7 +223,7 @@ hovering moves the selection and a click cycles the row's value.
 
 | Row | Values |
 |-----|--------|
-| Theme | `dark` / `light` |
+| Background theme | `carbon` (dark, default) / `moon` (light) / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` — original palettes inspired by One Dark Pro, Catppuccin Mocha, Tokyo Night, Nord and Monokai |
 | Transparency | `off` / `on` |
 | Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent, never the gray surfaces |
 | Folder color | `accent` / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` — recolors Neo-tree's folder names + icons |
@@ -244,7 +244,7 @@ value:
 
 | Flag | Values | Per launch | Persistent |
 |------|--------|-----------|------------|
-| Background variant | `dark` (default) / `light` | `NVSINNER_BACKGROUND=light nvsinner` | `vim.g.nvsinner_background = "light"` |
+| Background theme | `carbon` (default) / `moon` / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` | `NVSINNER_THEME=fjord nvsinner` | `vim.g.nvsinner_theme = "fjord"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
 | Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
 | Folder color | `accent` (default) / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` | `NVSINNER_FOLDER=aqua nvsinner` | `vim.g.nvsinner_folder = "aqua"` |

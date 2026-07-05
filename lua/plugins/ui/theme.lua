@@ -18,9 +18,9 @@ return {
 		lazy = false,
 		priority = 1000,
 		config = function()
-			-- "dark" is the reference variant; the flag (vim.g.nvsinner_background
-			-- or $NVSINNER_BACKGROUND) boots the light variant through the same
-			-- role table. Transparency is read inside colors/carbon.lua.
+			-- The active background theme (vim.g.nvsinner_theme or $NVSINNER_THEME,
+			-- default "carbon") decides the palette AND whether vim.o.background is
+			-- dark or light ("moon"). Transparency is read inside colors/carbon.lua.
 			vim.o.background = require("core.carbon").background()
 			vim.cmd.colorscheme("carbon")
 		end,

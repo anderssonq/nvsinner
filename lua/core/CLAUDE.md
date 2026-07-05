@@ -69,9 +69,10 @@ edits files on disk (see *Auto-reload* below).
   No external theme plugin; the design doctrine is documented in `carbon.lua`
   itself.
 - **Three files, one palette:** `lua/core/carbon.lua` holds the base16 role
-  palette (`base00`…`base15`, `blend`, `lift`; dark + light variants) and is the
-  SINGLE source of truth — the colorscheme, the core modules, and every UI
-  chrome spec `require` it; raw hexes never appear in consumers.
+  palette (`base00`…`base15`, `blend`, `lift`; one role table per background
+  theme, below) and is the SINGLE source of truth — the colorscheme, the core
+  modules, and every UI chrome spec `require` it; raw hexes never appear in
+  consumers.
   `colors/carbon.lua` is the real colorscheme (`:colorscheme carbon`) applying
   the full highlight→role mapping (editor UI, syntax, treesitter, diagnostics,
   diff washes, markdown, telescope/cmp/notify/neo-tree, terminal ANSI).
@@ -92,10 +93,30 @@ edits files on disk (see *Auto-reload* below).
   accent).
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
   colorscheme reloads and lazy-loaded plugins.
+- **Background themes** — `M.themes` / `M.theme_names` in `carbon.lua` name
+  seven full role tables selectable from `:NvSinnerMenu` "Background theme":
+  `carbon` (the reference dark, `M.dark`), `moon` (the light variant,
+  `M.light`), and five ORIGINAL palettes inspired by well-known schemes —
+  `onedusk` (One Dark Pro), `mocha` (Catppuccin Mocha), `kyoto` (Tokyo
+  Night), `fjord` (Nord), `monolith` (Monokai). Each registry entry maps the
+  name to its role table (`palette`) and its `vim.o.background` `variant`
+  (only `moon` is light); each palette fills the EXACT role set of `M.dark`
+  (pinned by `tests/core/carbon_spec.lua`) with carbon's role semantics —
+  base09 identity, base10 attention, base12 busy — so every consumer works
+  unchanged. `M.theme()` resolves the flag (`vim.g.nvsinner_theme` /
+  `$NVSINNER_THEME`, unknown → `"carbon"`; the legacy
+  `nvsinner_background`/`$NVSINNER_BACKGROUND` flag still maps
+  light→`moon` when no theme flag is set), `M.colors()` selects the palette
+  from it, and `M.background()` returns the active theme's variant (what
+  `theme.lua` boots `vim.o.background` with). Switching is live:
+  `settings.set("theme", …)` → flag + `:colorscheme carbon` → every
+  ColorScheme consumer retints. Accent packs overlay by the theme's
+  dark/light variant, so `blue` (the empty pack) shows each theme's own
+  signature accent and the other packs apply their generic overrides.
 - **Feature flags** (resolved by `carbon.lua`; `vim.g` wins over env, which
   wins over the persisted `:NvSinnerMenu` value seeded by `settings.lua`):
-  `vim.g.nvsinner_background` / `$NVSINNER_BACKGROUND` (`"dark"` default,
-  `"light"` boots the light variant), `vim.g.nvsinner_transparent` /
+  `vim.g.nvsinner_theme` / `$NVSINNER_THEME` (background theme, above;
+  `"carbon"` default), `vim.g.nvsinner_transparent` /
   `$NVSINNER_TRANSPARENT` (drops every full-surface bg — editor, floats,
   panels — while chips/bars stay solid for legibility; `ui-touch.lua` also
   drops its focus lift and dim-bar strip in transparent mode),
@@ -142,9 +163,10 @@ edits files on disk (see *Auto-reload* below).
   folder** (`stdpath("config")/settings/nvsinner-settings.json`, gitignored —
   next to the committed `settings/prompts.json`, so all user-tweakable state
   sits in one place; a pre-`settings/` cache under `stdpath("data")` is
-  migrated on first load) and applies them: `background` / `transparent` /
-  `accent` / `folder` / `notif` / `variables` / `strings` / `functions`
-  (carbon flags), `tree_side` (neo-tree position), `ai_side` (AI/vertical
+  migrated on first load) and applies them: `theme` (background theme; a
+  legacy persisted `background` key migrates to `moon`/`carbon` on load) /
+  `transparent` / `accent` / `folder` / `notif` / `variables` / `strings` /
+  `functions` (carbon flags), `tree_side` (neo-tree position), `ai_side` (AI/vertical
   terminal column side), `quiet` (mute INFO-level `vim.notify`; WARN/ERROR
   always pass). **Required right after `core.options` in `init.lua`** so it
   can seed the carbon `vim.g` flags before lazy applies the theme — and it

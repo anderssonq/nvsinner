@@ -16,7 +16,7 @@ describe("core.settings", function()
 	end)
 
 	it("starts from the documented defaults", function()
-		assert.are.equal("dark", settings.get("background"))
+		assert.are.equal("carbon", settings.get("theme"))
 		assert.is_false(settings.get("transparent"))
 		assert.are.equal("blue", settings.get("accent"))
 		assert.are.equal("accent", settings.get("folder"))
@@ -43,24 +43,45 @@ describe("core.settings", function()
 		fd:write("{ not json !!!")
 		fd:close()
 		settings.load({ file = temp })
-		assert.are.equal("dark", settings.get("background"))
+		assert.are.equal("carbon", settings.get("theme"))
 	end)
 
-	it("seeds the carbon vim.g flags only when unset (vim.g/env win)", function()
-		local orig = vim.g.nvsinner_background
+	it("migrates the legacy background key to the equivalent named theme", function()
 		local fd = assert(io.open(temp, "w"))
 		fd:write(vim.json.encode({ background = "light" }))
 		fd:close()
+		settings.load({ file = temp })
+		assert.are.equal("moon", settings.get("theme"))
 
-		vim.g.nvsinner_background = nil
+		fd = assert(io.open(temp, "w"))
+		fd:write(vim.json.encode({ background = "dark" }))
+		fd:close()
+		settings.load({ file = temp })
+		assert.are.equal("carbon", settings.get("theme"))
+
+		-- A persisted theme wins over a stale background key.
+		fd = assert(io.open(temp, "w"))
+		fd:write(vim.json.encode({ background = "light", theme = "fjord" }))
+		fd:close()
+		settings.load({ file = temp })
+		assert.are.equal("fjord", settings.get("theme"))
+	end)
+
+	it("seeds the carbon vim.g flags only when unset (vim.g/env win)", function()
+		local orig = vim.g.nvsinner_theme
+		local fd = assert(io.open(temp, "w"))
+		fd:write(vim.json.encode({ theme = "mocha" }))
+		fd:close()
+
+		vim.g.nvsinner_theme = nil
 		settings.setup({ file = temp })
-		assert.are.equal("light", vim.g.nvsinner_background, "persisted value should seed an unset flag")
+		assert.are.equal("mocha", vim.g.nvsinner_theme, "persisted value should seed an unset flag")
 
-		vim.g.nvsinner_background = "dark" -- user override in place…
+		vim.g.nvsinner_theme = "carbon" -- user override in place…
 		settings.setup({ file = temp })
-		assert.are.equal("dark", vim.g.nvsinner_background, "…must NOT be clobbered by the persisted value")
+		assert.are.equal("carbon", vim.g.nvsinner_theme, "…must NOT be clobbered by the persisted value")
 
-		vim.g.nvsinner_background = orig
+		vim.g.nvsinner_theme = orig
 	end)
 
 	it("quiet mutes INFO notifications but lets WARN/ERROR through", function()

@@ -96,6 +96,191 @@ M.light = {
 	diff_delete = "#f7dfe8",
 }
 
+-- ─── Background themes ───────────────────────────────────────────────────────
+-- Named, user-selectable palettes (:NvSinnerMenu "Background theme"). The two
+-- historic variants get names — "carbon" (M.dark) and "moon" (M.light) — and
+-- five ORIGINAL palettes inspired by well-known schemes join them. Each fills
+-- the exact same role slots as M.dark, so every consumer works unchanged; the
+-- role SEMANTICS (base09 identity, base10 attention, base12 busy, …) are
+-- carbon's, only the hues change. Hexes are hand-derived from each
+-- inspiration's public palette, tuned to the carbon role contract (body text
+-- base04 never pure white, blend below base00, lift between base00/base01).
+
+-- "onedusk" — inspired by One Dark Pro (Atom's One Dark).
+M.onedusk = {
+	base00 = "#282c34",
+	base01 = "#31353f",
+	base02 = "#3e4451",
+	base03 = "#5c6370",
+	base04 = "#abb2bf",
+	base05 = "#c8cdd5",
+	base06 = "#e6e6e6",
+	base07 = "#2bbac5", -- teal
+	base08 = "#56b6c2", -- cyan: functions/punctuation
+	base09 = "#61afef", -- One Dark blue — the identity accent
+	base10 = "#e06c75", -- red: errors/attention
+	base11 = "#528bff", -- vivid blue: terminal-mode
+	base12 = "#d19a66", -- orange: insert-mode block, busy chip
+	base13 = "#98c379", -- green
+	base14 = "#c678dd", -- purple: strings
+	base15 = "#8cc2f0", -- pale companion of base09
+	blend = "#23272e",
+	shade = "#1e2227",
+	backdrop = "#000000",
+	lift = "#2c313a",
+	none = "NONE",
+	diff_add = "#2b3a30",
+	diff_change = "#2b3440",
+	diff_text = "#32405a",
+	diff_delete = "#3b2d34",
+}
+
+-- "mocha" — inspired by Catppuccin Mocha.
+M.mocha = {
+	base00 = "#1e1e2e",
+	base01 = "#313244",
+	base02 = "#45475a",
+	base03 = "#6c7086",
+	base04 = "#cdd6f4",
+	base05 = "#dee3f8",
+	base06 = "#f5f7ff",
+	base07 = "#94e2d5", -- teal
+	base08 = "#89dceb", -- sky
+	base09 = "#89b4fa", -- Mocha blue — the identity accent
+	base10 = "#f38ba8", -- red: errors/attention
+	base11 = "#74c7ec", -- sapphire: terminal-mode
+	base12 = "#f5c2e7", -- pink: insert-mode block, busy chip
+	base13 = "#a6e3a1", -- green
+	base14 = "#cba6f7", -- mauve: strings
+	base15 = "#b4befe", -- lavender: pale companion
+	blend = "#181825", -- mantle
+	shade = "#11111b", -- crust
+	backdrop = "#000000",
+	lift = "#232338",
+	none = "NONE",
+	diff_add = "#283b33",
+	diff_change = "#262f47",
+	diff_text = "#2f3e63",
+	diff_delete = "#3c2a3c",
+}
+
+-- "kyoto" — inspired by Tokyo Night.
+M.kyoto = {
+	base00 = "#1a1b26",
+	base01 = "#24283b",
+	base02 = "#343a55",
+	base03 = "#565f89",
+	base04 = "#c0caf5",
+	base05 = "#d9e0fb",
+	base06 = "#edf1fe",
+	base07 = "#73daca", -- teal
+	base08 = "#7dcfff", -- cyan
+	base09 = "#7aa2f7", -- Tokyo Night blue — the identity accent
+	base10 = "#f7768e", -- red: errors/attention
+	base11 = "#2ac3de", -- bright cyan: terminal-mode
+	base12 = "#ff9e64", -- orange: insert-mode block, busy chip
+	base13 = "#9ece6a", -- green
+	base14 = "#bb9af7", -- purple: strings
+	base15 = "#a9c3ff", -- pale companion of base09
+	blend = "#16161e",
+	shade = "#101016",
+	backdrop = "#000000",
+	lift = "#1f2030",
+	none = "NONE",
+	diff_add = "#20362f",
+	diff_change = "#222f45",
+	diff_text = "#2c3f66",
+	diff_delete = "#37222c",
+}
+
+-- "fjord" — inspired by Nord.
+M.fjord = {
+	base00 = "#2e3440",
+	base01 = "#3b4252",
+	base02 = "#434c5e",
+	base03 = "#616e88", -- nord3 brightened for legible comments
+	base04 = "#d8dee9",
+	base05 = "#e5e9f0",
+	base06 = "#eceff4",
+	base07 = "#8fbcbb", -- frost teal
+	base08 = "#81a1c1", -- frost gray-blue: functions
+	base09 = "#88c0d0", -- Nord frost cyan — the identity accent
+	base10 = "#bf616a", -- aurora red: errors/attention
+	base11 = "#5e81ac", -- deep frost: terminal-mode
+	base12 = "#d08770", -- aurora orange: insert-mode block, busy chip
+	base13 = "#a3be8c", -- aurora green
+	base14 = "#b48ead", -- aurora purple: strings
+	base15 = "#a1ccdb", -- pale companion of base09
+	blend = "#292e38",
+	shade = "#232732",
+	backdrop = "#000000",
+	lift = "#333947",
+	none = "NONE",
+	diff_add = "#3a4a41",
+	diff_change = "#3a4456",
+	diff_text = "#45536e",
+	diff_delete = "#4a353c",
+}
+
+-- "monolith" — inspired by Monokai.
+M.monolith = {
+	base00 = "#272822",
+	base01 = "#33342b",
+	base02 = "#49483e",
+	base03 = "#75715e",
+	base04 = "#f8f8f2",
+	base05 = "#fcfcf7",
+	base06 = "#ffffff",
+	base07 = "#78dce8", -- soft cyan
+	base08 = "#a6e22e", -- Monokai green: functions
+	base09 = "#66d9ef", -- Monokai cyan-blue — the identity accent
+	base10 = "#f92672", -- Monokai pink-red: errors/attention
+	base11 = "#8ce0f0", -- light cyan: terminal-mode
+	base12 = "#fd971f", -- orange: insert-mode block, busy chip
+	base13 = "#b6e354", -- bright green
+	base14 = "#ae81ff", -- purple: strings
+	base15 = "#a1e7f5", -- pale companion of base09
+	blend = "#22231d",
+	shade = "#1c1d17",
+	backdrop = "#000000",
+	lift = "#2c2d27",
+	none = "NONE",
+	diff_add = "#343e20",
+	diff_change = "#2c3a3d",
+	diff_text = "#39525c",
+	diff_delete = "#452430",
+}
+
+-- Registry: theme name → which role table it uses and which vim.o.background
+-- variant it belongs to (the variant also picks the accent-pack overrides).
+M.themes = {
+	carbon = { palette = "dark", variant = "dark" },
+	moon = { palette = "light", variant = "light" },
+	onedusk = { palette = "onedusk", variant = "dark" },
+	mocha = { palette = "mocha", variant = "dark" },
+	kyoto = { palette = "kyoto", variant = "dark" },
+	fjord = { palette = "fjord", variant = "dark" },
+	monolith = { palette = "monolith", variant = "dark" },
+}
+
+-- Menu/cycle order (:NvSinnerMenu reads this — pairs() order would jitter).
+M.theme_names = { "carbon", "moon", "onedusk", "mocha", "kyoto", "fjord", "monolith" }
+
+-- Which background theme is active: "carbon" (default) or a key of M.themes.
+-- Same flag convention as accent()/transparent(): vim.g.nvsinner_theme wins
+-- over $NVSINNER_THEME; anything unknown → "carbon". The legacy binary
+-- background flag (vim.g.nvsinner_background / $NVSINNER_BACKGROUND) is still
+-- honored when no theme flag is set, so `NVSINNER_BACKGROUND=light nvsinner`
+-- keeps booting the light palette (now named "moon").
+function M.theme()
+	local t = vim.g.nvsinner_theme or vim.env.NVSINNER_THEME
+	if t and M.themes[t] then
+		return t
+	end
+	local bg = vim.g.nvsinner_background or vim.env.NVSINNER_BACKGROUND
+	return bg == "light" and "moon" or "carbon"
+end
+
 -- ─── Accent packs ────────────────────────────────────────────────────────────
 -- Four selectable identity accents. A pack swaps ONLY the identity accent pair
 -- (base09 — THE carbon accent: keywords/types/operators, active markers,
@@ -205,14 +390,15 @@ function M.slot_color(name)
 	return M.colors()[M.slot_choices[choice]]
 end
 
--- Roles for the background currently in effect (vim.o.background), with the
--- active accent pack's overrides applied on top. Consumers re-resolve this on
--- every ColorScheme re-apply, so switching the accent + `:colorscheme carbon`
--- restyles the whole UI.
+-- Roles for the active background theme (M.theme()), with the active accent
+-- pack's overrides applied on top (packs are keyed by the theme's dark/light
+-- variant; the default "blue" pack is empty, so each theme's own signature
+-- accent shows). Consumers re-resolve this on every ColorScheme re-apply, so
+-- switching the theme/accent + `:colorscheme carbon` restyles the whole UI.
 function M.colors()
-	local variant = (vim.o.background == "light") and "light" or "dark"
-	local base = M[variant]
-	local pack = M.accents[M.accent()][variant]
+	local theme = M.themes[M.theme()]
+	local base = M[theme.palette]
+	local pack = M.accents[M.accent()][theme.variant]
 	if next(pack) == nil then
 		return base
 	end
@@ -223,16 +409,16 @@ end
 -- Read at startup by theme.lua and on every (re)apply by colors/carbon.lua and
 -- ui-touch.lua. Three ways to set each flag (first match wins):
 --   * vim.g (set by :NvSinnerMenu via lua/core/settings.lua, or by hand)
---   * environment: `NVSINNER_BACKGROUND=light NVSINNER_TRANSPARENT=1
+--   * environment: `NVSINNER_THEME=fjord NVSINNER_TRANSPARENT=1
 --     NVSINNER_ACCENT=green nvsinner` (per launch)
 --   * the persisted defaults lua/core/settings.lua seeds vim.g with at boot
 -- The vim.g value wins over the environment variable when both are set;
 -- settings.lua only seeds vim.g when NEITHER is set, so env overrides survive.
 
--- Which variant to boot into: "dark" (default) or "light".
+-- Which vim.o.background variant the active theme belongs to: "dark" or
+-- "light". theme.lua reads this at boot; settings.lua on every theme change.
 function M.background()
-	local bg = vim.g.nvsinner_background or vim.env.NVSINNER_BACKGROUND
-	return bg == "light" and "light" or "dark"
+	return M.themes[M.theme()].variant
 end
 
 -- Transparent mode: the colorscheme drops every full-surface background

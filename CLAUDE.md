@@ -33,7 +33,7 @@ lua/core/help.lua            :NvSinnerHelp — command palette listing every NvS
 lua/core/symbols.lua         :NvSinnerSymbols / <leader>cs — LSP document-symbols modal; pick a symbol to jump to it (native)
 lua/core/backdrop.lua        Dimming backdrop behind the NvSinner modals (full-screen winblend float, auto-closes with the modal) (native)
 settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
-lua/core/carbon.lua          Carbon base16 role palette + accent packs — the ONE source of truth for every color
+lua/core/carbon.lua          Carbon base16 role palette + background themes + accent packs — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, until the user takes over (native)
