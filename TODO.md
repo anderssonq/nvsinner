@@ -23,17 +23,18 @@ Migrated plugins keep their spec as an `enabled = false` one-line-revert stub.
       `document_highlight` + visible-range fallback).
 - [x] **persistence.nvim** → `lua/core/sessions.lua` (`:mksession` per cwd;
       `<leader>Sc/Sl/SQ` + `:NvSinnerSession*`).
-
-### Pending — Wave 1.5 (cheap wins)
-
-- [ ] **indentmini.nvim** → decoration-provider indent guides.
-- [ ] **nvim-colorizer** → hex-code regex → bg extmarks on the visible range.
-- [ ] **todo-comments.nvim** → TODO/FIXME regex extmarks (drops a plenary
-      consumer).
-- [ ] **nvim-window-picker** → letter-overlay floats (needs neo-tree's
-      `window_picker` seam).
+- [x] **indentmini.nvim** → `lua/core/indent.lua` (decoration-provider
+      current-scope guide).
+- [x] **nvim-colorizer** → `lua/core/colorizer.lua` (visible-range #hex scan
+      → bg chips).
+- [x] **todo-comments.nvim** → `lua/core/todo.lua` (visible-range keyword
+      chips; drops a plenary consumer).
+- [x] **nvim-window-picker** → `lua/core/window-picker.lua` (letter-overlay
+      floats; serves neo-tree's `require("window-picker")` via
+      package.preload).
 
 ### Pending — Wave 2 (distro identity)
+### From here on, we should review each repository to migrate those that haven't been updated in a long time.
 
 - [ ] **alpha-nvim** → `core/dashboard.lua` (the spec is already ~90% custom
       NvSinner code).

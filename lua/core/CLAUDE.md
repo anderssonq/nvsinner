@@ -578,3 +578,73 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   session anywhere (mtime scan via `M.last()`), `<leader>SQ` quit no-save —
   plus `:NvSinnerSessionLoad/Last/Stop` so `:NvSinnerHelp` lists them. Seams:
   `M._reset({dir=…})`, `M._started()`.
+
+## Indent guide — `indent.lua` (required from `init.lua`)
+
+- Replaces indentmini.nvim (spec kept disabled), which ran `only_current =
+  true`: ONE vertical guide on the indent level enclosing the cursor line, in
+  `IndentLineCurrent` (carbon `base02` — same role the old spec set).
+- **Compute/paint split**: cursor autocmds (`CursorMoved(I)`, `TextChanged(I)`,
+  `BufEnter`, `WinScrolled`) recompute the scope into per-buffer state —
+  normal context, so `vim.fn.indent` is safe — and a **decoration provider**
+  paints it with *ephemeral* overlay extmarks (`virt_text_win_col`) at redraw
+  time: nothing to clear, nothing stale. `on_win` gates to the window the
+  scope was computed against (the "current" scope is a cursor concept).
+- Scope = contiguous lines indented past `indent(cursor) - shiftwidth`
+  (blank lines ride along, blank edges are trimmed; a blank cursor line takes
+  the deeper of its neighbors). The scan is **clamped to the visible range**,
+  so huge files cost the same as small ones. Columns are display cells
+  (`vim.fn.indent` expands tabs), so tab-indented files line up.
+- Guards: `buftype == ""` only, `M.DENYLIST` filetypes (illuminate's list +
+  markdown — prose has no indent scopes). Seams: `M._ns`, `M.refresh(buf,
+  win)`, `M._scope(buf)`, `M._reset()`.
+
+## Hex color chips — `colorizer.lua` (required from `init.lua`)
+
+- Replaces nvim-colorizer.lua (spec kept disabled): `#rgb` / `#rrggbb` /
+  `#rrggbbaa` literals in the **visible range** get a bg chip in their own
+  color. Hex codes were the only used surface — the plugin's
+  css-function/tailwind/name machinery was dead weight.
+- Chip bgs are by definition the buffer's literal colors (user data, not
+  config choices — the no-hardcoded-hex rule is about the latter); the chip
+  **fg is a carbon role**: `base00` on light chips, `base06` on dark ones,
+  split at luminance 140. Groups (`NvColorRRGGBB`) are created on demand and
+  the cache drops on `ColorScheme` (a colorscheme apply starts from
+  `hi clear`).
+- Boundary rules: only exact 3/6/8-digit runs, rejected when glued to a word
+  char or another `#` (`abc#fff`, `##fff`); the alpha byte is dropped.
+  Rescans on `BufWinEnter` / `TextChanged(I)` / `InsertLeave` /
+  `WinScrolled`; `buftype == ""` only. Seams: `M._ns`, `M.refresh(buf, win)`.
+
+## TODO keyword chips — `todo.lua` (required from `init.lua`)
+
+- Replaces todo-comments.nvim (spec kept disabled; drops a plenary consumer):
+  `TODO:` / `FIXME(author):` / `HACK:` … get a solid accent chip (dark
+  `base00` text, bold) scanned over the **visible range**. The colon is
+  required (plugin-default parity) so prose mentions never light up; an
+  optional `(author)` tag joins the chip.
+- Families → carbon roles, semantic: TODO `base13` (carbon's Todo green),
+  FIX/FIXME/BUG/FIXIT/ISSUE `base10` (attention magenta), HACK/WARN/
+  WARNING/XXX `base14` (the DiagnosticWarn purple), PERF/OPTIM/… `base15`,
+  NOTE/INFO `base08`, TEST/TESTING/PASSED/FAILED `base07`. Groups `NvTodo*`,
+  re-applied on `ColorScheme`; `M.KEYWORDS` is the public keyword→group map.
+- `:TodoTelescope` is intentionally NOT replicated — telescope live-grep
+  covers it until NvSinnerFind exists (roadmap). Same event set and guards as
+  `colorizer.lua`. Seams: `M._ns`, `M.refresh(buf, win)`.
+
+## Window picker — `window-picker.lua` (required from `init.lua`)
+
+- Replaces nvim-window-picker (spec kept disabled). Sole consumer is
+  neo-tree's `open_with_window_picker` (`w`), which does
+  `pcall(require, "window-picker")` → `picker.pick_window({})` — so this
+  module registers itself in **`package.preload["window-picker"]`** and
+  neo-tree works unchanged. The preload shim first checks the rtp for the
+  real plugin (`nvim_get_runtime_file`) and defers to it when found, so
+  flipping the stub back to `enabled = true` stays a one-line revert.
+- `pick_window`: candidates are the tab's non-floating windows minus
+  `M.BT_IGNORE` (terminal/prompt/quickfix) and `M.FT_IGNORE` (neo-tree,
+  notify, noice); a single candidate is returned without prompting; otherwise
+  each gets a small centered non-focusable float chip (`NvWinPick`, `base00`
+  on `base09`) with a letter from `M.CHARS`, and `getcharstr()` picks
+  (case-insensitive; anything unmapped/interrupt → nil). Overlays are always
+  torn down. Seams: `M._candidates()`, `M._getchar` (stub point).

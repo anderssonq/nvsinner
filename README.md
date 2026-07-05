@@ -327,8 +327,8 @@ spec; new files in an existing category are picked up automatically.
 | `render-markdown.lua` | render-markdown.nvim | Markdown reading view behind the "Open view" chip in the file-badge winbar (`<leader>m`) |
 | `dashboard.lua` | alpha-nvim | Start screen — the NvSinner ASCII mark + clickable quick-action menu; rotating dev quote |
 | `noice.lua` | noice.nvim | Centered floating `:` cmdline; messages routed through nvim-notify |
-| `colorizer.lua` | nvim-colorizer | Inline color previews for hex/rgb |
-| `identmini.lua` | indentmini.nvim | Indentation guides |
+| `colorizer.lua` | nvim-colorizer | **Disabled** — replaced by the native hex color chips (`lua/core/colorizer.lua`) |
+| `identmini.lua` | indentmini.nvim | **Disabled** — replaced by the native current-scope indent guide (`lua/core/indent.lua`) |
 | `notify.lua` | nvim-notify | Pretty notifications (replaces `vim.notify`) |
 | `illuminate.lua` | vim-illuminate | **Disabled** — replaced by the native occurrence highlight (`lua/core/illuminate.lua`) |
 | `scrollbar.lua` | satellite.nvim | Slim right-edge scrollbar with hunk/diagnostic/search marks |
@@ -342,7 +342,7 @@ spec; new files in an existing category are picked up automatically.
 | `neo-tree.lua` | neo-tree.nvim | `<leader>e` toggle file explorer (reveals current file) |
 | `leap.lua` | leap.nvim | `s` forward · `S` backward · `gs` across windows |
 | `smooth-scroll.lua` | neoscroll.nvim | `<PageUp>` / `<PageDown>` smooth scroll |
-| `nvim-window-picker.lua` | window-picker | Window selection (used by Neo-tree) |
+| `nvim-window-picker.lua` | window-picker | **Disabled** — replaced by the native letter-overlay picker (`lua/core/window-picker.lua`, still drives Neo-tree's `w`) |
 
 ### Editing
 
@@ -373,7 +373,7 @@ spec; new files in an existing category are picked up automatically.
 | `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua` (`:NvSinnerBlameToggle`) |
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
 | `diffview.lua` | diffview.nvim | `<leader>gd` diff · `<leader>gh`/`<leader>gH` file/repo history · `<leader>gq` close |
-| `todocomment.lua` | todo-comments.nvim | Highlights `TODO` / `FIXME` / etc. |
+| `todocomment.lua` | todo-comments.nvim | **Disabled** — replaced by the native keyword chips (`lua/core/todo.lua`) |
 | `which-key.lua` | which-key.nvim | `<leader>?` shows buffer keymaps · group labels for the leader namespaces |
 | `lsp/neoconf.lua` | neoconf.nvim | `:Neoconf` project-local settings |
 
@@ -468,11 +468,10 @@ spec; new files in an existing category are picked up automatically.
 Plugins are lazy-loaded via lazy.nvim triggers:
 
 - `event = "InsertEnter"` — completion (`nvim-cmp`), autopairs.
-- `event = { "BufReadPost", "BufNewFile" }` — treesitter, LSP, colorizer,
-  indent guides, breadcrumbs, todo-comments.
+- `event = { "BufReadPost", "BufNewFile" }` — treesitter, LSP, breadcrumbs.
 - `event = { "BufReadPre", "BufNewFile" }` — gitsigns (sign-column markers).
 - `event = "VeryLazy"` — statusline, scroll, notifications, surround,
-  which-key, window-picker.
+  which-key.
 - `cmd` / `keys` — Telescope, Neo-tree, toggleterm AI column, diffview.
 
 Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load

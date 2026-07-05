@@ -75,6 +75,14 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   `vim.lsp.buf.document_highlight` + a visible-range word scan fallback for
   parser-backed buffers, same delay/cutoff/denylist, panel-gray underlines on
   the `LspReference*` groups). Kept as a one-line revert.
+- `identmini.lua` — `indentmini.nvim` is **disabled** (`enabled = false`):
+  replaced by the native current-scope indent guide in `lua/core/indent.lua`
+  (decoration-provider overlay, same only_current look, same
+  `IndentLineCurrent` panel gray). Kept as a one-line revert.
+- `colorizer.lua` — `nvim-colorizer` is **disabled** (`enabled = false`):
+  replaced by the native hex-chip module in `lua/core/colorizer.lua`
+  (visible-range `#hex` scan → bg extmarks; the plugin's css/tailwind
+  machinery was unused). Kept as a one-line revert.
 - `cursorline.lua` — `nvim-cursorline` is **disabled** (`enabled = false`):
   its cursorword duplicated `illuminate` and its cursorline fought
   `core/ui-touch.lua`. Kept as a one-line revert.

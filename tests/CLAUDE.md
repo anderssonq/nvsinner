@@ -41,6 +41,10 @@ effects). Deeper QA doctrine (evidence bar, new-spec template) lives in the
 | `tests/core/git_blame_spec.lua` | the NvGitBlame comment-tone group, `_format()` porcelain parsing (uncommitted skipped), a real one-commit repo annotating the cursor line, uncommitted lines staying blank (buffer contents blamed), untracked/special-buffer skips, and `:NvSinnerBlameToggle` clearing on off |
 | `tests/core/illuminate_spec.lua` | the carbon LspReference* underlines, the visible-range fallback marking every occurrence word-boundary strict, `clear()` on movement, and the denylist/large-file/special-buffer guards |
 | `tests/core/sessions_spec.lua` | the persistence-parity `sessionoptions`, save()/load() cwd roundtrip, load() false with no session, `last()` mtime pick, the autosave gate (armed by a real file, paused by `stop()`), and the `:NvSinnerSession*` commands + `<leader>S` maps |
+| `tests/core/indent_spec.lua` | the IndentLineCurrent carbon panel gray, the scope computation around the cursor (guide column, top/bottom, blank-line membership + edge trimming), and the top-level/denylist/special-buffer guards |
+| `tests/core/colorizer_spec.lua` | #rgb/#rrggbb/#rrggbbaa literals chipped with their own bg + a carbon-role contrast fg, invalid lengths/glued tokens skipped, rescans replacing marks, and the special-buffer skip |
+| `tests/core/todo_spec.lua` | the NvTodo* carbon accent chips, keyword+colon matching (optional author tag, colon required, boundary strict, lowercase never), rescans replacing marks, and the special-buffer skip |
+| `tests/core/window_picker_spec.lua` | the package.preload shim serving `require("window-picker")` (neo-tree seam), the candidate filter (floats + denylisted ft/buftype out), single-candidate autoselect, the letter-overlay pick flow (choice, abort, overlay teardown), and the NvWinPick chip group |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
 
 ## Conventions for new specs

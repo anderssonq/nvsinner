@@ -49,6 +49,10 @@ lua/core/image-open.lua      Open image files in macOS Quick Look + metadata pla
 lua/core/git-blame.lua       Inline git blame for the cursor line, async porcelain → eol virt_text (native, replaces git-blame.nvim)
 lua/core/illuminate.lua      Symbol-occurrence underline: LSP document_highlight + visible-range fallback (native, replaces vim-illuminate)
 lua/core/sessions.lua        :mksession sessions per cwd — :NvSinnerSession*, <leader>Sc/Sl/SQ (native, replaces persistence.nvim)
+lua/core/indent.lua          Current-scope indent guide: decoration-provider overlay (native, replaces indentmini.nvim)
+lua/core/colorizer.lua       #hex color chips on the visible range (native, replaces nvim-colorizer)
+lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
+lua/core/window-picker.lua   Letter-overlay window picker; serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```

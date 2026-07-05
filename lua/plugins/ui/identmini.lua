@@ -1,5 +1,9 @@
+-- DISABLED: replaced by the native current-scope indent guide in
+-- lua/core/indent.lua (decoration-provider overlay, same only_current look,
+-- same IndentLineCurrent carbon panel gray). Kept as a one-line revert.
 return {
 	"nvimdev/indentmini.nvim",
+	enabled = false,
 	event = { "BufReadPost", "BufNewFile" },
 	config = function()
 		require("indentmini").setup({

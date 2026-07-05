@@ -13,5 +13,9 @@
   Neovim's builtin commenting (0.10+) covers it — `gcc` toggles the current
   line, `gc{motion}` / visual `gc` toggle a region, commentstring-aware via
   treesitter. Kept as a one-line revert.
-- `autopairs.lua`, `surround.lua`, `todocomment.lua` — standard lazy-loaded
-  editing plugins; no special contracts beyond the repo conventions.
+- `todocomment.lua` — `todo-comments.nvim` is **disabled** (`enabled =
+  false`): replaced by the native keyword-chip module in `lua/core/todo.lua`
+  (visible-range `TODO:`/`FIXME:`… scan → carbon accent chips; drops a
+  plenary consumer). Kept as a one-line revert.
+- `autopairs.lua`, `surround.lua` — standard lazy-loaded editing plugins; no
+  special contracts beyond the repo conventions.

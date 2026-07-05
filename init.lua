@@ -38,6 +38,10 @@ require("core.symbols") -- :NvSinnerSymbols — document-symbols modal (<leader>
 require("core.git-blame") -- native inline git blame for the cursor line (replaces git-blame.nvim)
 require("core.illuminate") -- native symbol-occurrence highlight: LSP document_highlight + TS fallback (replaces vim-illuminate)
 require("core.sessions") -- native :mksession sessions — :NvSinnerSession*, <leader>Sc/Sl/SQ (replaces persistence.nvim)
+require("core.indent") -- native current-scope indent guide (replaces indentmini.nvim)
+require("core.colorizer") -- native #hex color chips on the visible range (replaces nvim-colorizer)
+require("core.todo") -- native TODO/FIXME keyword chips (replaces todo-comments.nvim)
+require("core.window-picker") -- native letter-overlay window picker; serves neo-tree's require("window-picker") (replaces nvim-window-picker)
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {

@@ -39,8 +39,12 @@ House rule reminder: a migrated plugin's spec is **kept with
 | **git-blame.nvim** | **`core/git-blame.lua`** | **Wave 1** |
 | **vim-illuminate** | **`core/illuminate.lua`** | **Wave 1** |
 | **persistence.nvim** | **`core/sessions.lua`** | **Wave 1** |
+| **indentmini.nvim** | **`core/indent.lua`** | **Wave 1.5** |
+| **nvim-colorizer** | **`core/colorizer.lua`** | **Wave 1.5** |
+| **todo-comments.nvim** | **`core/todo.lua`** | **Wave 1.5** |
+| **nvim-window-picker** | **`core/window-picker.lua`** | **Wave 1.5** |
 
-## Wave 1 (this change) — justifications
+## Wave 1 (landed) — justifications
 
 - **Comment.nvim → builtin.** The spec carried zero configuration; Neovim
   0.10's builtin `gc`/`gcc` is commentstring-aware through treesitter and
@@ -64,14 +68,33 @@ House rule reminder: a migrated plugin's spec is **kept with
   `<leader>Sc/Sl/SQ` maps plus `:NvSinnerSession*` commands. Also removes the
   old spec's config-time hard `require("which-key")` coupling.
 
-## Wave 1.5 — cheap wins, queued
+## Wave 1.5 (landed) — justifications
 
-| Plugin | Native shape | Justification | Risk |
-|---|---|---|---|
-| `indentmini.nvim` | decoration-provider guides, `only_current` scope | tiny used surface; one `on_win`/`on_line` provider | visual parity of the current-scope detection |
-| `nvim-colorizer` | regex `#hex` scan → bg extmarks on visible range | we only colorize hex codes; the plugin ships css/tailwind machinery we never use | none meaningful |
-| `todo-comments.nvim` | TODO/FIXME/HACK regex → extmark highlights | drops a plenary consumer; search integration can point at telescope grep (later NvSinnerFind) | losing `:TodoTelescope` until the native picker exists |
-| `nvim-window-picker` | letter-overlay floats (~50 lines) | only consumed by neo-tree's open-with | must plug into neo-tree's `window_picker` seam |
+- **indentmini.nvim → `core/indent.lua`.** The spec ran `only_current = true`
+  with one recolored highlight — the whole used surface is "one guide on the
+  cursor's enclosing scope". Native shape: cursor autocmds compute the scope
+  (guide column + top/bottom, blanks riding along, visible-range-clamped) and
+  a decoration provider paints it with *ephemeral* overlay extmarks at redraw
+  time — nothing to clear, nothing stale. Display-cell columns
+  (`vim.fn.indent` + `virt_text_win_col`), so tab-indented files line up.
+- **nvim-colorizer → `core/colorizer.lua`.** We only colorize hex codes; the
+  plugin ships css-function/tailwind/name machinery that never ran. Native:
+  visible-range `#rgb`/`#rrggbb`/`#rrggbbaa` scan → bg extmarks with
+  on-demand `NvColorRRGGBB` groups (carbon-role contrast fg, cache dropped on
+  ColorScheme).
+- **todo-comments.nvim → `core/todo.lua`.** Drops a plenary consumer. Native:
+  visible-range keyword+colon scan (optional `(author)` tag) → solid carbon
+  accent chips, families mapped semantically (TODO green `base13`, FIX
+  magenta `base10`, HACK/WARN purple `base14`, …). `:TodoTelescope` is
+  deliberately not replicated — telescope live-grep covers it until
+  NvSinnerFind exists.
+- **nvim-window-picker → `core/window-picker.lua`.** Only consumed by
+  neo-tree's open-with (`w`), whose seam is
+  `pcall(require, "window-picker")` → `pick_window({})` — the native module
+  registers itself in `package.preload["window-picker"]` (deferring to the
+  real plugin if the stub is ever re-enabled), so neo-tree needed zero config
+  change. Letter chips are non-focusable centered floats on the carbon
+  accent; single candidate auto-returns.
 
 ## Wave 2 — distro identity
 
@@ -132,9 +155,10 @@ House rule reminder: a migrated plugin's spec is **kept with
 
 ## Scoreboard
 
-37 plugin specs at the start of Wave 1 → **4 disabled this wave** (comment,
-git-blame, illuminate, persistence), 2 previously disabled (incline,
-cursorline). Wave 1.5 targets 4 more, Wave 2 targets 5 (incl. navic). A
-completed Wave 2 leaves ~22 active plugins, all of them either engines
-(treesitter, LSP, cmp) or deep tools (gitsigns, diffview, neo-tree) — and
-every pixel of NvSinner's visible identity rendered by native code.
+37 plugin specs at the start of Wave 1 → 4 disabled in Wave 1 (comment,
+git-blame, illuminate, persistence), **4 more in Wave 1.5** (indentmini,
+colorizer, todo-comments, window-picker), 2 previously disabled (incline,
+cursorline). Wave 2 targets 5 (incl. navic). A completed Wave 2 leaves ~22
+active plugins, all of them either engines (treesitter, LSP, cmp) or deep
+tools (gitsigns, diffview, neo-tree) — and every pixel of NvSinner's visible
+identity rendered by native code.
