@@ -20,21 +20,25 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   input`) built from `core/ai-sessions.sessions()` +
   `core/ai-activity.status()` — plain text, no accent chip, empty when no
   sessions exist (see `lua/core/CLAUDE.md` §Agent activity).
-- `incline.lua` — per-window filename badge (top-right). Active window is
-  marked with a `base09` blue dot on a `base02` chip; others stay muted on
-  `base01`. Modified dot is `base10`. The filetype icon keeps its own colour
-  as *foreground* only (no coloured block) to stay gray-dominant.
+- `incline.lua` — **disabled** (`enabled = false`): replaced by the native
+  winbar badge in `lua/core/filebadge.lua` — incline's float overlapped the
+  first buffer line on winbar-less (markdown) windows and its non-focusable
+  float couldn't host a clickable "Open view" chip. Kept as a one-line revert.
 - `barbacue.lua` — `barbecue` breadcrumb winbar (path > LSP symbols) on code
   windows, recolored: muted dirname/separators, `base04` basename, soft
   `base09` symbol icons, `base10` reserved for the `modified` marker. Pairs
-  with the terminal winbar so every window has a consistent top bar.
+  with the terminal winbar so every window has a consistent top bar. Its
+  `custom_section` appends the native file badge (focus dot · icon · filename ·
+  modified dot) from `lua/core/filebadge.lua` at the right end.
   **markdown is in `exclude_filetypes`** so it doesn't fight
-  `render-markdown.lua`'s "Open view" button for the same winbar line.
+  `core/filebadge.lua`'s markdown winbar (badge + "Open view" chip) for the
+  same line.
 - `render-markdown.lua` — `render-markdown.nvim` gated behind an **"Open
-  view"** reading-view toggle. The button is a **centered, clickable** winbar
-  chip (`NvMdBtn`, accent-blue `base09` on `blend`) on every markdown window
-  (a `%=…%@…@…%X…%=` click region driving `_G.NvMdReader.click`); `<leader>m`
-  toggles the same thing. Starts OFF (`enabled = false`) and renders only when
+  view"** reading-view toggle. The action chip is drawn by the native file
+  badge (`lua/core/filebadge.lua`) at the right end of the markdown winbar, in
+  the same component as the filename (`󰈙 Open view │ ● 󰍔 file.md`), as a
+  native `%@…%X` click region driving `_G.NvMdReader.click`. This file owns
+  the reader state, the label (`reader.label()`), and `<leader>m`. Starts OFF (`enabled = false`) and renders only when
   opted in. **0.12.x crash fix:** the spec's `init` overrides the markdown
   `injections` query to keep only the `markdown_inline` injection and drop the
   code-fence language directive that hits the `node:range` nil-node crash —

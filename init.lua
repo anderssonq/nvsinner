@@ -23,6 +23,7 @@ require("core.keymaps")
 require("core.autoreload")
 require("core.ai-edits") -- underline AI-written lines after a disk reload, until the user takes over
 require("core.ui-touch")
+require("core.filebadge") -- native per-window file badge (winbar): focus dot + filename (+ "Open view" chip on markdown)
 require("core.ai-activity") -- start polling so the terminal winbar shows agent activity
 require("core.ai-sessions") -- AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja)
 require("core.ai-ask") -- :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection

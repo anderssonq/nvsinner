@@ -24,10 +24,17 @@ return {
 			local CONTEXT = c.base09 -- identity accent for LSP symbol icons
 
 			require("barbecue").setup({
-				-- markdown owns its winbar for the "Open view" reading-view button
-				-- (see render-markdown.lua) — keep barbecue's breadcrumb off it so the
-				-- two don't fight over the same line.
+				-- markdown's winbar is owned by the native file badge + "Open view"
+				-- chip (core/filebadge.lua + render-markdown.lua) — keep barbecue's
+				-- breadcrumb off it so the two don't fight over the same line.
 				exclude_filetypes = { "netrw", "toggleterm", "markdown" },
+				-- Native file badge (focus dot · icon · filename · modified dot) at
+				-- the right end of the breadcrumb bar — see lua/core/filebadge.lua.
+				-- The section is a dynamic %{%…%} expression so the focus dot moves
+				-- on every redraw (barbecue only rebuilds the event window's string).
+				custom_section = function()
+					return require("core.filebadge").section()
+				end,
 				theme = {
 					normal = { fg = FG },
 					ellipsis = { fg = DIM },

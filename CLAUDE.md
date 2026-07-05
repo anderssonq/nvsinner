@@ -38,6 +38,7 @@ lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, until the user takes over (native)
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
+lua/core/filebadge.lua       Per-window winbar file badge: focus dot + filename; hosts the markdown "Open view" chip (native, replaces incline)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
 lua/core/ai-ask.lua          :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection (native)
@@ -123,7 +124,7 @@ when you work under that directory. Read them before editing there:
 
 | Area | Contract file |
 |------|---------------|
-| Native core modules (AI bridge/ask, carbon theme, settings/menu, prompts, help, symbols/backdrop, ui-touch, ai-activity, autoreload/ai-edits, update/sync/health, image-open) | `lua/core/CLAUDE.md` |
+| Native core modules (AI bridge/ask, carbon theme, settings/menu, prompts, help, symbols/backdrop, ui-touch, filebadge, ai-activity, autoreload/ai-edits, update/sync/health, image-open) | `lua/core/CLAUDE.md` |
 | UI chrome (theme.lua, lualine, incline, barbecue, render-markdown, noice, mini.animate, scrollbar, which-key, illuminate, cursorline) | `lua/plugins/ui/CLAUDE.md` |
 | LSP / completion / formatting / diagnostics | `lua/plugins/lsp/CLAUDE.md` |
 | Terminals: toggleterm AI columns, CLI picker, reserved ids, persistence | `lua/plugins/terminal/CLAUDE.md` |

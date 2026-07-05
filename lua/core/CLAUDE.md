@@ -287,6 +287,41 @@ pulled from `carbon.lua`). The illuminate/cursorline plugin notes live in
   focus autocmd re-applies focus once the buffer is a `terminal`, so the bar +
   spinner show on the very first open.
 
+## File badge — `filebadge.lua` (required from `init.lua`)
+
+The native per-window filename badge — the in-repo replacement for
+incline.nvim (`lua/plugins/ui/incline.lua` is kept `enabled = false` as a
+one-line revert). Shows which file each window holds and where the focus is:
+a right-aligned `● <icon> <filename> ●` badge (focus dot `base09` · devicons
+filetype icon as fg-only color · name `base04` bold when focused / `base03`
+muted otherwise · modified dot `base10`) rendered **in the winbar**, so it
+owns its own line and never floats over buffer text (incline's float
+overlapped line 1 on winbar-less windows).
+
+One renderer (`M.parts(buf, focused)` → `M.fragment()`), two delivery paths:
+
+- **Code windows** — barbecue's `custom_section` (`lua/plugins/ui/barbacue.lua`)
+  calls `M.section()`, which returns the **dynamic** `M.SECTION_EXPR`
+  (`%{%v:lua.require'core.filebadge'.fragment()%}`), so the badge rides the
+  right end of the existing breadcrumb winbar. It must stay dynamic: barbecue
+  only rebuilds the winbar string of the window an event touched, so a
+  build-time focus check left stale focus dots on every other window — the
+  expression re-evaluates on each redraw and decides focus at draw time via
+  `g:actual_curwin`.
+- **Markdown windows** (excluded from barbecue) — this module owns the winbar:
+  `FileType markdown` / `BufWinEnter` autocmds set it to `M.EXPR`
+  (`%{%v:lua.require'core.filebadge'.winbar()%}`, re-evaluated per redraw;
+  focus detected via `g:actual_curwin`). The line renders
+  `󰈙 Open view │ ● 󰍔 file.md`: the "Open view" reading-view chip is a native
+  `%@…%X` click region driving `_G.NvMdReader.click` — chip state/label/toggle
+  live in `lua/plugins/ui/render-markdown.lua`.
+
+Highlights (`NvBadgeDot/File/FileNC/Mod/Chip/Sep`) are carbon roles applied in
+`apply_hl()` and re-applied on `ColorScheme`; per-icon-color groups are
+created on demand and their cache dropped on `ColorScheme` (a colorscheme
+switch clears them). devicons is `pcall`-required inside the render (this
+module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
+
 ## Agent activity — `ai-activity.lua` (required from `init.lua`)
 
 - Detects whether the program in a terminal — an AI CLI (`claude`, `kiro`,

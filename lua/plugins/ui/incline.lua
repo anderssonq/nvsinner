@@ -3,8 +3,14 @@
 -- (base09), every other window stays muted on a panel gray. The "modified" dot
 -- uses base10 (carbon's attention magenta). The filetype icon keeps its own
 -- colour as foreground (no coloured block) so surfaces stay gray-dominant.
+--
+-- DISABLED: replaced by the native badge in lua/core/filebadge.lua — incline's
+-- float overlapped the first buffer line on winbar-less (markdown) windows and
+-- its non-focusable float couldn't host a clickable "Open view" chip. The
+-- winbar-based native badge has neither problem. Kept as a one-line revert.
 return {
 	"b0o/incline.nvim",
+	enabled = false,
 	event = "VeryLazy",
 	dependencies = { "nvim-tree/nvim-web-devicons" },
 	config = function()

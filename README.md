@@ -293,6 +293,7 @@ lua/core/keymaps.lua           Global keymaps (save/undo/redo, folds, split-resi
 lua/core/autoreload.lua        Disk auto-reload + edit toast for the AI terminal workflow
 lua/core/ai-edits.lua          Underlines AI-written lines after a reload, until you take over
 lua/core/ui-touch.lua          Active-window glow + mouse-hover docs (native)
+lua/core/filebadge.lua         Per-window winbar file badge: focus dot + filename (+ markdown "Open view" chip)
 lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal winbar
 lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja)
 lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
@@ -321,9 +322,9 @@ spec; new files in an existing category are picked up automatically.
 |------|--------|--------------|
 | `theme.lua` | — (native) | Active colorscheme: **carbon**, a self-contained oxocarbon/IBM Carbon port (`colors/carbon.lua` + `lua/core/carbon.lua`) |
 | `lualine.lua` | lualine.nvim | Global statusline with the carbon mode→accent chip |
-| `incline.lua` | incline.nvim | Floating filename label, top-right of each window |
+| `incline.lua` | incline.nvim | **Disabled** — replaced by the native winbar file badge (`lua/core/filebadge.lua`) |
 | `barbacue.lua` | barbecue.nvim | VS Code-style breadcrumbs (winbar) |
-| `render-markdown.lua` | render-markdown.nvim | Markdown reading view behind the "Open view" winbar button (`<leader>m`) |
+| `render-markdown.lua` | render-markdown.nvim | Markdown reading view behind the "Open view" chip in the file-badge winbar (`<leader>m`) |
 | `dashboard.lua` | alpha-nvim | Start screen — the NvSinner ASCII mark + clickable quick-action menu; rotating dev quote |
 | `noice.lua` | noice.nvim | Centered floating `:` cmdline; messages routed through nvim-notify |
 | `colorizer.lua` | nvim-colorizer | Inline color previews for hex/rgb |
@@ -471,7 +472,7 @@ Plugins are lazy-loaded via lazy.nvim triggers:
   indent guides, breadcrumbs, todo-comments, illuminate.
 - `event = { "BufReadPre", "BufNewFile" }` — gitsigns (sign-column markers).
 - `event = "VeryLazy"` — statusline, comments, scroll, notifications,
-  git-blame, surround, which-key, window-picker, incline.
+  git-blame, surround, which-key, window-picker.
 - `cmd` / `keys` — Telescope, Neo-tree, toggleterm AI column, diffview.
 
 Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load
