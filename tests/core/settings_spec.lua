@@ -25,7 +25,15 @@ describe("core.settings", function()
 		end
 		assert.are.equal("left", settings.get("tree_side"))
 		assert.are.equal("right", settings.get("ai_side"))
+		assert.is_true(settings.get("ai_complete"))
+		assert.are.equal("glm-5.2", settings.get("ai_model"))
 		assert.is_false(settings.get("quiet"))
+	end)
+
+	it("persists the ai_model choice (the :NvSinnerIA model picker)", function()
+		settings.set("ai_model", "minimax-m2.7")
+		settings.load({ file = temp })
+		assert.are.equal("minimax-m2.7", settings.get("ai_model"))
 	end)
 
 	it("persists a set() and reads it back from disk", function()
@@ -105,12 +113,18 @@ describe("core.settings", function()
 	end)
 
 	describe("carbon accent packs", function()
-		local saved_accent
+		local saved_accent, saved_theme
 		before_each(function()
 			saved_accent = vim.g.nvsinner_accent
+			-- Pin the reference palette: settings.setup() (run at require time) may
+			-- have seeded a real persisted theme (e.g. mocha) into vim.g, but these
+			-- tests assert against carbon.dark.* specifically.
+			saved_theme = vim.g.nvsinner_theme
+			vim.g.nvsinner_theme = "carbon"
 		end)
 		after_each(function()
 			vim.g.nvsinner_accent = saved_accent
+			vim.g.nvsinner_theme = saved_theme
 		end)
 
 		it("ships the four packs with dark+light overrides", function()

@@ -18,6 +18,8 @@
 --     strings / functions → carbon flags (theme.lua, colors/carbon.lua)
 --   * tree_side → neo-tree position (lua/plugins/navigation/neo-tree.lua)
 --   * ai_side   → AI/vertical terminal column side (lua/plugins/terminal/toggleterm.lua)
+--   * ai_complete → inline AI completion on/off (lua/core/ai-complete.lua)
+--   * ai_model   → inline-completion model (lua/core/ai-complete.lua; :NvSinnerIA)
 --   * quiet     → mute info-level vim.notify toasts (warnings/errors still show)
 -- Every M.set fires `User NvSinnerSetting` (data = { key, value }) so lazy
 -- specs can react without requiring this module eagerly.
@@ -35,6 +37,8 @@ M.defaults = {
 	functions = "default", -- syntax functions/methods accent (same choices)
 	tree_side = "left", -- neo-tree column: "left" | "right"
 	ai_side = "right", -- AI / vertical terminal columns: "left" | "right"
+	ai_complete = true, -- inline AI completion (ghost text) on/off; no-ops without $OPENCODE_API_KEY
+	ai_model = "glm-5.2", -- inline-completion model (:NvSinnerIA picker); $OPENCODE_MODEL still overrides
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
 }
 
@@ -169,6 +173,12 @@ local apply = {
 		end
 	end,
 	ai_side = function() end, -- toggleterm listens on User NvSinnerSetting
+	ai_complete = function(v)
+		pcall(function()
+			require("core.ai-complete").set_enabled(v)
+		end)
+	end,
+	ai_model = function() end, -- read at request time by ai-complete.M.model(); nothing to apply live
 }
 
 -- Set + persist + apply live + broadcast.

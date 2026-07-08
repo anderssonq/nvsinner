@@ -43,6 +43,16 @@ any existing `~/.config/nvim` without touching it.
   Ask custom question**. The chosen prompt (with the file path and line
   range) plus the selection lands in the AI column's input; with more than
   one session open, a picker asks which one.
+- **Inline AI completion** — Copilot-style ghost-text code suggestions on a
+  manual trigger (insert-mode `<C-l>`, or `:NvSinnerComplete`), served by an
+  OpenAI-compatible endpoint (OpenCode Zen "Go" plan → `glm-5.2`, a fast
+  non-reasoning model). Accept with `<Tab>`, dismiss with `<C-]>`. The API key
+  lives only in `$OPENCODE_API_KEY` (never in the config); with no key it stays a
+  quiet no-op. Toggle it — and pick the model — in the **`:NvSinnerIA` hub**.
+- **AI hub** — `:NvSinnerIA` (`<leader>xi`) gathers every AI entry point in one
+  modal: completion on/off, a **model picker** over the live OpenCode Zen "Go"
+  catalogue (verified-good models marked ✓; default `glm-5.2`), Ask-AI, and the
+  prompt library. It's the single AI row in `:NvSinnerHelp`.
 - **AI edit highlights** — when the agent rewrites an open file, the changed
   lines get a soft wash of your accent color right in the file pane (distinct
   from git's gutter marks) and clear the moment you take the file over.
@@ -58,8 +68,8 @@ any existing `~/.config/nvim` without touching it.
   prompts (plain JSON, hand-editable) and copies your pick to the OS
   clipboard.
 - **Mason-style modals** — `:NvSinnerMenu` (settings, persisted),
-  `:NvSinnerPrompts`, and `:NvSinnerHelp` (a command palette that runs what
-  you pick), all keyboard- and mouse-driven.
+  `:NvSinnerIA` (the AI hub), `:NvSinnerPrompts`, and `:NvSinnerHelp` (a
+  command palette that runs what you pick), all keyboard- and mouse-driven.
 - **Carbon theme, configurable in one place** — dark/light variants,
   transparency, four accent packs, and per-role color slots, all from a
   single palette file (`lua/core/carbon.lua`) — live-applied and persisted.
@@ -97,6 +107,12 @@ any existing `~/.config/nvim` without touching it.
 The AI workflow is just a CLI agent run in the terminal column — install one
 (e.g. `npm i -g @anthropic-ai/claude-code`) and run it once to log in. No
 `ANTHROPIC_API_KEY` needed by the config; the CLI handles its own auth.
+
+The one exception is the optional **inline AI completion** feature (ghost
+text): it calls an OpenAI-compatible endpoint directly and reads an
+`$OPENCODE_API_KEY` from the environment (never stored in the config), and
+needs `curl` on `PATH`. It stays a quiet no-op until you set that key — see
+[The AI workflow → Inline AI completion](#inline-ai-completion-ghost-text).
 
 ## 🚀 Getting started
 
@@ -187,6 +203,55 @@ still reading its summary in the column. The marks clear as soon as you take
 over the file — move the cursor in it or start editing. For a persistent,
 reviewable diff use `<leader>gd` (Diffview) as usual.
 
+### Inline AI completion (ghost text)
+
+Separate from the agentic column above — that one is for building things with
+a CLI agent; this completes code **inline in the buffer you're editing**,
+Copilot-style. It's a native module (no plugin) served by an OpenAI-compatible
+chat endpoint — by default the **OpenCode Zen "Go" plan** running `glm-5.2`. The
+default is deliberately a **fast, non-reasoning** model: a reasoning model (like
+`deepseek-v4-flash`) spends its token budget "thinking" and returns empty
+completion text, so no ghost ever appears; `glm-5.2` was the fastest verified
+model that returns clean, code-only completions.
+
+It is **manual on purpose** (no type-ahead requests, so token spend stays
+predictable against the plan's usage caps): in insert mode press `<C-l>` (or run
+`:NvSinnerComplete`) to request a suggestion at the cursor, `<Tab>` to accept it,
+`<C-]>` to dismiss — any cursor move or edit also clears it. While the request is
+in flight a small animated **`AI completion…` spinner** shows in the top-right
+corner (where notifications appear) so the wait isn't a dead pause. `<Tab>` yields
+to the completion popup: when nvim-cmp's menu is open it stays a normal Tab.
+
+Everything AI lives in the **`:NvSinnerIA` hub** (`<leader>xi`): toggle completion
+on/off, pick the model, or jump to Ask-AI / the prompt library. The **model
+picker** pulls the live OpenCode Zen "Go" catalogue and marks the verified-good
+models (`glm-5.2`, `glm-5`, `minimax-m2.7`) with a ✓ — your pick persists as
+`ai_model` (`:NvSinnerCompleteToggle` still toggles completion directly).
+
+> [!NOTE]
+> Completions take ~2–4s — that latency is the OpenCode Zen endpoint, not the
+> editor. `glm-5.2` is the fastest verified model; `$OPENCODE_MODEL` lets you try
+> others (`glm-5`, `minimax-m2.7`).
+
+> [!IMPORTANT]
+> **Where the API key goes — not in this config.** The key is read from the
+> `$OPENCODE_API_KEY` environment variable at request time; it is never
+> hardcoded, committed, or written to `settings/`. Set it in the shell that
+> launches nvsinner (e.g. `~/.zshrc`):
+>
+> ```sh
+> export OPENCODE_API_KEY="sk-..."             # required
+> # optional overrides (sane defaults are baked in):
+> export OPENCODE_MODEL="glm-5.2"              # fast + non-reasoning; also: glm-5, minimax-m2.7
+> export OPENCODE_ENDPOINT="https://opencode.ai/zen/go/v1/chat/completions"
+> export OPENCODE_FALLBACK_MODEL="..."         # a free model to retry with on a 429
+> ```
+>
+> With no key set the feature is a quiet no-op after a single warning. `curl`
+> must be on `PATH` (it ships by default on macOS/most Linux). On a usage-limit
+> (429) it retries once with `$OPENCODE_FALLBACK_MODEL` if set, otherwise pauses
+> for a few minutes instead of erroring on every trigger.
+
 ### `:NvSinnerPrompts` — the prompt library
 
 Press `<leader>p` (or run `:NvSinnerPrompts`) to open a floating library of
@@ -233,6 +298,7 @@ hovering moves the selection and a click cycles the row's value.
 | Functions | same choices — paints the whole function/method family in one accent |
 | Neo-tree side | `left` / `right` |
 | AI column side | `left` / `right` |
+| AI completion | `on` / `off` — inline ghost-text completion (needs `$OPENCODE_API_KEY`; see the AI workflow section) |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
 
 ### Theme options (carbon)
@@ -428,6 +494,10 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |
 | `<leader>ab` | n | Send an `@path` mention of the current buffer to the AI column |
 | `<leader>ad` | n | Send the current line's diagnostics to the AI column |
+| `<C-l>` | i | Request an inline AI completion (ghost text) at the cursor (`:NvSinnerComplete`) |
+| `<Tab>` | i | Accept the AI ghost text (falls through to a literal Tab when none is pending or cmp's menu is open) |
+| `<C-l>` | i | Accept the AI ghost text (unconditional) |
+| `<C-]>` | i | Dismiss the AI ghost text |
 | `<leader>p` | n | Prompt library (`:NvSinnerPrompts`) — copy a reusable AI prompt to the clipboard |
 | `<M-J>` | n, i, t | Toggle AI session 1 (sent by iTerm2's `⌘⌥J`) |
 | `<D-M-j>` | n, t | Toggle AI session 1 (GUI Neovim `⌘⌥J`) |
@@ -444,6 +514,7 @@ Ask-AI modal.
 | Keys | Mode | Action |
 |------|------|--------|
 | `<leader>xm` | n | `:NvSinnerMenu` — settings modal |
+| `<leader>xi` | n | `:NvSinnerIA` — AI hub (completion on/off, model picker, Ask-AI, prompts) |
 | `<leader>xh` | n | `:NvSinnerHelp` — command palette |
 | `<leader>xp` | n | `:NvSinnerPrompts` — prompt library (same as `<leader>p`) |
 | `<leader>xo` | n | `:NvSinnerSymbols` — document symbols modal (same as `<leader>cs`; `xo` = outline, Trouble owns `xs`) |

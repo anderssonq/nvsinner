@@ -44,20 +44,27 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 -- command's own desc can't carry). Anything not listed falls back to the desc
 -- registered with nvim_create_user_command.
 local DESCS = {
-	NvSinnerAskAI = "Ask-AI modal over the last selection (also <leader>x in visual)",
+	NvSinnerIA = "AI hub — completion on/off, model, Ask-AI, prompts (<leader>xi)",
 	NvSinnerMenu = "Settings modal — theme, accent, panel sides (<leader>xm)",
-	NvSinnerPrompts = "Prompt library → OS clipboard (<leader>p / <leader>xp)",
 	NvSinnerSymbols = "Document symbols — jump to one (<leader>cs / <leader>xo)",
 	NvSinnerSync = "Float plugins + Mason to latest — rewrites lockfile (<leader>xS)",
 	NvSinnerUpdate = "git pull + restore pinned plugins + checkhealth (<leader>xu)",
+}
+
+-- Commands NOT listed here: they live inside the :NvSinnerIA hub modal, so the
+-- palette shows a single "NvSinnerIA" AI entry instead of scattered rows.
+local EXCLUDE = {
+	NvSinnerAskAI = true,
+	NvSinnerComplete = true,
+	NvSinnerCompleteToggle = true,
+	NvSinnerPrompts = true,
 }
 
 -- Section per command; anything unlisted lands in "other". SECTIONS fixes the
 -- display order; each present section renders as a muted rule header.
 local SECTIONS = { "ai", "editor", "settings", "maintenance", "other" }
 local SECTION_OF = {
-	NvSinnerAskAI = "ai",
-	NvSinnerPrompts = "ai",
+	NvSinnerIA = "ai",
 	NvSinnerSymbols = "editor",
 	NvSinnerMenu = "settings",
 	NvSinnerSync = "maintenance",
@@ -93,7 +100,7 @@ local content_lines = 0
 function M.refresh()
 	items = {}
 	for name, def in pairs(vim.api.nvim_get_commands({})) do
-		if name:match("^NvSinner") and name ~= "NvSinnerHelp" then
+		if name:match("^NvSinner") and name ~= "NvSinnerHelp" and not EXCLUDE[name] then
 			-- nvim_get_commands' `definition` mangles multi-byte chars and
 			-- <...> keycodes for Lua commands (raw <e2><80>… bytes in the
 			-- modal); strtrans() changing the string is the corruption tell —

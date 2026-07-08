@@ -61,6 +61,107 @@ edits files on disk (see *Auto-reload* below).
   question)` / `M._reset()` / `M._ctx()` are the test seams; NvMenu* styling
   re-declared locally like the other modals.
 
+## Inline AI completion — `ai-complete.lua` (required from `init.lua`)
+
+The **one deliberate exception** to "no in-editor AI / never read an API key".
+Copilot-style ghost-text code completion, served by an OpenAI-compatible
+chat/completions endpoint (OpenCode Zen "Go" plan → `glm-5.2` by default). It is
+a NATIVE module (no plugin) and is distinct from the agentic AI terminal column:
+that column stays for "building big things", this completes code inline in the
+buffer you're editing.
+
+- **Fast, non-reasoning model on purpose** — the default is `glm-5.2`, NOT a
+  reasoning model. Reasoning models (e.g. `deepseek-v4-flash`, the original
+  default) spend the `max_tokens` budget on `reasoning_content` and return an
+  **empty** `content`, so `M._extract` got nil → `kind = "empty"` → the feature
+  silently produced no ghost at all. `M.model()` resolves with precedence
+  **`$OPENCODE_MODEL` (launch override) > persisted `settings.ai_model` (the
+  `:NvSinnerIA` picker) > `M.DEFAULT_MODEL` (`glm-5.2`)** — measured the fastest
+  OpenCode Zen model (~2s) that returns clean, code-only content with zero
+  reasoning; `M.MAX_TOKENS` is 512 for headroom. `M.RECOMMENDED` = { glm-5.2,
+  glm-5, minimax-m2.7 } (the verified-clean set the picker marks ✓); avoid
+  `kimi-k2.5` (narrates prose) and `minimax-m3` (emits `<think>` inside
+  `content`). `M.fetch_models(on_done)` fetches the live Go-plan catalogue (`GET
+  {base}/models`, cached; nil without a key → picker uses `M.FALLBACK_MODELS`).
+  Never read `reasoning_content` as the completion — it's the model's prose.
+- **Manual trigger only** — insert-mode `<C-l>` (or `:NvSinnerComplete`) requests
+  a suggestion at the cursor; cost is bounded by explicit triggers, which keeps
+  the OpenCode Zen Go plan's usage caps predictable, so there is no
+  type-ahead/debounced request path on purpose. `<C-l>` instead of the original
+  `<C-g>`, which was terminal-fragile (a stray `Ctrl-Shift-G` inserts a literal
+  "G"); `<C-l>` has no insert-mode default. `<Tab>` accepts (see cmp coexistence
+  below), `<C-]>` dismisses; any cursor move / edit / `InsertLeave` also clears
+  the ghost.
+- **The API key is env-only** — read from `$OPENCODE_API_KEY` via `vim.env` at
+  request time, NEVER hardcoded, persisted, or written to `settings/`. With no
+  key the feature is a quiet no-op after a single WARN. `$OPENCODE_MODEL`,
+  `$OPENCODE_ENDPOINT`, and `$OPENCODE_FALLBACK_MODEL` override the defaults.
+- **FIM context (minuet-ai / Copilot shape)** — `_build_context` sends the WHOLE
+  file around the cursor as prefix + suffix, not a fixed line window. It fits the
+  combined text into `M.CONTEXT_WINDOW` chars (16000) split by `M.CONTEXT_RATIO`
+  (0.75 → prefix 3:1 over suffix, since what precedes the cursor matters more),
+  char-based (`strchars`/`strcharpart`, multibyte-safe), keeping the prefix's
+  tail and suffix's head when it overflows. Most files fit whole, so imports at
+  the top are always included (the earlier 60-line window dropped them once the
+  cursor was far below). The prompt (`_build_messages`) wraps this as
+  `Language` / `File` (relative path) / `<PREFIX>…<CURSOR>…<SUFFIX>`. Input size
+  barely affects latency here (verified: a 3.6k-token prompt is as fast as a
+  70-token one — output generation dominates), so the big window is free.
+- **Zero plugin dependency** — the HTTP call is `curl` via `vim.system` (same
+  shape as `git-blame.lua` / `image-open.lua`), body on stdin so the prompt
+  never appears in argv (the key still does, via the `-H "Authorization:
+  Bearer …"` flag — visible to `ps` on this process only, same as any curl
+  invocation with an inline auth header). `M._request(payload, on_done)` is
+  the ONLY function that touches the network and is called **by table
+  field**, so tests swap it — the suite never makes a real request.
+  `M._classify(res)` turns a curl result into
+  `{ ok, status, kind, text }` (`kind ∈ ok|timeout|curl|auth|rate|http|parse|
+  empty|killed`), splitting the HTTP status off the `-w "\n%{http_code}"` tail.
+- **Loading spinner** — while a request is in flight, a tiny non-focusable float
+  in the top-right corner (where nvim-notify toasts sit) shows an animated
+  braille spinner + `AI completion…` (`NvAiLoading`, a carbon `base09` blue chip,
+  distinct from ai-activity's pink terminal-busy chip), so the ~2–4s wait isn't a
+  dead pause. Opened with `enter = false` + `noautocmd` so it never fires
+  `InsertLeave`/`BufLeave` — the invalidate autocmd listens for those and would
+  cancel the very request being awaited. Animated by a `vim.uv` timer whose
+  handle lives on the durable `M._spin` (module table), stopped on every terminal
+  outcome (`dispatch`), on any invalidate (cursor move / edit), on
+  `set_enabled(false)`, and in `_reset`; a 429-with-fallback keeps it spinning
+  through the retry. Seams: `M._loading_start/_loading_stop/_loading_active`.
+- **Ghost paint discipline** — `render()` repaints via
+  `nvim__redraw{ win, valid = false, flush = true }` (pcall — private API —
+  with a `redraw!` fallback) immediately AND once more on the next main-loop
+  tick (nvim-cmp's `misc.redraw(true)` shape). Probed on 0.12.3: insert mode
+  repaints scheduled virtual text on its own (copilot.lua/minuet force no
+  redraw at all), but a single flush inside the same K_EVENT can be held back
+  by the TUI layer (iTerm2 + `'termsync'`/DEC 2026 synchronized output) until
+  the next keystroke — the next-tick flush releases it. Actual painting (not
+  just extmark existence) is pinned by a real-grid PTY spec.
+- **Superseded results are dropped** — a generation counter plus `M._job:kill`
+  on the next trigger / `CursorMovedI` / `TextChangedI` / `InsertLeave` (same
+  discipline as `git-blame.lua`), so ghost text never paints under a moved
+  cursor. Accept is **anchor-guarded**: it injects text only if the cursor still
+  sits exactly where the suggestion was requested (`nvim_buf_set_text`).
+- **Errors never fail silently, and honour `quiet`** — feature-affecting
+  failures use WARN (which passes the quiet filter); an empty completion is a
+  normal, silent outcome. A 401/403 warns about the key and enters a short
+  cooldown; a 429/usage-limit retries once with `$OPENCODE_FALLBACK_MODEL` if
+  set, otherwise warns and pauses ~5 min (`M._cooldown_until`, a timestamp
+  compare — no timer). Missing curl / no key warn once.
+- **Ghost-text accept yields to nvim-cmp** — `completions.lua` uses
+  `cmp.mapping.preset.insert`, which does NOT map `<Tab>`, so overloading it is
+  safe: the `<Tab>` map is an expr that returns `<Cmd>…accept()<CR>` (so the
+  buffer edit runs outside expr textlock) and accepts ONLY when a suggestion is
+  pending AND `cmp.visible()` is false; otherwise it falls through to a literal
+  Tab.
+- **On/off is one persisted setting** — `ai_complete` in `settings.lua` (default
+  `true`; the menu row cycles it), applied via `M.set_enabled(v)`. `M.toggle()`
+  / `:NvSinnerCompleteToggle` flip it live and persist. `NvAiGhost` is a carbon
+  `base03` italic group re-applied on `ColorScheme`. Seams: `M._ns`,
+  `M._pending()`, `M._cooldown_active()`, `M._reset()`, and the pure
+  `M._build_context/_build_messages/_build_payload/_extract/_classify`. Spec:
+  `tests/core/ai_complete_spec.lua`.
+
 ## Theme — carbon (oxocarbon / IBM Carbon port)
 
 - Active colorscheme: **carbon**, a self-contained port of oxocarbon.nvim
@@ -244,9 +345,37 @@ edits files on disk (see *Auto-reload* below).
   table overrides it where a keymap hint helps, and `EXTRAS` appends
   non-command entry points (`:checkhealth nvsinner`). A future `:NvSinnerFoo`
   shows up automatically with its `desc`.
+- **`EXCLUDE` hides the AI commands** — `NvSinnerAskAI` / `NvSinnerComplete` /
+  `NvSinnerCompleteToggle` / `NvSinnerPrompts` live inside the `:NvSinnerIA` hub
+  (below), so the palette's "ai" section shows a single `NvSinnerIA` row instead
+  of the scattered commands. The excluded commands still exist (keymaps + the
+  hub call them); they're just skipped in `refresh()`.
 - `M.run()` closes **before** executing on purpose: the target may open its own
-  modal (`:NvSinnerMenu`, `:NvSinnerPrompts`) or window (`:checkhealth`) and
-  must not land inside this float. It returns the command name (test seam).
+  modal (`:NvSinnerMenu`, `:NvSinnerIA`) or window (`:checkhealth`) and must not
+  land inside this float. It returns the command name (test seam).
+
+## AI hub — `ia.lua` (required from `init.lua`)
+
+- **`:NvSinnerIA`** (`<leader>xi`) — a Mason-style modal that consolidates every
+  AI entry point, so `:NvSinnerHelp` lists one `NvSinnerIA` row (see `help.lua`'s
+  `EXCLUDE`). Two sections of rows, each carrying a `kind`:
+  - **SETTINGS** — `AI completion` (`kind = "toggle"` → flips `settings.ai_complete`
+    in place, same effect as `:NvSinnerCompleteToggle`) and `Model`
+    (`kind = "select"` → opens a `vim.ui.select` model picker).
+  - **ACTIONS** — `Ask AI` / `Complete at cursor` / `Prompt library`
+    (`kind = "action"` → runs `:NvSinnerAskAI` / `:NvSinnerComplete` /
+    `:NvSinnerPrompts` and **closes first**, same rationale as `help.run()`).
+- `M.activate()` dispatches by `kind`; `h`/`<Left>` = `activate_back` (flip / open
+  picker for settings rows, no-op on actions). Same keyboard/mouse scheme,
+  `NvMenu*` styling, and `backdrop.attach` as the other modals.
+- **Model picker** — `open_model_picker()` calls
+  `ai-complete.fetch_models()` (live Go catalogue, cached) then
+  `vim.ui.select`; `M._model_items(catalog)` orders `RECOMMENDED` first (✓) then
+  the rest, falling back to `M.FALLBACK_MODELS` offline. `M._choose_model(id)`
+  persists `settings.ai_model` (what `ai-complete.M.model()` then reads) and
+  re-renders — it's the test seam the picker callback routes through, so the
+  choice logic is exercised without a real popup. Seams: `M.open/close/move/
+  activate`, `M._rows/_model_items/_choose_model`.
 
 ## Document symbols — `symbols.lua` (required from `init.lua`)
 

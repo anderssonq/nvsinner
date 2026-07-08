@@ -29,6 +29,12 @@ M.tools = {
 		used_by = "prettier / eslint_d runtime",
 		install = "brew install node  (or your distro's nodejs)",
 	},
+	{
+		name = "curl",
+		cmd = "curl",
+		used_by = "inline AI completion (core.ai-complete)",
+		install = "brew install curl  (ships by default on macOS/most Linux)",
+	},
 	-- stylua/prettier/eslint_d are auto-installed by Mason on first boot
 	-- (mason-tool-installer); the hints below are the manual fallback if that
 	-- install failed or hasn't run yet (:MasonToolsInstall retries it).

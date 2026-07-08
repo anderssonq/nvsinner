@@ -9,6 +9,9 @@ describe("core.help", function()
 	require("core.menu")
 	require("core.prompts")
 	require("core.update")
+	require("core.ia") -- registers :NvSinnerIA (the AI hub, listed under "ai")
+	require("core.ai-complete") -- registers the AI commands that must be EXCLUDED
+	require("core.ai-ask")
 	local help = require("core.help")
 
 	before_each(function()
@@ -25,12 +28,17 @@ describe("core.help", function()
 		assert.is_not_nil(vim.api.nvim_get_commands({})["NvSinnerHelp"])
 	end)
 
-	it("discovers every NvSinner command (not itself) plus checkhealth", function()
+	it("discovers NvSinner commands (not itself, not the AI ones) plus checkhealth", function()
 		local t = titles()
-		for _, want in ipairs({ ":NvSinnerMenu", ":NvSinnerPrompts", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
+		for _, want in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
 			assert.is_true(vim.tbl_contains(t, want), want .. " missing from " .. vim.inspect(t))
 		end
 		assert.is_false(vim.tbl_contains(t, ":NvSinnerHelp"), "the palette must not list itself")
+		-- The AI commands moved into the :NvSinnerIA hub, so the palette no longer
+		-- lists them individually.
+		for _, gone in ipairs({ ":NvSinnerAskAI", ":NvSinnerComplete", ":NvSinnerCompleteToggle", ":NvSinnerPrompts" }) do
+			assert.is_false(vim.tbl_contains(t, gone), gone .. " should live inside :NvSinnerIA")
+		end
 	end)
 
 	it("picks up commands registered after load, with their desc", function()
@@ -52,7 +60,7 @@ describe("core.help", function()
 		local win = vim.api.nvim_get_current_win()
 		assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative, "must be a float")
 		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-		for _, row in ipairs({ ":NvSinnerMenu", ":NvSinnerPrompts", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
+		for _, row in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
 			assert.matches(row, text, nil, true)
 		end
 		assert.matches("q close", text, nil, true) -- the keyboard hint line

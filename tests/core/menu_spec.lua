@@ -33,6 +33,7 @@ describe("core.menu", function()
 			"Functions",
 			"Neo-tree side",
 			"AI column side",
+			"AI completion",
 			"Notifications",
 		}
 		for _, row in ipairs(rows) do
