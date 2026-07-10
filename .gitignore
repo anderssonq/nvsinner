@@ -45,3 +45,6 @@ test.ts
 
 # NvSinner per-user settings cache (:NvSinnerMenu) — settings/prompts.json IS committed
 settings/nvsinner-settings.json
+
+# Pre-push review reports (git hook output)
+.claude/logs/

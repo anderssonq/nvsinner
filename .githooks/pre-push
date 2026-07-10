@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PROMPT_FILE="$REPO_ROOT/.claude/prompts/pre-push-review.md"
+LOG_DIR="$REPO_ROOT/.claude/logs"
+LOG_FILE="$LOG_DIR/pre-push-$(date +%Y%m%d-%H%M%S).json"
+
+mkdir -p "$LOG_DIR"
+
+REMOTE_REF="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo 'origin/main')"
+DIFF="$(git diff "$REMOTE_REF"...HEAD -- '*.lua' 'CLAUDE.md' 2>/dev/null || true)"
+
+if [ -z "$DIFF" ]; then
+  echo "[pre-push] Sin cambios .lua relevantes, skip review."
+  exit 0
+fi
+
+if ! command -v claude &> /dev/null; then
+  echo "[pre-push] claude CLI no encontrado, skip review (no bloquea push)."
+  exit 0
+fi
+
+echo "[pre-push] Corriendo review con Claude Code..."
+
+RESULT="$(
+  claude -p "$(cat "$PROMPT_FILE")
+
+## Diff a revisar
+
+\`\`\`diff
+$DIFF
+\`\`\`" \
+    --allowedTools "Read" "Grep" "Glob" \
+    --permission-mode plan \
+    --output-format json \
+    --max-turns 6 2>&1
+)"
+
+echo "$RESULT" > "$LOG_FILE"
+
+REVIEW_JSON="$(echo "$RESULT" | python3 -c '
+import json, sys, re
+try:
+    data = json.load(sys.stdin)
+    text = data.get("result", "")
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    print(match.group(0) if match else "{}")
+except Exception:
+    print("{}")
+')"
+
+VERDICT="$(echo "$REVIEW_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verdict","warn"))' 2>/dev/null || echo "warn")"
+SUMMARY="$(echo "$REVIEW_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("summary",""))' 2>/dev/null || echo "")"
+
+echo ""
+echo "[pre-push] Verdict: $VERDICT"
+echo "[pre-push] $SUMMARY"
+echo "[pre-push] Reporte completo: $LOG_FILE"
+echo ""
+
+case "$VERDICT" in
+  block)
+    echo "❌ Push bloqueado — hay findings críticos. Revisá $LOG_FILE"
+    echo "   Para saltear (no recomendado): git push --no-verify"
+    exit 1
+    ;;
+  warn)
+    echo "⚠️  Push permitido, pero hay warnings. Revisá $LOG_FILE"
+    exit 0
+    ;;
+  *)
+    echo "✅ Todo bien."
+    exit 0
+    ;;
+esac
