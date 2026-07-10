@@ -138,6 +138,32 @@ function M.mark(buf)
 	return marked
 end
 
+-- Wash an EXPLICIT line range [srow0, erow0) (0-based, end-exclusive) with the
+-- same NvAiEdit accent and arm the same take-over clear — for code the user just
+-- ACCEPTED from inline completion (ai-complete.lua). Same "AI wrote this" cue as
+-- a disk edit, but for an in-buffer insert instead of an external write, so there
+-- is no snapshot to diff: the caller already knows which rows it touched. We
+-- re-snapshot after washing so a later external write doesn't diff against the
+-- pre-accept content and re-wash these lines as if the agent wrote them. Returns
+-- the number of lines washed (test seam). erow0 is clamped to the line count so a
+-- completion that ends at EOF can't set an extmark past the last row.
+function M.flash(buf, srow0, erow0)
+	if not eligible(buf) then
+		return 0
+	end
+	local last = vim.api.nvim_buf_line_count(buf)
+	local marked = 0
+	for row = math.max(srow0, 0), math.min(erow0, last) - 1 do
+		vim.api.nvim_buf_set_extmark(buf, ns, row, 0, { line_hl_group = "NvAiEdit" })
+		marked = marked + 1
+	end
+	if marked > 0 then
+		snapshot(buf)
+		arm_clear(buf)
+	end
+	return marked
+end
+
 local grp = vim.api.nvim_create_augroup("nv_ai_edits", { clear = true })
 
 -- First read of a file: baseline snapshot. Only when none exists — the

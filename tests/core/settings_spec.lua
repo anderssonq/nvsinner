@@ -26,7 +26,7 @@ describe("core.settings", function()
 		assert.are.equal("left", settings.get("tree_side"))
 		assert.are.equal("right", settings.get("ai_side"))
 		assert.is_true(settings.get("ai_complete"))
-		assert.are.equal("glm-5.2", settings.get("ai_model"))
+		assert.are.equal("minimax-m2.5", settings.get("ai_model"))
 		assert.is_false(settings.get("quiet"))
 	end)
 

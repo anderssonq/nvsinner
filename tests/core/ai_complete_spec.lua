@@ -70,10 +70,7 @@ describe("core.ai-complete", function()
 		local total = vim.fn.strchars(ctx.prefix) + vim.fn.strchars(ctx.suffix)
 		assert.is_true(total <= 100, "combined context must fit the window, got " .. total)
 		assert.are.equal("CURSORLINE", ctx.prefix:sub(-10), "prefix keeps the cursor-adjacent tail")
-		assert.is_true(
-			vim.fn.strchars(ctx.prefix) > vim.fn.strchars(ctx.suffix),
-			"the ratio favours the prefix (3:1)"
-		)
+		assert.is_true(vim.fn.strchars(ctx.prefix) > vim.fn.strchars(ctx.suffix), "the ratio favours the prefix (3:1)")
 		ai.CONTEXT_WINDOW, ai.CONTEXT_RATIO = pw, pr
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
@@ -160,6 +157,73 @@ describe("core.ai-complete", function()
 		assert.are.same({ "local x =", "return 1" }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
 		assert.are.equal(0, #vim.api.nvim_buf_get_extmarks(buf, ai._ns, 0, -1, {}))
 		assert.is_nil(ai._pending())
+		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	-- ─── Comment-only trigger line → replace on accept + AI wash ────────────────
+
+	it("_is_comment_line detects comment-only lines via commentstring", function()
+		local buf = scratch({ "// make add", "const x = 1", "" }, { 1, 0 })
+		vim.bo[buf].commentstring = "// %s"
+		assert.is_true(ai._is_comment_line(buf, 1), "a bare // line is comment-only")
+		assert.is_false(ai._is_comment_line(buf, 2), "real code is not a comment line")
+		vim.bo[buf].commentstring = ""
+		assert.is_false(ai._is_comment_line(buf, 1), "no commentstring → never a comment line")
+		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	it("accept() on a comment-only line replaces the comment with the suggestion", function()
+		vim.env.OPENCODE_API_KEY = "k"
+		local buf = scratch({ "// make add", "" }, { 1, 0 })
+		vim.bo[buf].commentstring = "// %s"
+		local orig = ai._request
+		ai._request = function(_, done)
+			done({ ok = true, kind = "ok", status = 200, text = "const add = (a, b) => a + b" })
+		end
+		ai.trigger()
+		ai._request = orig
+		vim.env.OPENCODE_API_KEY = nil
+
+		assert.is_not_nil(ai._pending())
+		assert.is_true(ai._pending().comment_replace, "the comment line is tagged for replacement")
+		ai.accept()
+		-- The comment is GONE (replaced), not appended to.
+		assert.are.same({ "const add = (a, b) => a + b", "" }, vim.api.nvim_buf_get_lines(buf, 0, -1, false))
+		assert.is_nil(ai._pending())
+		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	it("accept() washes the accepted rows (ai-edits) and clears on the first edit", function()
+		local edits = require("core.ai-edits")
+		edits._reset()
+		vim.env.OPENCODE_API_KEY = "k"
+		local buf = scratch({ "local x =", "" }, { 2, 0 })
+		local orig = ai._request
+		ai._request = function(_, done)
+			done({ ok = true, kind = "ok", status = 200, text = "return 1" })
+		end
+		ai.trigger()
+		ai._request = orig
+		vim.env.OPENCODE_API_KEY = nil
+
+		ai.accept()
+		assert.is_true(
+			#vim.api.nvim_buf_get_extmarks(buf, edits._ns, 0, -1, {}) > 0,
+			"the accepted code is washed in the AI accent (reusing ai-edits)"
+		)
+
+		-- arm_clear is scheduled one tick late; wait for the buffer-local group,
+		-- then a typed letter (TextChangedI) must wipe the wash.
+		local armed = vim.wait(1000, function()
+			return #vim.api.nvim_get_autocmds({ event = "CursorMoved", buffer = buf }) > 0
+		end, 20)
+		assert.is_true(armed, "the wash's take-over autocmds must arm after accept")
+		vim.api.nvim_exec_autocmds("TextChangedI", { buffer = buf })
+		assert.are.equal(
+			0,
+			#vim.api.nvim_buf_get_extmarks(buf, edits._ns, 0, -1, {}),
+			"typing the first letter clears the wash"
+		)
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 
@@ -281,23 +345,27 @@ describe("core.ai-complete", function()
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 
-	it("an empty completion is silent and paints no ghost", function()
+	it("an empty completion emits an INFO toast and paints no ghost", function()
 		vim.env.OPENCODE_API_KEY = "k"
 		local buf = fresh_buf()
 		local orig = ai._request
 		ai._request = function(_, done)
 			done({ ok = false, kind = "empty", status = 200 })
 		end
-		local warns, onote = {}, vim.notify
-		vim.notify = function(msg)
-			warns[#warns + 1] = msg
+		local notes, onote = {}, vim.notify
+		vim.notify = function(msg, level)
+			notes[#notes + 1] = { msg = msg, level = level }
 		end
 		ai.trigger()
 		vim.notify = onote
 		ai._request = orig
 		vim.env.OPENCODE_API_KEY = nil
 
-		assert.are.equal(0, #warns)
+		-- A blank completion is no longer silent (silence read as a bug on a manual
+		-- trigger); it's an INFO toast so `quiet` can still mute it if the user opted in.
+		assert.are.equal(1, #notes, "an empty result tells the user")
+		assert.are.equal(vim.log.levels.INFO, notes[1].level, "INFO so quiet mode can mute it")
+		assert.is_truthy(notes[1].msg:find("nothing to suggest", 1, true))
 		assert.are.equal(0, #vim.api.nvim_buf_get_extmarks(buf, ai._ns, 0, -1, {}))
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
@@ -419,18 +487,31 @@ describe("core.ai-complete", function()
 	-- ─── Surface ───────────────────────────────────────────────────────────────
 
 	it("model() precedence: $OPENCODE_MODEL > persisted ai_model > default", function()
-		-- The default must be a non-reasoning model: deepseek-v4-flash reasons and
-		-- returns empty content, so the feature silently produced no ghost.
+		-- The default must be the fastest VERIFIED model: a reasoning-heavy model
+		-- burns the token budget on reasoning_content and returns empty content,
+		-- so the feature silently produces no ghost (glm-5/deepseek failure mode).
 		local settings = require("core.settings")
-		settings.load({ file = vim.fn.tempname() }) -- default ai_model = glm-5.2
+		settings.load({ file = vim.fn.tempname() }) -- default ai_model = minimax-m2.5
 		local prev = vim.env.OPENCODE_MODEL
 		vim.env.OPENCODE_MODEL = nil
-		assert.are.equal("glm-5.2", ai.model(), "falls back to the non-reasoning default")
+		assert.are.equal("minimax-m2.5", ai.model(), "falls back to the fastest verified default")
+		assert.are.equal(ai.DEFAULT_MODEL, ai.model(), "settings default and DEFAULT_MODEL stay in lockstep")
 		settings.set("ai_model", "minimax-m2.7")
 		assert.are.equal("minimax-m2.7", ai.model(), "the persisted :NvSinnerIA choice is used")
 		vim.env.OPENCODE_MODEL = "custom-x"
 		assert.are.equal("custom-x", ai.model(), "$OPENCODE_MODEL still overrides")
 		vim.env.OPENCODE_MODEL = prev
+	end)
+
+	it("SAFE_MODELS is the picker's whole world: default included, notes attached", function()
+		-- The picker (:NvSinnerIA) never offers ids outside this verified set; the
+		-- default must be in it, and the fastest one must carry the recommendation
+		-- note the picker displays.
+		assert.is_true(vim.tbl_contains(ai.SAFE_MODELS, ai.DEFAULT_MODEL))
+		assert.matches("recommended", ai.MODEL_NOTES[ai.DEFAULT_MODEL])
+		for _, id in ipairs(ai.SAFE_MODELS) do
+			assert.is_string(ai.MODEL_NOTES[id], id .. " needs its probe note")
+		end
 	end)
 
 	it("registers :NvSinnerComplete + :NvSinnerCompleteToggle and the insert maps", function()

@@ -112,4 +112,36 @@ describe("core.ai-edits", function()
 		assert.are.equal(0, edits.mark(tbuf))
 		vim.api.nvim_buf_delete(tbuf, { force = true })
 	end)
+
+	it("flash() washes an explicit row range and arms the take-over clear", function()
+		local sbuf = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_lines(sbuf, 0, -1, false, { "a", "b", "c" })
+
+		assert.are.equal(2, edits.flash(sbuf, 0, 2), "flash washes exactly rows [0,2)")
+		local rows = {}
+		for _, e in ipairs(vim.api.nvim_buf_get_extmarks(sbuf, edits._ns, 0, -1, {})) do
+			rows[e[2]] = true
+		end
+		assert.is_true(rows[0] and rows[1], "rows 0 and 1 are washed")
+		assert.is_nil(rows[2], "row 2 is outside the range")
+
+		-- Same arm-then-clear machinery as mark(): wait for the scheduled group,
+		-- then a typed letter wipes the wash.
+		local armed = vim.wait(1000, function()
+			return #vim.api.nvim_get_autocmds({ event = "CursorMoved", buffer = sbuf }) > 0
+		end, 20)
+		assert.is_true(armed, "flash arms the same take-over autocmds as mark()")
+		vim.api.nvim_exec_autocmds("TextChangedI", { buffer = sbuf })
+		assert.are.equal(0, #vim.api.nvim_buf_get_extmarks(sbuf, edits._ns, 0, -1, {}), "typing clears the flash wash")
+
+		vim.api.nvim_buf_delete(sbuf, { force = true })
+	end)
+
+	it("flash() skips ineligible (terminal) buffers", function()
+		vim.cmd("terminal")
+		local tbuf = vim.api.nvim_get_current_buf()
+		assert.are.equal(0, edits.flash(tbuf, 0, 1))
+		assert.are.equal(0, #vim.api.nvim_buf_get_extmarks(tbuf, edits._ns, 0, -1, {}))
+		vim.api.nvim_buf_delete(tbuf, { force = true })
+	end)
 end)

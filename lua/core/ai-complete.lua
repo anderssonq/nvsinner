@@ -1,14 +1,18 @@
 -- ─── Inline AI code completion (native, manual trigger) ─────────────────────
--- Copilot-style ghost-text suggestions, served by an OpenAI-compatible chat
--- endpoint (OpenCode Zen "Go" plan → glm-5.2 by default). Distinct
--- from the agentic AI terminal column (ai-sessions/toggleterm): this completes
--- code *inline* in the buffer you're editing.
+-- Copilot-style ghost-text suggestions, served by OpenCode Zen — the ONLY
+-- supported provider (see M.endpoint below). Distinct from the agentic AI
+-- terminal column (ai-sessions/toggleterm): this completes code *inline* in
+-- the buffer you're editing.
 --
 -- Deliberate design invariants (also recorded in lua/core/CLAUDE.md):
+--   * OPENCODE ZEN EXCLUSIVE — the endpoint speaks the OpenAI chat shape, but
+--     auth, the model catalogue, the response quirks (reasoning_content eating
+--     the token budget) and the usage-cap handling are verified against the
+--     OpenCode Zen "Go" plan only; no other provider is supported.
 --   * MANUAL trigger only (<C-l> in insert, or :NvSinnerComplete) — cost is
 --     bounded by explicit triggers, which keeps the OpenCode Zen Go plan's usage
 --     caps predictable. No type-ahead requests.
---   * FAST, non-reasoning model by default (glm-5.2) — a reasoning model spends
+--   * FAST, low/non-reasoning model by default — a reasoning model spends
 --     the token budget on reasoning_content and returns empty content (no ghost).
 --   * The API key is read from $OPENCODE_API_KEY at request time (vim.env) and
 --     is NEVER hardcoded, persisted, or written to settings/. With no key the
@@ -44,23 +48,44 @@ M.TEMPERATURE = 0.1 -- low → deterministic, code-shaped output
 M.TIMEOUT_S = 12 -- curl --max-time
 M.AUTH_COOLDOWN_MS = 60 * 1000 -- pause after a 401/403 so a bad key can't hammer
 M.RATE_COOLDOWN_MS = 5 * 60 * 1000 -- pause after a 429 / usage-limit response
+-- How the ghost previews when the trigger line is a comment-only line (see
+-- M._is_comment_line): "below" renders the whole suggestion as a dimmed block
+-- BENEATH the comment (accept then replaces the comment with it), so the code
+-- never glues onto the comment text; "inline" keeps the normal at-cursor ghost.
+M.COMMENT_PREVIEW = "below"
 
 -- ─── Endpoint / model / auth (env-driven, read at call time) ─────────────────
+-- OpenCode Zen ("Go" plan) is the only supported provider. $OPENCODE_ENDPOINT
+-- is an unsupported escape hatch, not a provider switch — nothing off the Zen
+-- endpoint is tested, and the model curation below is Zen-specific.
 function M.endpoint()
 	return vim.env.OPENCODE_ENDPOINT or "https://opencode.ai/zen/go/v1/chat/completions"
 end
 
--- Verified NON-reasoning models that return clean, code-only completions. glm-5.2
--- is the fastest (measured ~2s vs ~4s for glm-5, ~5.7s for deepseek-v4-flash).
--- Reasoning models (deepseek-v4-flash) spend the budget on reasoning_content and
--- return empty content; kimi narrates; minimax-m3 emits <think> in content — all
--- unfit for completion, which is why the picker (:NvSinnerIA) marks these ✓.
-M.RECOMMENDED = { "glm-5.2", "glm-5", "minimax-m2.7" }
--- Curated fallback for the :NvSinnerIA model picker when the live catalogue can't
--- be fetched (no key / offline). The recommended set plus a few known ids.
-M.FALLBACK_MODELS =
-	{ "glm-5.2", "glm-5", "minimax-m2.7", "minimax-m2.5", "deepseek-v4-pro", "deepseek-v4-flash", "qwen3.7-plus" }
-M.DEFAULT_MODEL = "glm-5.2"
+-- The models the :NvSinnerIA picker offers — the VERIFIED-SAFE subset of the
+-- OpenCode Zen Go catalogue, speed-ordered. Every id here survived a 5-run
+-- probe (2026-07-09; Lua + TypeScript completion payloads, sequential timing):
+-- clean code-only content on every run, well inside the 12s request cap.
+-- Everything else in the 20-model catalogue failed at least once and is
+-- deliberately NOT offered:
+--   * empty content, always or intermittently (reasoning_content burns the
+--     MAX_TOKENS budget): glm-5, glm-5.1, deepseek-v4-flash, deepseek-v4-pro,
+--     mimo-v2.5, mimo-v2.5-pro
+--   * narrates prose instead of returning code: kimi-k2.5, kimi-k2.6
+--   * emits <think> inside content: minimax-m3
+--   * HTTP 4xx/5xx on the Go plan: kimi-k2.7-code, mimo-v2-pro, mimo-v2-omni,
+--     hy3-preview
+--   * blows the 12s cap: qwen3.7-max (~18s), qwen3.7/3.6/3.5-plus (>25s)
+M.SAFE_MODELS = { "minimax-m2.5", "minimax-m2.7", "glm-5.2" }
+-- Probe latency (avg of 5 runs): minimax-m2.5 ~4.1s (3.3–4.8 — the fastest),
+-- minimax-m2.7 ~4.7s (never emits reasoning — the steadiest), glm-5.2 ~5.4s
+-- (1.5–10.6s swings, reasoning bursts near the token cap). Shown by the picker.
+M.MODEL_NOTES = {
+	["minimax-m2.5"] = "fastest — recommended",
+	["minimax-m2.7"] = "steadiest — never reasons",
+	["glm-5.2"] = "variable latency",
+}
+M.DEFAULT_MODEL = "minimax-m2.5"
 
 -- Model precedence: $OPENCODE_MODEL (launch override) > the persisted :NvSinnerIA
 -- choice (settings.ai_model) > DEFAULT_MODEL. settings is already a dependency.
@@ -127,9 +152,17 @@ do
 	end
 end
 
--- ─── Notifications (WARN passes the `quiet` filter; empty results stay silent) ─
+-- ─── Notifications ───────────────────────────────────────────────────────────
+-- WARN (feature-affecting failures) always passes the `quiet` filter; INFO (an
+-- empty completion → "nothing to suggest") is muted only when the user opted into
+-- quiet mode, so a manual trigger is never a silent no-op you can't distinguish
+-- from a bug.
 local function warn(msg)
 	vim.notify(msg, vim.log.levels.WARN, { title = "AI completion" })
+end
+
+local function info(msg)
+	vim.notify(msg, vim.log.levels.INFO, { title = "AI completion" })
 end
 
 local function warn_once(reason, msg)
@@ -153,6 +186,24 @@ local function eligible(buf)
 	return vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype == "" and vim.bo[buf].modifiable
 end
 
+-- Is `row` (1-based) a comment-only line? Used to drive the comment→code flow:
+-- when the user triggers on a bare comment like `// create an arrow function`,
+-- accept REPLACES the whole line with the suggestion (see accept()) instead of
+-- inserting after it. Detection is the buffer's static `commentstring` split on
+-- `%s` (this repo has no ts-context-commentstring; plain patterns are house
+-- style): the leader is everything before `%s` (`//`, `--`, `#`, `<!--`, …), and
+-- a line whose first non-blank run is that leader is comment-only. An empty or
+-- `%s`-less commentstring (some filetypes) yields no leader → false (safe).
+function M._is_comment_line(buf, row)
+	local cs = vim.bo[buf].commentstring
+	local leader = vim.trim((cs or ""):match("^(.-)%%s") or "")
+	if leader == "" then
+		return false
+	end
+	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
+	return vim.startswith(vim.trim(line), leader)
+end
+
 -- ─── Ghost text ──────────────────────────────────────────────────────────────
 function M.clear(buf)
 	if buf and vim.api.nvim_buf_is_valid(buf) then
@@ -164,9 +215,13 @@ function M.clear(buf)
 end
 
 -- Draw the pending suggestion. `row` is 1-based (cursor convention), `col` is a
--- 0-based byte column. First line renders inline at the cursor; extra lines
--- render below as virt_lines (copilot-style).
-function M.render(buf, row, col, lines)
+-- 0-based byte column. Normally the first line renders inline at the cursor and
+-- extra lines render below as virt_lines (copilot-style). When `block` is true
+-- (comment-only trigger line — see M.COMMENT_PREVIEW), nothing renders inline and
+-- the WHOLE suggestion renders as a dimmed block of virt_lines beneath the line,
+-- so the code never glues onto the comment text; accept then replaces the comment
+-- with it.
+function M.render(buf, row, col, lines, block)
 	M.clear(buf)
 	if not (lines and #lines > 0) or not vim.api.nvim_buf_is_valid(buf) then
 		return
@@ -175,18 +230,25 @@ function M.render(buf, row, col, lines)
 	if row0 < 0 or row0 >= vim.api.nvim_buf_line_count(buf) then
 		return
 	end
-	local opts = {
-		virt_text = { { lines[1], "NvAiGhost" } },
-		virt_text_pos = "inline",
-		hl_mode = "combine",
-	}
-	if #lines > 1 then
+	local opts = { hl_mode = "combine" }
+	if block then
 		local vlines = {}
-		for i = 2, #lines do
+		for i = 1, #lines do
 			vlines[#vlines + 1] = { { lines[i], "NvAiGhost" } }
 		end
 		opts.virt_lines = vlines
 		opts.virt_lines_above = false
+	else
+		opts.virt_text = { { lines[1], "NvAiGhost" } }
+		opts.virt_text_pos = "inline"
+		if #lines > 1 then
+			local vlines = {}
+			for i = 2, #lines do
+				vlines[#vlines + 1] = { { lines[i], "NvAiGhost" } }
+			end
+			opts.virt_lines = vlines
+			opts.virt_lines_above = false
+		end
 	end
 	pcall(vim.api.nvim_buf_set_extmark, buf, ns, row0, col, opts)
 	M._suggestion = { buf = buf, row = row, col = col, lines = lines }
@@ -229,16 +291,35 @@ function M.accept()
 		M.clear(s.buf)
 		return false
 	end
-	pcall(vim.api.nvim_buf_set_text, s.buf, s.row - 1, s.col, s.row - 1, s.col, s.lines)
 	local last = s.lines[#s.lines]
 	local new_row, new_col
-	if #s.lines == 1 then
-		new_row, new_col = s.row, s.col + #last
-	else
+	if s.comment_replace then
+		-- Comment-only trigger line: replace the whole line with the suggestion
+		-- (verbatim, no indent injection). Cursor lands at the end of the last
+		-- inserted line — the multi-line formula, NOT col + #last (the line was
+		-- replaced, not inserted into).
+		pcall(vim.api.nvim_buf_set_lines, s.buf, s.row - 1, s.row, false, s.lines)
 		new_row, new_col = s.row + #s.lines - 1, #last
+	else
+		pcall(vim.api.nvim_buf_set_text, s.buf, s.row - 1, s.col, s.row - 1, s.col, s.lines)
+		if #s.lines == 1 then
+			new_row, new_col = s.row, s.col + #last
+		else
+			new_row, new_col = s.row + #s.lines - 1, #last
+		end
 	end
+	-- Range of rows the accept just wrote, for the AI-edit wash below (correct for
+	-- all three paths: single-line set_text, multi-line set_text, comment
+	-- set_lines). Captured before M.clear (which nils M._suggestion).
+	local flash_from, flash_to = s.row - 1, s.row - 1 + #s.lines
 	M.clear(s.buf)
 	pcall(vim.api.nvim_win_set_cursor, win, { new_row, new_col })
+	-- Wash the accepted code in the accent, cleared on the first typed letter —
+	-- the same "AI wrote this" cue as the AI terminal column (ai-edits.lua).
+	local ok_e, edits = pcall(require, "core.ai-edits")
+	if ok_e then
+		edits.flash(s.buf, flash_from, flash_to)
+	end
 	return true
 end
 
@@ -548,7 +629,7 @@ end
 -- Fetch the Go-plan model catalogue (GET {base}/models) so :NvSinnerIA can offer
 -- the live list. Async curl, result cached for the session. on_done(ids | nil) —
 -- nil when there's no key, no curl, or the request fails (the picker then falls
--- back to M.FALLBACK_MODELS). Called by table field so the spec can swap it.
+-- back to M.SAFE_MODELS). Called by table field so the spec can swap it.
 M._models_cache = nil
 function M.fetch_models(on_done)
 	if M._models_cache then
@@ -625,7 +706,12 @@ function M.trigger()
 		return
 	end
 	if not M._api_key() then
-		warn_once("no_key", "Set $OPENCODE_API_KEY to enable AI completion.")
+		warn_once(
+			"no_key",
+			"AI completion is served by OpenCode Zen (the only supported provider) and needs "
+				.. '$OPENCODE_API_KEY — add `export OPENCODE_API_KEY="…"` to your ~/.zshrc '
+				.. "(or shell profile) and restart the terminal."
+		)
 		return
 	end
 	local win = vim.api.nvim_get_current_win()
@@ -636,6 +722,8 @@ function M.trigger()
 	local row, col = cursor[1], cursor[2]
 	local ctx = M._build_context(buf, row, col)
 	local anchor = { buf = buf, row = row, col = col }
+	-- Trigger line is a bare comment → accept replaces it with the suggestion.
+	local comment_replace = M._is_comment_line(buf, row)
 
 	cancel_job()
 	gen = gen + 1
@@ -652,9 +740,17 @@ function M.trigger()
 		end
 		local kind = result.kind
 		if kind == "ok" then
-			M.render(anchor.buf, anchor.row, anchor.col, vim.split(result.text, "\n", { plain = true }))
+			local block = comment_replace and M.COMMENT_PREVIEW == "below"
+			M.render(anchor.buf, anchor.row, anchor.col, vim.split(result.text, "\n", { plain = true }), block)
+			-- render() rebuilds M._suggestion wholesale, so tag it AFTER: accept
+			-- reads this to decide replace-the-comment vs insert-at-cursor.
+			if M._suggestion then
+				M._suggestion.comment_replace = comment_replace
+			end
 		elseif kind == "empty" then
-			-- a blank completion is a normal outcome, not an error — stay silent
+			-- A blank completion isn't an error, but silence looks like a bug on a
+			-- manual trigger — tell the user, INFO so `quiet` can still mute it.
+			info("AI completion: nothing to suggest.")
 		elseif kind == "nocurl" then
 			warn_once("nocurl", "curl not found on PATH — AI completion needs curl.")
 		elseif kind == "timeout" then

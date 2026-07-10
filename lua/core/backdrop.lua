@@ -5,7 +5,25 @@
 -- its own layer (the same trick lazy.nvim's UI uses). The backdrop follows
 -- terminal resizes and tears itself down automatically when the modal window
 -- closes — callers never manage it. Shared by menu / help / prompts /
--- symbols / ai-ask.
+-- symbols / ai-ask / ia.
+--
+-- The backdrop is also the modals' INTERACTION GUARD: while a modal is open
+-- the editor behind it must not be reachable — the user closes the modal to
+-- continue. Two mechanisms, both torn down with the backdrop:
+--   * `mouse = true` on the backdrop float: with `focusable = false` alone,
+--     mouse events PASS THROUGH a float to the window beneath (the config
+--     field defaults to the focusable value), so clicks/scroll on the dimmed
+--     area would still hit the editor. mouse = true makes the backdrop consume
+--     them — clicking the dim does nothing; only the modal above reacts.
+--   * A WinEnter focus trap: focus escaping to a NON-floating window
+--     (<C-w>w, a plugin jumping windows, …) is bounced back to the modal on
+--     the next tick. Floats are exempt on purpose — the modals layer
+--     vim.ui.select/input pickers (telescope, noice) on top of themselves,
+--     and every modal action that must land elsewhere closes the modal FIRST
+--     (help.run, ia actions, symbols.run, prompts.edit), which deletes the
+--     trap before the jump. The bounce is scheduled so a plugin's transient
+--     window dance (toggleterm re-asserting the AI-column layout after an
+--     ai_side change) finishes before focus is restored.
 
 local M = {}
 
@@ -39,6 +57,7 @@ function M.attach(winid)
 		height = vim.o.lines,
 		style = "minimal",
 		focusable = false,
+		mouse = true, -- consume clicks/scroll on the dim (see header) instead of passing through
 		zindex = zindex,
 		border = "none",
 	})
@@ -63,6 +82,36 @@ function M.attach(winid)
 			if vim.api.nvim_win_is_valid(win) then
 				pcall(vim.api.nvim_win_set_config, win, { width = vim.o.columns, height = vim.o.lines })
 			end
+		end,
+	})
+	-- Focus trap: bounce focus that lands in a non-floating window back to the
+	-- modal (see header for the float exemption + why the bounce is scheduled).
+	vim.api.nvim_create_autocmd("WinEnter", {
+		group = group,
+		callback = function()
+			if not vim.api.nvim_win_is_valid(winid) then
+				return
+			end
+			local cur = vim.api.nvim_get_current_win()
+			if cur == winid or not vim.api.nvim_win_is_valid(cur) then
+				return
+			end
+			if vim.api.nvim_win_get_config(cur).relative ~= "" then
+				return -- a float (vim.ui.select/input over the modal) may take focus
+			end
+			vim.schedule(function()
+				if not vim.api.nvim_win_is_valid(winid) then
+					return
+				end
+				local now = vim.api.nvim_get_current_win()
+				if now == winid or not vim.api.nvim_win_is_valid(now) then
+					return
+				end
+				if vim.api.nvim_win_get_config(now).relative ~= "" then
+					return -- something legitimate (a picker) grabbed focus meanwhile
+				end
+				pcall(vim.api.nvim_set_current_win, winid)
+			end)
 		end,
 	})
 	return win

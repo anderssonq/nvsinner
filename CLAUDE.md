@@ -31,7 +31,7 @@ lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over c
 lua/core/prompts.lua         :NvSinnerPrompts — prompt-library modal over settings/prompts.json → OS clipboard (native)
 lua/core/help.lua            :NvSinnerHelp — command palette listing every NvSinner command; pick one to run it (native)
 lua/core/symbols.lua         :NvSinnerSymbols / <leader>cs — LSP document-symbols modal; pick a symbol to jump to it (native)
-lua/core/backdrop.lua        Dimming backdrop behind the NvSinner modals (full-screen winblend float, auto-closes with the modal) (native)
+lua/core/backdrop.lua        Dimming backdrop + interaction guard behind the NvSinner modals (full-screen winblend float that swallows mouse events, WinEnter focus trap, auto-closes with the modal) (native)
 settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
 lua/core/carbon.lua          Carbon base16 role palette + background themes + accent packs — the ONE source of truth for every color
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
@@ -42,8 +42,8 @@ lua/core/filebadge.lua       Per-window winbar file badge: focus dot + filename;
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
 lua/core/ai-ask.lua          :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection (native)
-lua/core/ai-complete.lua     Inline AI completion (ghost text), manual insert <C-l> / :NvSinnerComplete trigger; curl→OpenCode Zen (glm-5.2), $OPENCODE_API_KEY from env (native)
-lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, model picker over the Go catalogue, Ask-AI, prompts); listed as the single AI row in :NvSinnerHelp (native)
+lua/core/ai-complete.lua     Inline AI completion (ghost text), manual insert <C-l> / :NvSinnerComplete trigger; curl→OpenCode Zen ONLY (default minimax-m2.5), $OPENCODE_API_KEY from env (native)
+lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, model picker over the verified-safe Go models, Ask-AI, prompts); listed as the single AI row in :NvSinnerHelp (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
@@ -118,9 +118,9 @@ line to `init.lua`** or its files will silently never load.
   `lua/core/carbon.lua` (the single palette source of truth).
 - **No in-editor AI _plugin_** — the agentic AI is a CLI in the toggleterm
   column; the config never reads `ANTHROPIC_API_KEY`. The one native in-editor
-  AI is `lua/core/ai-complete.lua`'s opt-in inline completion, which reads
-  `$OPENCODE_API_KEY` from the env at request time (never a plugin, never a
-  stored key) — see `lua/core/CLAUDE.md`.
+  AI is `lua/core/ai-complete.lua`'s opt-in inline completion, which supports
+  **OpenCode Zen exclusively** and reads `$OPENCODE_API_KEY` from the env at
+  request time (never a plugin, never a stored key) — see `lua/core/CLAUDE.md`.
 - **The send-to-AI bridge never auto-submits** — payloads land in the CLI input
   for review (no trailing `\r`).
 - **Auto-reload means disk wins** — unsaved in-Vim edits to a buffer the AI

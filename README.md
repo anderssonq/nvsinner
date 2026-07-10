@@ -44,15 +44,17 @@ any existing `~/.config/nvim` without touching it.
   range) plus the selection lands in the AI column's input; with more than
   one session open, a picker asks which one.
 - **Inline AI completion** — Copilot-style ghost-text code suggestions on a
-  manual trigger (insert-mode `<C-l>`, or `:NvSinnerComplete`), served by an
-  OpenAI-compatible endpoint (OpenCode Zen "Go" plan → `glm-5.2`, a fast
-  non-reasoning model). Accept with `<Tab>`, dismiss with `<C-]>`. The API key
-  lives only in `$OPENCODE_API_KEY` (never in the config); with no key it stays a
-  quiet no-op. Toggle it — and pick the model — in the **`:NvSinnerIA` hub**.
+  manual trigger (insert-mode `<C-l>`, or `:NvSinnerComplete`), served
+  **exclusively by OpenCode Zen** (the "Go" plan — no other provider is
+  supported) with `minimax-m2.5`, the fastest verified model, as the default.
+  Accept with `<Tab>`, dismiss with `<C-]>`. The API key lives only in
+  `$OPENCODE_API_KEY` (never in the config); with no key it stays a quiet
+  no-op. Toggle it — and pick the model — in the **`:NvSinnerIA` hub**.
 - **AI hub** — `:NvSinnerIA` (`<leader>xi`) gathers every AI entry point in one
-  modal: completion on/off, a **model picker** over the live OpenCode Zen "Go"
-  catalogue (verified-good models marked ✓; default `glm-5.2`), Ask-AI, and the
-  prompt library. It's the single AI row in `:NvSinnerHelp`.
+  modal: completion on/off, a **model picker** over the verified-safe OpenCode
+  Zen "Go" models (each with its probe note; default `minimax-m2.5`, marked
+  *fastest — recommended*), Ask-AI, and the prompt library. It's the single AI
+  row in `:NvSinnerHelp`.
 - **AI edit highlights** — when the agent rewrites an open file, the changed
   lines get a soft wash of your accent color right in the file pane (distinct
   from git's gutter marks) and clear the moment you take the file over.
@@ -70,6 +72,8 @@ any existing `~/.config/nvim` without touching it.
 - **Mason-style modals** — `:NvSinnerMenu` (settings, persisted),
   `:NvSinnerIA` (the AI hub), `:NvSinnerPrompts`, and `:NvSinnerHelp` (a
   command palette that runs what you pick), all keyboard- and mouse-driven.
+  While a modal is open the editor behind it is dimmed **and inert** — clicks
+  and focus can't reach it; close the modal (`q`/`<Esc>`) to continue.
 - **Carbon theme, configurable in one place** — dark/light variants,
   transparency, four accent packs, and per-role color slots, all from a
   single palette file (`lua/core/carbon.lua`) — live-applied and persisted.
@@ -109,9 +113,10 @@ The AI workflow is just a CLI agent run in the terminal column — install one
 `ANTHROPIC_API_KEY` needed by the config; the CLI handles its own auth.
 
 The one exception is the optional **inline AI completion** feature (ghost
-text): it calls an OpenAI-compatible endpoint directly and reads an
-`$OPENCODE_API_KEY` from the environment (never stored in the config), and
-needs `curl` on `PATH`. It stays a quiet no-op until you set that key — see
+text): it calls **OpenCode Zen** directly — the only supported provider — and
+reads an `$OPENCODE_API_KEY` from the environment (never stored in the
+config), and needs `curl` on `PATH`. It stays a quiet no-op until you set that
+key — see
 [The AI workflow → Inline AI completion](#inline-ai-completion-ghost-text).
 
 ## 🚀 Getting started
@@ -207,12 +212,13 @@ reviewable diff use `<leader>gd` (Diffview) as usual.
 
 Separate from the agentic column above — that one is for building things with
 a CLI agent; this completes code **inline in the buffer you're editing**,
-Copilot-style. It's a native module (no plugin) served by an OpenAI-compatible
-chat endpoint — by default the **OpenCode Zen "Go" plan** running `glm-5.2`. The
-default is deliberately a **fast, non-reasoning** model: a reasoning model (like
-`deepseek-v4-flash`) spends its token budget "thinking" and returns empty
-completion text, so no ghost ever appears; `glm-5.2` was the fastest verified
-model that returns clean, code-only completions.
+Copilot-style. It's a native module (no plugin) served **exclusively by
+[OpenCode Zen](https://opencode.ai)** — the "Go" plan is the only supported
+provider; there is no OpenAI/Anthropic/local-model backend. The default model
+is `minimax-m2.5`, the **fastest verified** model in the Go catalogue: a
+reasoning-heavy model spends its token budget "thinking" and returns empty
+completion text, so no ghost ever appears — which is exactly what
+disqualified most of the catalogue (see the model picker below).
 
 It is **manual on purpose** (no type-ahead requests, so token spend stays
 predictable against the plan's usage caps): in insert mode press `<C-l>` (or run
@@ -222,32 +228,60 @@ in flight a small animated **`AI completion…` spinner** shows in the top-right
 corner (where notifications appear) so the wait isn't a dead pause. `<Tab>` yields
 to the completion popup: when nvim-cmp's menu is open it stays a normal Tab.
 
+Two touches make accepting feel native. Trigger on a **comment-only line** (e.g.
+`// create an arrow function`) and the suggestion previews as a block beneath it;
+accepting **removes the comment and drops the code in its place**. Any accepted
+code briefly **washes in the accent color** — the same "AI wrote this" cue as the
+agent column — and clears the moment you type the first letter. And if the model
+returns nothing, you get a quiet **"nothing to suggest"** notice instead of
+silence (muted only if you've turned on `quiet` mode).
+
 Everything AI lives in the **`:NvSinnerIA` hub** (`<leader>xi`): toggle completion
 on/off, pick the model, or jump to Ask-AI / the prompt library. The **model
-picker** pulls the live OpenCode Zen "Go" catalogue and marks the verified-good
-models (`glm-5.2`, `glm-5`, `minimax-m2.7`) with a ✓ — your pick persists as
-`ai_model` (`:NvSinnerCompleteToggle` still toggles completion directly).
+picker** offers only the **verified-safe** OpenCode Zen "Go" models — every id
+survived a 5-run probe (Lua + TypeScript completion payloads, 2026-07-09) with
+clean, code-only output on every run; the rest of the catalogue is filtered
+out (empty/reasoning-only responses, narrated prose, `<think>` tags, HTTP
+errors, or >12s latency). Your pick persists as `ai_model`
+(`:NvSinnerCompleteToggle` still toggles completion directly):
+
+| Model | Probe latency (avg of 5) | Note |
+|-------|--------------------------|------|
+| `minimax-m2.5` | ~4.1s (3.3–4.8s) | **fastest — recommended** (the default) |
+| `minimax-m2.7` | ~4.7s (3.8–5.4s) | steadiest — never spends tokens on reasoning |
+| `glm-5.2` | ~5.4s (1.5–10.6s) | works, but variable latency + reasoning bursts |
 
 > [!NOTE]
-> Completions take ~2–4s — that latency is the OpenCode Zen endpoint, not the
-> editor. `glm-5.2` is the fastest verified model; `$OPENCODE_MODEL` lets you try
-> others (`glm-5`, `minimax-m2.7`).
+> Completions take ~3–5s — that latency is the OpenCode Zen endpoint, not the
+> editor. Model behavior **drifts server-side** (`glm-5.2` measured ~2s at
+> launch and ~5.4s with reasoning bursts on the 2026-07-09 re-probe), so the
+> safe list is re-verified when models misbehave. `$OPENCODE_MODEL` lets you
+> force any catalogue id, verified or not.
 
 > [!IMPORTANT]
-> **Where the API key goes — not in this config.** The key is read from the
-> `$OPENCODE_API_KEY` environment variable at request time; it is never
-> hardcoded, committed, or written to `settings/`. Set it in the shell that
-> launches nvsinner (e.g. `~/.zshrc`):
+> **OpenCode Zen is the only supported provider, and the API key never lives
+> in this config.** Get a key from your [OpenCode](https://opencode.ai)
+> account (the Zen dashboard), then export it in the shell that launches
+> nvsinner — on macOS/zsh:
 >
 > ```sh
-> export OPENCODE_API_KEY="sk-..."             # required
-> # optional overrides (sane defaults are baked in):
-> export OPENCODE_MODEL="glm-5.2"              # fast + non-reasoning; also: glm-5, minimax-m2.7
-> export OPENCODE_ENDPOINT="https://opencode.ai/zen/go/v1/chat/completions"
-> export OPENCODE_FALLBACK_MODEL="..."         # a free model to retry with on a 429
+> # 1. add the key to your shell profile:
+> echo 'export OPENCODE_API_KEY="sk-..."' >> ~/.zshrc
+> # 2. reload the shell (or open a new terminal) and launch nvsinner:
+> source ~/.zshrc
 > ```
 >
-> With no key set the feature is a quiet no-op after a single warning. `curl`
+> Optional overrides (sane defaults are baked in):
+>
+> ```sh
+> export OPENCODE_MODEL="minimax-m2.5"         # any Go id; verified: minimax-m2.5, minimax-m2.7, glm-5.2
+> export OPENCODE_FALLBACK_MODEL="..."         # a free model to retry with on a 429
+> export OPENCODE_ENDPOINT="https://opencode.ai/zen/go/v1/chat/completions"  # unsupported escape hatch
+> ```
+>
+> The key is read from the environment at request time; it is never hardcoded,
+> committed, or written to `settings/`. With no key set the feature is a quiet
+> no-op after a single warning (and `:NvSinnerIA` shows the setup hint). `curl`
 > must be on `PATH` (it ships by default on macOS/most Linux). On a usage-limit
 > (429) it retries once with `$OPENCODE_FALLBACK_MODEL` if set, otherwise pauses
 > for a few minutes instead of erroring on every trigger.
@@ -298,7 +332,7 @@ hovering moves the selection and a click cycles the row's value.
 | Functions | same choices — paints the whole function/method family in one accent |
 | Neo-tree side | `left` / `right` |
 | AI column side | `left` / `right` |
-| AI completion | `on` / `off` — inline ghost-text completion (needs `$OPENCODE_API_KEY`; see the AI workflow section) |
+| AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
 
 ### Theme options (carbon)

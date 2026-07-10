@@ -38,7 +38,7 @@ M.defaults = {
 	tree_side = "left", -- neo-tree column: "left" | "right"
 	ai_side = "right", -- AI / vertical terminal columns: "left" | "right"
 	ai_complete = true, -- inline AI completion (ghost text) on/off; no-ops without $OPENCODE_API_KEY
-	ai_model = "glm-5.2", -- inline-completion model (:NvSinnerIA picker); $OPENCODE_MODEL still overrides
+	ai_model = "minimax-m2.5", -- inline-completion model (:NvSinnerIA picker; fastest verified OpenCode Zen id); $OPENCODE_MODEL still overrides
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
 }
 

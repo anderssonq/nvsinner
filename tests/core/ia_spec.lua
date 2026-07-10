@@ -1,9 +1,12 @@
 -- Tests for the :NvSinnerIA hub modal (lua/core/ia.lua): the user command, the
--- float and its rendered rows (settings + actions), the toggle writing through
--- to core/settings, the model picker's recommended-first ordering + _choose_model
--- persisting ai_model, and the model catalogue seam (ai-complete.fetch_models).
--- Mouse clicks / vim.ui.select popups aren't exercised headless; the handlers
--- route into the same activate() / _choose_model() these specs cover.
+-- float and its rendered rows (settings + actions), the missing-key footer
+-- hint (OpenCode Zen is the only supported provider), the toggle writing
+-- through to core/settings, the model picker offering ONLY the verified-safe
+-- OpenCode Zen models (fastest first, probe notes attached, broken catalogue
+-- ids filtered out) + _choose_model persisting ai_model, and the model
+-- catalogue seam (ai-complete.fetch_models). Mouse clicks / vim.ui.select
+-- popups aren't exercised headless; the handlers route into the same
+-- activate() / _choose_model() these specs cover.
 
 describe("core.ia", function()
 	local settings = require("core.settings")
@@ -35,7 +38,7 @@ describe("core.ia", function()
 		}) do
 			assert.matches(row, text, nil, true)
 		end
-		assert.matches("glm%-5.2", text) -- the current model shows in the Model row
+		assert.matches("minimax%-m2.5", text) -- the current model shows in the Model row
 		assert.matches("q close", text, nil, true)
 		ia.close()
 		assert.are_not.equal(win, vim.api.nvim_get_current_win())
@@ -82,22 +85,44 @@ describe("core.ia", function()
 		pcall(vim.api.nvim_del_user_command, "NvSinnerAskAI")
 	end)
 
-	it("_model_items lists recommended models first, marked with a check", function()
-		local items = ia._model_items({ "deepseek-v4-flash", "glm-5", "minimax-m2.7", "glm-5.2" })
-		-- Recommended (in ai.RECOMMENDED order) come first, ✓-marked.
-		assert.are.equal("glm-5.2", items[1].id)
-		assert.matches("✓", items[1].display)
-		assert.are.equal("glm-5", items[2].id)
-		assert.are.equal("minimax-m2.7", items[3].id)
-		-- Non-recommended keep their catalogue place, no check.
-		assert.are.equal("deepseek-v4-flash", items[4].id)
-		assert.is_falsy(items[4].display:find("✓", 1, true))
+	it("_model_items offers only verified-safe models, fastest first with its note", function()
+		local items = ia._model_items({ "deepseek-v4-flash", "glm-5", "minimax-m2.7", "glm-5.2", "minimax-m2.5" })
+		local ids = vim.tbl_map(function(it)
+			return it.id
+		end, items)
+		-- SAFE_MODELS ∩ catalogue, in SAFE_MODELS' speed order — broken catalogue
+		-- ids (deepseek-v4-flash: reasoning-only empty content; glm-5: same) are
+		-- never offered.
+		assert.are.same({ "minimax-m2.5", "minimax-m2.7", "glm-5.2" }, ids)
+		-- The fastest model carries the recommendation note in the picker.
+		assert.matches("fastest", items[1].display)
+		assert.matches("recommended", items[1].display)
 	end)
 
-	it("_model_items falls back to the curated list when no catalogue is given", function()
-		local items = ia._model_items(nil)
-		assert.is_true(#items > 0)
-		assert.are.equal("glm-5.2", items[1].id) -- default, recommended, first
+	it("_model_items falls back to the whole safe set without a usable catalogue", function()
+		local ai_mod = require("core.ai-complete")
+		local items = ia._model_items(nil) -- offline / no key
+		assert.are.equal(#ai_mod.SAFE_MODELS, #items)
+		assert.are.equal("minimax-m2.5", items[1].id) -- default, fastest, first
+		-- A catalogue that intersects to nothing (drift) also degrades to the safe set.
+		local drifted = ia._model_items({ "brand-new-unverified-model" })
+		assert.are.equal(#ai_mod.SAFE_MODELS, #drifted)
+	end)
+
+	it("shows the ~/.zshrc key hint only while $OPENCODE_API_KEY is missing", function()
+		local prev = vim.env.OPENCODE_API_KEY
+		vim.env.OPENCODE_API_KEY = nil
+		ia.open()
+		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+		assert.matches("OPENCODE_API_KEY", text, nil, true)
+		assert.matches("zshrc", text, nil, true)
+		ia.close()
+		vim.env.OPENCODE_API_KEY = "k"
+		ia.open()
+		text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+		assert.is_falsy(text:find("zshrc", 1, true), "no hint once the key is set")
+		ia.close()
+		vim.env.OPENCODE_API_KEY = prev
 	end)
 
 	it("_choose_model persists the picked model (what M.model() then returns)", function()

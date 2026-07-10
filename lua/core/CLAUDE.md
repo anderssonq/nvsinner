@@ -64,26 +64,40 @@ edits files on disk (see *Auto-reload* below).
 ## Inline AI completion — `ai-complete.lua` (required from `init.lua`)
 
 The **one deliberate exception** to "no in-editor AI / never read an API key".
-Copilot-style ghost-text code completion, served by an OpenAI-compatible
-chat/completions endpoint (OpenCode Zen "Go" plan → `glm-5.2` by default). It is
-a NATIVE module (no plugin) and is distinct from the agentic AI terminal column:
-that column stays for "building big things", this completes code inline in the
-buffer you're editing.
+Copilot-style ghost-text code completion, served **exclusively by OpenCode
+Zen** — the "Go" plan is the ONLY supported provider. The endpoint speaks the
+OpenAI chat/completions shape, but auth, the model curation, the response
+quirks (`reasoning_content` eating the token budget) and the usage-cap
+handling are verified against OpenCode Zen alone; `$OPENCODE_ENDPOINT` is an
+unsupported escape hatch, not a provider switch. It is a NATIVE module (no
+plugin) and is distinct from the agentic AI terminal column: that column stays
+for "building big things", this completes code inline in the buffer you're
+editing.
 
-- **Fast, non-reasoning model on purpose** — the default is `glm-5.2`, NOT a
-  reasoning model. Reasoning models (e.g. `deepseek-v4-flash`, the original
-  default) spend the `max_tokens` budget on `reasoning_content` and return an
-  **empty** `content`, so `M._extract` got nil → `kind = "empty"` → the feature
-  silently produced no ghost at all. `M.model()` resolves with precedence
-  **`$OPENCODE_MODEL` (launch override) > persisted `settings.ai_model` (the
-  `:NvSinnerIA` picker) > `M.DEFAULT_MODEL` (`glm-5.2`)** — measured the fastest
-  OpenCode Zen model (~2s) that returns clean, code-only content with zero
-  reasoning; `M.MAX_TOKENS` is 512 for headroom. `M.RECOMMENDED` = { glm-5.2,
-  glm-5, minimax-m2.7 } (the verified-clean set the picker marks ✓); avoid
-  `kimi-k2.5` (narrates prose) and `minimax-m3` (emits `<think>` inside
-  `content`). `M.fetch_models(on_done)` fetches the live Go-plan catalogue (`GET
-  {base}/models`, cached; nil without a key → picker uses `M.FALLBACK_MODELS`).
-  Never read `reasoning_content` as the completion — it's the model's prose.
+- **Fastest verified model as default; the picker only offers the safe set** —
+  `M.model()` resolves with precedence **`$OPENCODE_MODEL` (launch override) >
+  persisted `settings.ai_model` (the `:NvSinnerIA` picker) > `M.DEFAULT_MODEL`
+  (`minimax-m2.5`)**. `M.SAFE_MODELS` = { minimax-m2.5, minimax-m2.7, glm-5.2 }
+  is the verified-safe, speed-ordered set — every id survived a **5-run probe**
+  (2026-07-09; Lua + TypeScript completion payloads, sequential timing) with
+  clean code-only content on every run: minimax-m2.5 ~4.1s avg (fastest —
+  `M.MODEL_NOTES` marks it "recommended" in the picker), minimax-m2.7 ~4.7s
+  (never emits reasoning — the steadiest), glm-5.2 ~5.4s (1.5–10.6s swings +
+  reasoning bursts near the cap). The other 17 Go-catalogue models are
+  deliberately NOT offered: glm-5 / glm-5.1 / deepseek-v4-flash /
+  deepseek-v4-pro / mimo-v2.5 / mimo-v2.5-pro return **empty content** (always
+  or intermittently — `reasoning_content` burns `M.MAX_TOKENS`, `M._extract`
+  gets nil → `kind = "empty"` → no ghost), kimi-k2.5/k2.6 narrate prose,
+  minimax-m3 emits `<think>` inside `content`, kimi-k2.7-code /
+  mimo-v2-pro/omni / hy3-preview 4xx/5xx on the Go plan, and qwen3.7-max /
+  qwen3.x-plus blow the 12s cap. **Model behavior drifts server-side** (glm-5.2
+  measured ~2s clean at launch, ~5.4s with reasoning bursts on the re-probe) —
+  re-verify the safe list when a model misbehaves. `M.MAX_TOKENS` is 512 for
+  headroom. `M.fetch_models(on_done)` fetches the live Go-plan catalogue (`GET
+  {base}/models`, cached; nil without a key); the picker intersects it with
+  `M.SAFE_MODELS` — the catalogue filters for availability, it never ADDS
+  models. Never read `reasoning_content` as the completion — it's the model's
+  prose.
 - **Manual trigger only** — insert-mode `<C-l>` (or `:NvSinnerComplete`) requests
   a suggestion at the cursor; cost is bounded by explicit triggers, which keeps
   the OpenCode Zen Go plan's usage caps predictable, so there is no
@@ -94,8 +108,10 @@ buffer you're editing.
   the ghost.
 - **The API key is env-only** — read from `$OPENCODE_API_KEY` via `vim.env` at
   request time, NEVER hardcoded, persisted, or written to `settings/`. With no
-  key the feature is a quiet no-op after a single WARN. `$OPENCODE_MODEL`,
-  `$OPENCODE_ENDPOINT`, and `$OPENCODE_FALLBACK_MODEL` override the defaults.
+  key the feature is a quiet no-op after a single WARN (the warn names OpenCode
+  Zen and the `~/.zshrc` export, and `:NvSinnerIA` shows a footer hint with the
+  same instruction). `$OPENCODE_MODEL`, `$OPENCODE_ENDPOINT`, and
+  `$OPENCODE_FALLBACK_MODEL` override the defaults.
 - **FIM context (minuet-ai / Copilot shape)** — `_build_context` sends the WHOLE
   file around the cursor as prefix + suffix, not a fixed line window. It fits the
   combined text into `M.CONTEXT_WINDOW` chars (16000) split by `M.CONTEXT_RATIO`
@@ -142,9 +158,25 @@ buffer you're editing.
   discipline as `git-blame.lua`), so ghost text never paints under a moved
   cursor. Accept is **anchor-guarded**: it injects text only if the cursor still
   sits exactly where the suggestion was requested (`nvim_buf_set_text`).
+- **Comment-only trigger line → replace on accept** — when the trigger line is a
+  bare comment (`M._is_comment_line`: the buffer's static `commentstring` split
+  on `%s` → leader, matched against the line's first non-blank run; no
+  ts-context-commentstring in this repo, plain patterns are house style), the
+  ghost previews as a **block below** the comment (`M.COMMENT_PREVIEW = "below"`,
+  a one-word switch back to inline) and accept **replaces the whole comment line**
+  with the suggestion (`nvim_buf_set_lines`, verbatim) instead of inserting after
+  it, so `// create an arrow function` + `<Tab>` becomes the function. The flag
+  is re-tagged onto `M._suggestion` **after** `render()` (which rebuilds it
+  wholesale). Seam: `M._is_comment_line(buf, row)`.
+- **Accepted code is washed like an AI edit** — every accept flashes the inserted
+  rows in the accent via `ai-edits.M.flash` (below), cleared on the first typed
+  letter — the same "AI wrote this" cue as the terminal column, reused rather
+  than re-implemented.
 - **Errors never fail silently, and honour `quiet`** — feature-affecting
-  failures use WARN (which passes the quiet filter); an empty completion is a
-  normal, silent outcome. A 401/403 warns about the key and enters a short
+  failures use WARN (which passes the quiet filter); an empty completion emits a
+  brief INFO toast ("nothing to suggest") — INFO so `quiet` can still mute it,
+  but a manual trigger is never a silent no-op you can't tell from a bug. A
+  401/403 warns about the key and enters a short
   cooldown; a 429/usage-limit retries once with `$OPENCODE_FALLBACK_MODEL` if
   set, otherwise warns and pauses ~5 min (`M._cooldown_until`, a timestamp
   compare — no timer). Missing curl / no key warn once.
@@ -370,12 +402,19 @@ buffer you're editing.
   `NvMenu*` styling, and `backdrop.attach` as the other modals.
 - **Model picker** — `open_model_picker()` calls
   `ai-complete.fetch_models()` (live Go catalogue, cached) then
-  `vim.ui.select`; `M._model_items(catalog)` orders `RECOMMENDED` first (✓) then
-  the rest, falling back to `M.FALLBACK_MODELS` offline. `M._choose_model(id)`
+  `vim.ui.select`; `M._model_items(catalog)` offers ONLY `ai-complete`'s
+  verified `SAFE_MODELS` (speed-ordered, each with its `MODEL_NOTES` probe note
+  — the fastest reads "recommended"): the catalogue intersects for
+  availability but never adds unverified ids, and an empty intersection /
+  missing catalogue degrades to the whole safe set. `M._choose_model(id)`
   persists `settings.ai_model` (what `ai-complete.M.model()` then reads) and
   re-renders — it's the test seam the picker callback routes through, so the
   choice logic is exercised without a real popup. Seams: `M.open/close/move/
   activate`, `M._rows/_model_items/_choose_model`.
+- **Missing-key footer** — OpenCode Zen is the only supported provider; when
+  `$OPENCODE_API_KEY` is unset at open time, the modal appends a `NvMenuWarn`
+  (carbon `base10` attention) footer line with the `~/.zshrc` export hint.
+  Evaluated once per `open()` (not per render) so the float height is stable.
 
 ## Document symbols — `symbols.lua` (required from `init.lua`)
 
@@ -393,6 +432,19 @@ buffer you're editing.
   below the modal, torn down by a `WinClosed` autocmd on the modal window;
   invalid-window guard included. `NvMenuBackdrop` carries the carbon
   `backdrop` role.
+- **Interaction guard** — while a modal is open the editor behind it is inert;
+  the user closes the modal to continue. Two mechanisms, torn down with the
+  backdrop: (1) the float sets `mouse = true` — with `focusable = false` alone
+  the `mouse` config field defaults to the focusable value and clicks/scroll
+  PASS THROUGH to the window beneath, so the backdrop must consume them
+  explicitly; (2) a `WinEnter` focus trap bounces focus that escapes to a
+  **non-floating** window back to the modal on the next tick (scheduled, so a
+  plugin's transient window dance — toggleterm re-asserting the layout after
+  an `ai_side` change — finishes first). Floats are exempt on purpose: the
+  modals layer `vim.ui.select`/`input` pickers on top of themselves, and every
+  modal action that must land elsewhere closes the modal FIRST (`help.run`,
+  ia actions, `symbols.run`, `prompts.edit`), which deletes the trap before
+  the jump.
 
 ## Touch / focus feedback — `ui-touch.lua` (required from `init.lua`)
 
@@ -575,8 +627,14 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   move, edit, or insert in that buffer (autocmds armed one scheduled tick late
   so the reload's own cursor restore can't wipe them). Deletion-only hunks are
   skipped (no surviving line to wash); buffers over `M.MAX_LINES` (20000) and
-  special buftypes are skipped. `M.mark`/`M.clear`/`M._reset`/`M._ns` are the
-  test seams.
+  special buftypes are skipped. `M.flash(buf, srow0, erow0)` washes an **explicit**
+  0-based, end-exclusive row range with the same accent + arms the same take-over
+  clear, but **without** a snapshot-diff — reused by `ai-complete.lua` to flag
+  code the user just **accepted** from inline completion (an in-buffer insert has
+  no external write to diff, and the caller already knows the rows). It
+  re-snapshots after washing so a later disk edit won't diff against the
+  pre-accept content and re-flag those lines.
+  `M.mark`/`M.clear`/`M.flash`/`M._reset`/`M._ns` are the test seams.
 
 ## Updater — `update.lua` (required from `init.lua`)
 

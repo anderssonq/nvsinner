@@ -3,7 +3,11 @@
 -- place (so :NvSinnerHelp shows a single "NvSinnerIA" row instead of scattered
 -- commands). Two kinds of rows in two sections:
 --   SETTINGS — toggle inline completion on/off, and pick the completion model
---              from the live OpenCode Zen "Go" catalogue (recommended ones ✓).
+--              from the VERIFIED-SAFE subset of the OpenCode Zen "Go"
+--              catalogue (each id carries its probe note; the fastest reads
+--              "recommended"). OpenCode Zen is the only supported provider —
+--              with no $OPENCODE_API_KEY in the env, the modal shows the
+--              ~/.zshrc install hint as a footer line.
 --   ACTIONS  — run :NvSinnerAskAI / :NvSinnerComplete / :NvSinnerPrompts.
 -- Keyboard-driven like the other modals (j/k move, <CR>/<Space>/l activate,
 -- h back, 1-9 jump, q/<Esc> close) AND mouse-driven (hover moves, click
@@ -31,6 +35,7 @@ local function apply_hl()
 	set(0, "NvMenuSection", { fg = c.base03, bold = true }) -- section rule headers
 	set(0, "NvMenuNormal", { fg = c.base04, bg = c.shade })
 	set(0, "NvMenuBorder", { fg = c.base02, bg = c.shade })
+	set(0, "NvMenuWarn", { fg = c.base10 }) -- missing-API-key footer (attention accent)
 end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", {
@@ -82,6 +87,9 @@ end
 local WIDTH = 52
 local LABELW = 20 -- widest label + gap
 local HINT = "j/k move · ⏎ select · 1-9 jump · q close"
+-- Footer shown while $OPENCODE_API_KEY is missing: completion is a no-op until
+-- the user installs the key in their shell (OpenCode Zen is the only provider).
+local KEY_HINT = " ⚠ set $OPENCODE_API_KEY in ~/.zshrc (OpenCode Zen)"
 local TOP_PAD = 1
 local ns = vim.api.nvim_create_namespace("nvsinner_ia")
 
@@ -108,7 +116,7 @@ local function compute_layout()
 	content_lines = line
 end
 
-local ui = { win = nil, buf = nil, sel = 1, hover_line = -1 }
+local ui = { win = nil, buf = nil, sel = 1, hover_line = -1, show_keyhint = false }
 
 local function is_open()
 	return ui.win and vim.api.nvim_win_is_valid(ui.win)
@@ -133,6 +141,11 @@ local function render()
 		lines[row_line[i]] = head .. label .. value
 	end
 	table.insert(lines, "")
+	local keyline -- 1-based KEY_HINT footer line (nil while a key is set)
+	if ui.show_keyhint then
+		table.insert(lines, KEY_HINT)
+		keyline = #lines
+	end
 	local pad = math.max(0, math.floor((WIDTH - vim.fn.strdisplaywidth(HINT)) / 2))
 	table.insert(lines, string.rep(" ", pad) .. HINT)
 
@@ -158,6 +171,9 @@ local function render()
 		end
 	end
 	ext(ui.buf, ns, #lines - 1, 0, { end_col = #lines[#lines], hl_group = "NvMenuMuted" })
+	if keyline then
+		ext(ui.buf, ns, keyline - 1, 0, { end_col = #lines[keyline], hl_group = "NvMenuWarn" })
+	end
 
 	if is_open() then
 		vim.api.nvim_win_set_cursor(ui.win, { row_line[ui.sel], 1 })
@@ -180,30 +196,36 @@ function M.move(delta)
 end
 
 -- ─── Model picker ────────────────────────────────────────────────────────────
--- Build the ordered option list: recommended ✓ first (in RECOMMENDED order),
--- then the rest of the catalogue. `catalog` is the fetched id list or the
--- curated fallback. Returns { { id, display }, … } (test seam via _model_items).
+-- Build the ordered option list from ai-complete's VERIFIED-SAFE set only. The
+-- live catalogue filters for AVAILABILITY but never ADDS models: catalogue ids
+-- that failed the probe (empty/reasoning-only content, narrated prose,
+-- 4xx/5xx, over-cap latency — see SAFE_MODELS in ai-complete.lua) are
+-- deliberately not offered. SAFE_MODELS is speed-ordered, so the fastest —
+-- noted "recommended" via MODEL_NOTES — lands first. When the availability
+-- filter leaves nothing (catalogue drift) or there is no catalogue (offline /
+-- no key), the whole safe set is offered. Returns { { id, display }, … }
+-- (test seam via _model_items).
 function M._model_items(catalog)
 	local ai = require("core.ai-complete")
-	local ids = catalog or ai.FALLBACK_MODELS
-	local rec, seen = {}, {}
-	for _, r in ipairs(ai.RECOMMENDED) do
-		rec[r] = true
+	local avail = {}
+	if type(catalog) == "table" then
+		local inset = {}
+		for _, id in ipairs(catalog) do
+			inset[id] = true
+		end
+		for _, id in ipairs(ai.SAFE_MODELS) do
+			if inset[id] then
+				avail[#avail + 1] = id
+			end
+		end
+	end
+	if #avail == 0 then
+		avail = ai.SAFE_MODELS
 	end
 	local items = {}
-	local function add(id)
-		if not seen[id] then
-			seen[id] = true
-			items[#items + 1] = { id = id, display = (rec[id] and "✓ " or "  ") .. id }
-		end
-	end
-	for _, r in ipairs(ai.RECOMMENDED) do
-		if vim.tbl_contains(ids, r) then
-			add(r)
-		end
-	end
-	for _, id in ipairs(ids) do
-		add(id)
+	for _, id in ipairs(avail) do
+		local note = ai.MODEL_NOTES[id]
+		items[#items + 1] = { id = id, display = id .. (note and ("  ·  " .. note) or "") }
 	end
 	return items
 end
@@ -224,7 +246,7 @@ local function open_model_picker()
 		local items = M._model_items(ids)
 		local current = settings.get("ai_model")
 		vim.ui.select(items, {
-			prompt = "AI completion model" .. (ids and "" or " (offline — curated list)"),
+			prompt = "AI completion model — OpenCode Zen" .. (ids and "" or " (offline — verified list)"),
 			format_item = function(it)
 				return it.display .. (it.id == current and "  (current)" or "")
 			end,
@@ -298,12 +320,14 @@ function M.open()
 	compute_layout()
 	ui.sel = math.min(ui.sel, #ROWS)
 	ui.hover_line = -1
+	-- Evaluated once per open (not per render) so the window height is stable.
+	ui.show_keyhint = require("core.ai-complete")._api_key() == nil
 	ui.buf = vim.api.nvim_create_buf(false, true)
 	vim.bo[ui.buf].buftype = "nofile"
 	vim.bo[ui.buf].bufhidden = "wipe"
 	vim.bo[ui.buf].filetype = "nvsinner-ia"
 
-	local height = content_lines + 2
+	local height = content_lines + 2 + (ui.show_keyhint and 1 or 0)
 	ui.win = vim.api.nvim_open_win(ui.buf, true, {
 		relative = "editor",
 		style = "minimal",
