@@ -533,8 +533,8 @@ spec; new files in an existing category are picked up automatically.
 | `<C-l>` | i | Accept the AI ghost text (unconditional) |
 | `<C-]>` | i | Dismiss the AI ghost text |
 | `<leader>p` | n | Prompt library (`:NvSinnerPrompts`) — copy a reusable AI prompt to the clipboard |
-| `<M-J>` | n, i, t | Toggle AI session 1 (sent by iTerm2's `⌘⌥J`) |
-| `<D-M-j>` | n, t | Toggle AI session 1 (GUI Neovim `⌘⌥J`) |
+| `<M-J>` | n, i, t | Toggle the AI session you're inside, else session 1 (sent by iTerm2's `⌘⌥J`) |
+| `<D-M-j>` | n, t | Toggle the AI session you're inside, else session 1 (GUI Neovim `⌘⌥J`) |
 | `<Esc>` / `jk` | t | Leave terminal mode |
 | `<C-h/j/k/l>` | t | Move to window left/down/up/right |
 | `<C-w>` | t | Leave terminal mode + start a window command (`<C-w>` prefix) |
@@ -630,6 +630,44 @@ was tested with.
 > during the sync (an upstream default-branch flip usually means a rewrite),
 > a warning names it and gives the rollback recipe:
 > `git restore lazy-lock.json` + `:Lazy restore`.
+
+## 🪝 Pre-push review hook
+
+A `pre-push` git hook lives in [`.githooks/pre-push`](.githooks/pre-push).
+When you `git push`, it diffs your pending `.lua` + `CLAUDE.md` changes against
+the upstream tip and runs a **read-only Claude Code review** (plan mode, only
+`Read`/`Grep`/`Glob` tools) against the prompt in
+[`.claude/prompts/pre-push-review.md`](.claude/prompts/pre-push-review.md). The
+review returns a JSON verdict:
+
+| Verdict | Behaviour |
+|---------|-----------|
+| `pass` | Push proceeds. |
+| `warn` | Push proceeds, warnings printed. |
+| `block` | Push **rejected** — critical findings only. |
+
+The full run is logged to `.claude/logs/pre-push-<timestamp>.json`.
+
+### Installing the hook
+
+If you cloned manually, enable it once:
+
+```bash
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-push
+```
+
+The `install.sh` path already wires `core.hooksPath` for you on a fresh
+install.
+
+### Skipping the review
+
+- **One push:** `git push -o --skip-review` (`-o skip-review` also works) —
+  the hook reads git's `GIT_PUSH_OPTION_*` env vars and exits 0 immediately.
+- **Any push:** `git push --no-verify` — bypasses the hook entirely.
+
+If the `claude` CLI isn't on `PATH`, or there are no `.lua`/`CLAUDE.md`
+changes to review, the hook skips itself without blocking the push.
 
 ## 🩺 Health check
 

@@ -38,6 +38,7 @@ lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, until the user takes over (native)
 lua/core/ui-touch.lua        Active-window border/glow + mouse-hover docs (native)
+lua/core/neotree-hover.lua   Mouse-hover row wash on neo-tree rows, driven from ui-touch's <MouseMove> (native)
 lua/core/filebadge.lua       Per-window winbar file badge: focus dot + filename; hosts the markdown "Open view" chip (native, replaces incline)
 lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal winbar (native)
 lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)

@@ -8,7 +8,9 @@
 --   2. Mouse hover — moving the MOUSE over a symbol shows its LSP doc (or, with
 --      no docs, the line's diagnostics) in a float anchored at the pointer, no
 --      <K> needed. Symbol-occurrence highlighting lives in the vim-illuminate
---      plugin (lua/plugins/ui/illuminate.lua).
+--      plugin (lua/plugins/ui/illuminate.lua). The same <MouseMove> handler
+--      also drives the neo-tree hover row wash (lua/core/neotree-hover.lua),
+--      synchronously, before the LSP-hover debounce.
 --
 -- All native (no plugin) and guarded so special windows — neo-tree, telescope,
 -- the dashboard, floats — are left untouched. Required from init.lua (core).
@@ -275,6 +277,9 @@ local function request_hover()
 end
 
 local function on_move()
+	-- Neo-tree row wash first, synchronous: the wash must track the pointer
+	-- immediately — the 200ms debounce below is only for the LSP doc float.
+	require("core.neotree-hover").on_mouse()
 	hover_timer:stop()
 	hover_timer:start(
 		200,

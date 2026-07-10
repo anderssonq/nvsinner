@@ -481,7 +481,9 @@ pulled from `carbon.lua`). The illuminate/cursorline plugin notes live in
 - **Mouse hover** — `mousemoveevent` is on; a debounced `<MouseMove>` handler
   shows the LSP doc (or the line's diagnostics as fallback) for the symbol
   under the *pointer* in a `relative="mouse"` float, no `<K>` needed. The float
-  is non-focusable and torn down on cursor move / mode / layout change.
+  is non-focusable and torn down on cursor move / mode / layout change. The
+  same handler also drives the neo-tree hover row wash synchronously, before
+  the debounce (see *Tree hover* below).
 - Highlights live in an `apply_hl()` re-applied on `ColorScheme`. All values
   are roles from `carbon.lua` — never hardcode a hex here.
 - **First-open caveat** — a toggleterm window fires `BufWinEnter` while its
@@ -489,6 +491,40 @@ pulled from `carbon.lua`). The illuminate/cursorline plugin notes live in
   code pane and skip the terminal winbar; the `TermOpen` trigger added to the
   focus autocmd re-applies focus once the buffer is a `terminal`, so the bar +
   spinner show on the very first open.
+
+## Tree hover — `neotree-hover.lua` (required from `init.lua`)
+
+- The row under the mouse pointer in a neo-tree window gets a full-line
+  `NvTreeHover` wash (`base01` — the same canonical row-wash role as
+  `NvMenuSel`/`CursorLine`, solid on purpose so it survives transparent mode;
+  re-applied on `ColorScheme`) via a `line_hl_group` extmark in the
+  `nvsinner_neotree_hover` namespace — the modals' hover feel, on the tree.
+- **Driven from ui-touch's single global `<MouseMove>` map**, synchronously
+  before the LSP-hover debounce: only one global map per mode can exist, and
+  `<MouseMove>` resolves against the FOCUSED buffer's maps — a buffer-local
+  map on the tree (the modal pattern) would only fire while the tree itself is
+  focused, but the common case is hovering it from the code pane. ui-touch's
+  `request_hover` already skips `buftype ~= ""` buffers, so the two features
+  never both act on the tree; while a modal is focused its buffer-local map
+  shadows the global one and the wash pauses (the backdrop covers the tree).
+- Guards, in order: invalid/zero win, floats (`relative ~= ""`), buffer
+  `filetype ~= "neo-tree"`, same cached win+line (a stationary pointer costs
+  nothing), out-of-range line, blank padding rows. A second tree window
+  (git_status/buffers source) hands the wash over — the old buffer's
+  namespace is cleared first.
+- Teardown beyond the clear-branch: `WinClosed`/`WinScrolled` on the cached
+  window (neo-tree keeps its buffer, so a stale extmark would resurface on
+  reopen; extmarks track buffer lines, not screen rows) and `FocusLost`
+  (the pointer left the app, `<MouseMove>` stops firing).
+- **Documented limitation**: the global map covers n+i only, so the wash
+  freezes while focus sits in a terminal (t mode, e.g. the AI column). A
+  t-mode map was deliberately NOT added — terminal mode forwards mouse events
+  to the program's own mouse reporting, which the AI-column TUIs rely on.
+  `getmousepos().line` clamps to the last buffer line below the tree's last
+  row, so the last row stays washed there (matches click semantics).
+- Seams: `M.update(mp)` (a `getmousepos()`-shaped table — mouse events can't
+  be synthesized headless), `M._ns`, `M._reset`. Spec:
+  `tests/core/neotree_hover_spec.lua`.
 
 ## File badge — `filebadge.lua` (required from `init.lua`)
 

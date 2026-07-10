@@ -4,6 +4,8 @@
   it reads the persisted `tree_side` setting from `core/settings.lua` on each
   toggle, so the side changes live via `:NvSinnerMenu`. Folder colors come
   from the carbon folder packs (`M.folder_colors()` in `lua/core/carbon.lua`).
+  The mouse-hover row wash on tree rows is native —
+  `lua/core/neotree-hover.lua`, driven from ui-touch's `<MouseMove>` handler.
 - `telescope.lua` — `<leader>f` find files (incl. hidden dotfiles),
   `<leader>sf` live grep, `<leader>fb` buffers, plus the `<leader>s*` pickers
   (diagnostics / keymaps / commands / resume / help / symbols / references).

@@ -339,20 +339,36 @@ return {
 			end,
 		})
 
+		-- Session-aware toggle for the in-terminal keys: the <leader>j* maps are
+		-- normal-mode only (a t-mode <Space> map would intercept every space
+		-- typed into the CLI), and the AI column sits in terminal-insert mode
+		-- whenever focused — so <M-J>/<D-M-j> are the one-key way to hide the
+		-- session you are typing in. Toggle THAT session, not always session 1.
+		local function toggle_current_or_first()
+			local buf = vim.api.nvim_get_current_buf()
+			for n, term in pairs(ai_panels) do
+				if term.bufnr == buf then
+					return toggle_ai_panel(n)
+				end
+			end
+			toggle_ai_panel(1)
+		end
+
 		-- iTerm2 bridge: iTerm2 cannot send Cmd to a TUI app, so we configure
 		-- Cmd+Opt+J in iTerm2 as "Send Escape Sequence" with the text "J".
 		-- iTerm then sends <Esc>J, which Neovim receives as <M-J>. This mapping
-		-- toggles session 1 from any mode (including the terminal itself, so it
-		-- can be hidden from within).
-		vim.keymap.set({ "n", "i", "t" }, "<M-J>", function()
-			toggle_ai_panel(1)
-		end, { desc = "Toggle AI session 1" })
+		-- toggles from any mode (including the terminal itself, so the session
+		-- under your fingers can be hidden from within).
+		vim.keymap.set(
+			{ "n", "i", "t" },
+			"<M-J>",
+			toggle_current_or_first,
+			{ desc = "Toggle AI session (current or 1)" }
+		)
 
 		-- Literal Cmd+Opt+J for GUI Neovim (Neovide, etc.) or terminals that do
 		-- forward <D-...> (super/command). Harmless if your terminal doesn't.
-		vim.keymap.set({ "n", "t" }, "<D-M-j>", function()
-			toggle_ai_panel(1)
-		end, { desc = "Toggle AI session 1" })
+		vim.keymap.set({ "n", "t" }, "<D-M-j>", toggle_current_or_first, { desc = "Toggle AI session (current or 1)" })
 
 		-- Universal fallback that works in ANY terminal with no extra config:
 		--   <leader>j (Space+j) in normal mode -> toggle AI session 1.

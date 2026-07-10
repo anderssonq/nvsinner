@@ -13,10 +13,15 @@
   configurable via `:NvSinnerMenu`'s `ai_side` — `restore_layout()` forces
   `wincmd L`/`wincmd H` accordingly and a `User NvSinnerSetting` autocmd
   re-asserts it live), each an independent AI session for any AI CLI; toggling
-  hides without killing the process. Session 1 is triggered by `<leader>j`,
-  `<M-J>` (iTerm2 sends this from Cmd+Opt+J via "Send Escape Sequence" = `J`),
-  or `<D-M-j>` (GUI Neovim). Sessions 2–9 are toggled by `<leader>j2` …
-  `<leader>j9`.
+  hides without killing the process. Session 1 is triggered by `<leader>j`;
+  sessions 2–9 by `<leader>j2` … `<leader>j9`. `<M-J>` (iTerm2 sends this from
+  Cmd+Opt+J via "Send Escape Sequence" = `J`) and `<D-M-j>` (GUI Neovim) are
+  **session-aware**: they toggle the AI session whose terminal you are inside,
+  falling back to session 1 elsewhere — the one-key way to hide a session from
+  within it, since the `<leader>j*` maps are normal-mode only (a t-mode
+  `<Space>` map would intercept every space typed into the CLI) and the column
+  sits in terminal-insert mode whenever focused. The universal in-terminal
+  path is `<Esc>` (terminal-normal mode) then `<leader>jN`.
 - Panels are created **lazily and memoised by session number**
   (`create_ai_panel`), so a session only spawns its process the first time you
   open it — and that first open shows the **CLI picker** (below): the chosen

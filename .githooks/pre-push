@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Skip the pre-push review by passing the --skip-review push option:
+#   git push -o --skip-review
+# Alternatively, disable the hook entirely: git push --no-verify
+
+for ((i = 0; i < GIT_PUSH_OPTION_COUNT; i++)); do
+  opt="GIT_PUSH_OPTION_$i"
+  if [ "${!opt}" = "skip-review" ] || [ "${!opt}" = "--skip-review" ]; then
+    echo "[pre-push] Skipped via --skip-review push option."
+    exit 0
+  fi
+done
+
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PROMPT_FILE="$REPO_ROOT/.claude/prompts/pre-push-review.md"
 LOG_DIR="$REPO_ROOT/.claude/logs"
@@ -12,21 +24,22 @@ REMOTE_REF="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null
 DIFF="$(git diff "$REMOTE_REF"...HEAD -- '*.lua' 'CLAUDE.md' 2>/dev/null || true)"
 
 if [ -z "$DIFF" ]; then
-  echo "[pre-push] Sin cambios .lua relevantes, skip review."
+  echo "[pre-push] No .lua changes to review, skipping."
   exit 0
 fi
 
 if ! command -v claude &> /dev/null; then
-  echo "[pre-push] claude CLI no encontrado, skip review (no bloquea push)."
+  echo "[pre-push] claude CLI not found, skipping review (push not blocked)."
   exit 0
 fi
 
-echo "[pre-push] Corriendo review con Claude Code..."
+echo "[pre-push] Running review with Claude Code..."
+echo "[pre-push] (to skip: git push -o --skip-review, or git push --no-verify)"
 
-RESULT="$(
+if ! RESULT="$(
   claude -p "$(cat "$PROMPT_FILE")
 
-## Diff a revisar
+## Diff to review
 
 \`\`\`diff
 $DIFF
@@ -35,7 +48,16 @@ $DIFF
     --permission-mode plan \
     --output-format json \
     --max-turns 6 2>&1
-)"
+)"; then
+  echo ""
+  echo "❌ [pre-push] claude CLI failed — push NOT blocked, but no review ran."
+  echo "   To retry the push anyway: just push again."
+  echo "   To force-review later: run 'claude' manually, or remove the hook with:"
+  echo "     git push --no-verify   # skip this once"
+  echo "   To disable the hook for this repo:"
+  echo "     git config --unset core.hooksPath"
+  exit 0
+fi
 
 echo "$RESULT" > "$LOG_FILE"
 
@@ -56,21 +78,28 @@ SUMMARY="$(echo "$REVIEW_JSON" | python3 -c 'import json,sys; print(json.load(sy
 echo ""
 echo "[pre-push] Verdict: $VERDICT"
 echo "[pre-push] $SUMMARY"
-echo "[pre-push] Reporte completo: $LOG_FILE"
+echo "[pre-push] Full report: $LOG_FILE"
 echo ""
 
 case "$VERDICT" in
   block)
-    echo "❌ Push bloqueado — hay findings críticos. Revisá $LOG_FILE"
-    echo "   Para saltear (no recomendado): git push --no-verify"
+    echo ""
+    echo "❌ [pre-push] Push blocked — critical findings."
+    echo "   See report: $LOG_FILE"
+    echo ""
+    echo "   How to proceed:"
+    echo "     1. Fix the findings above, then re-push as usual."
+    echo "     2. Skip review once (keeps findings log):  git push -o --skip-review"
+    echo "     3. Bypass hook entirely (not recommended): git push --no-verify"
+    echo "     4. Disable the hook for this repo:         git config --unset core.hooksPath"
     exit 1
     ;;
   warn)
-    echo "⚠️  Push permitido, pero hay warnings. Revisá $LOG_FILE"
+    echo "⚠️  Push allowed, but warnings. See $LOG_FILE"
     exit 0
     ;;
   *)
-    echo "✅ Todo bien."
+    echo "✅ All good."
     exit 0
     ;;
 esac
