@@ -1,3 +1,7 @@
+-- Enable Neovim's bytecode/require cache before anything else is required, so
+-- every core module and plugin spec below loads from the compiled cache.
+vim.loader.enable()
+
 -- Bootstrap lazy.nvim
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then

@@ -356,7 +356,11 @@ value:
 Transparent mode drops every full-surface background (editor, floats, side
 panels) so your terminal's own background/blur shows through; small solid
 elements (the statusline mode chip, the AI busy chip, the terminal focus bar)
-keep their color so the UI stays legible.
+keep their color so the UI stays legible. This is the lever for a glass look
+under Ghostty: with transparency **off**, carbon paints a solid `#161616`
+editor background that overrides Ghostty's `background-opacity`/blur, so enable
+it (`NVSINNER_TRANSPARENT=1` or the `:NvSinnerMenu` toggle) if you run Ghostty
+with an opaque-defeating opacity set.
 
 <details>
 <summary>Migrating from the glass theme (kanagawa-dragon)</summary>
@@ -377,6 +381,22 @@ cleanups if you customized things:
   `base09` (identity) or `base10` (attention).
 
 </details>
+
+### Ghostty over SSH
+
+`xterm-ghostty` terminfo often isn't installed on remote hosts, so over SSH
+`$TERM` falls back to `xterm-256color` — which loses synchronized output
+(flicker-free redraws), truecolor, and undercurl advertising. Install Ghostty's
+terminfo on the remote once:
+
+```bash
+infocmp -x xterm-ghostty | ssh HOST -- tic -x -
+```
+
+The system clipboard also works remotely without a GUI provider: inside an SSH
+session (`$SSH_TTY` set) `lua/core/options.lua` routes the `+`/`*` registers
+through **OSC 52**, which Ghostty supports, so `y`/`p` reach your local
+clipboard. Local (non-SSH) sessions keep using `pbcopy`/`pbpaste`.
 
 ## 📁 Folder structure
 
