@@ -325,6 +325,16 @@ local hl = {
 	NeoTreeGitDeleted = { fg = c.base10 },
 	NeoTreeGitUntracked = { fg = c.base14 },
 	NeoTreeWinSeparator = { fg = transparent and c.base01 or c.base00, bg = bg0 }, -- seamless panel
+	-- Source-selector tabs (winbar). The active tab is a chip — solid base01 +
+	-- accent text, same rationale as NvMenuSel / NvTreeHover — so it stays
+	-- legible when transparent mode drops surfaces; inactive tabs are surface,
+	-- so they ride bg0. Both fg AND bg are set on purpose: neo-tree defines
+	-- these groups itself, and its create_highlight_group() skips a group that
+	-- already carries both (and only ever emits `highlight default` anyway).
+	NeoTreeTabActive = { fg = c.base09, bg = c.base01, bold = true },
+	NeoTreeTabInactive = { fg = c.base03, bg = bg0 },
+	NeoTreeTabSeparatorActive = { fg = c.base01, bg = c.base01 }, -- melts into the chip
+	NeoTreeTabSeparatorInactive = { fg = c.base02, bg = bg0 },
 
 	-- ── which-key ────────────────────────────────────────────────────────────
 	WhichKey = { fg = c.base08 },

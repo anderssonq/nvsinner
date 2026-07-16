@@ -67,8 +67,7 @@ end
 local function flatten(symbols, depth, out)
 	out = out or {}
 	for _, s in ipairs(symbols or {}) do
-		local pos = s.selectionRange and s.selectionRange.start
-			or (s.location and s.location.range.start)
+		local pos = s.selectionRange and s.selectionRange.start or (s.location and s.location.range.start)
 		if pos then
 			table.insert(out, {
 				name = s.name,

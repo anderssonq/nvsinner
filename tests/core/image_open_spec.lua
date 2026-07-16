@@ -9,8 +9,7 @@ describe("core.image-open", function()
 
 	-- Minimal valid 1x1 PNG (base64), decoded to a temp .png.
 	local function make_png()
-		local b64 =
-			"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+		local b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 		local path = vim.fn.tempname() .. ".png"
 		local bytes = vim.base64.decode(b64)
 		local fd = assert(io.open(path, "wb"))

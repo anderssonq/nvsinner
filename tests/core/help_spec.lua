@@ -59,6 +59,12 @@ describe("core.help", function()
 		help.open()
 		local win = vim.api.nvim_get_current_win()
 		assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative, "must be a float")
+		-- The border title carries the distro version. Asserted against the
+		-- module, not the literal "beta", so tagging a real release keeps this
+		-- passing (nvim returns the title as {{text, hl}, …} chunks).
+		local title = vim.api.nvim_win_get_config(win).title
+		title = type(title) == "table" and title[1][1] or tostring(title)
+		assert.matches("NvSinner commands · " .. require("nvsinner").version, title, nil, true)
 		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
 		for _, row in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
 			assert.matches(row, text, nil, true)

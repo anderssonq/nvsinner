@@ -6,6 +6,16 @@
   from the carbon folder packs (`M.folder_colors()` in `lua/core/carbon.lua`).
   The mouse-hover row wash on tree rows is native —
   `lua/core/neotree-hover.lua`, driven from ui-touch's `<MouseMove>` handler.
+  `source_selector` puts **Files / Buffers / Git tabs in the tree's winbar**
+  (that winbar is unowned: ui-touch's `SKIP_FT` lists `neo-tree`, filebadge
+  only claims markdown). Tab colors are the carbon `NeoTreeTab*` groups in
+  `colors/carbon.lua` — neo-tree defines those groups itself with hardcoded
+  near-black hexes, so carbon must override them or the tabs ignore the
+  theme; they carry both `fg` and `bg` so neo-tree's own
+  `create_highlight_group` skips them. **`window.width` is 38 for the tabs'
+  sake**: `tabs_layout = "equal"` splits the width into fixed thirds and
+  `" 󰈚 Buffers "` truncates below 38 (measured) — narrowing the tree
+  re-truncates the labels.
 - `telescope.lua` — `<leader>f` find files (incl. hidden dotfiles),
   `<leader>sf` live grep, `<leader>fb` buffers, plus the `<leader>s*` pickers
   (diagnostics / keymaps / commands / resume / help / symbols / references).

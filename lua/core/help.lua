@@ -307,7 +307,10 @@ function M.open()
 		relative = "editor",
 		style = "minimal",
 		border = "rounded",
-		title = "  NvSinner commands ",
+		-- Distro version from lua/nvsinner/init.lua; the middle-dot idiom
+		-- matches ia.lua's "NvSinner · AI". Nothing reads the title length
+		-- (title_pos centers it, padding keys off WIDTH), so it can grow.
+		title = "  NvSinner commands · " .. require("nvsinner").version .. " ",
 		title_pos = "center",
 		width = WIDTH,
 		height = height,
