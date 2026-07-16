@@ -124,8 +124,8 @@ House rule reminder: a migrated plugin's spec is **kept with
   reserved-id semantics (100+) must survive the migration. Do this only
   behind the campaign's edge-case reproduction matrix.
 - **lualine → native statusline.** The winbar-expression expertise
-  (`filebadge`, `ai-activity`) transfers directly; the AI cockpit badge is
-  already core-native data. Payoff: the last big chrome plugin out of the
+  (`filebadge`, `ai-activity`) transfers directly; the per-session status
+  data is already core-native. Payoff: the last big chrome plugin out of the
   identity path.
 - **noice → evaluate.** Its cmdline UI needs `ui_attach` (historically
   fragile on 0.12.x, LSP paths already disabled here). Once `core/toast.lua`

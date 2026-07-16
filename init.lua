@@ -70,4 +70,14 @@ require("lazy").setup({
 	-- explicit opt-in float-to-latest path), so a boot-time "updates available"
 	-- check would only run network fetches this config never acts on.
 	checker = { enabled = false },
+	performance = {
+		rtp = {
+			-- Stock runtime plugins this config never uses. netrwPlugin is
+			-- deliberately NOT disabled: neo-tree is cmd/keys-lazy with no
+			-- hijack_netrw, so netrw still owns `nvim <dir>`. matchit/matchparen,
+			-- osc52 (SSH clipboard), man, editorconfig, and spellfile stay for
+			-- the same reason: they carry behavior this config relies on.
+			disabled_plugins = { "gzip", "tarPlugin", "zipPlugin", "tohtml", "tutor", "rplugin" },
+		},
+	},
 })

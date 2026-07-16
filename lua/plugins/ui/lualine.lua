@@ -11,37 +11,6 @@ return {
 		-- lua/core/carbon.lua) and re-run on ColorScheme, so a live dark↔light /
 		-- accent switch (:NvSinnerMenu) restyles the bar instead of leaving it on
 		-- the boot-time palette.
-		-- AI cockpit badge: "AI: 2 working · 1 needs input" from the session
-		-- registry (core/ai-sessions) + per-buffer status (core/ai-activity).
-		-- Empty string with no sessions keeps the bar clean; the existing 100ms
-		-- statusline refresh keeps the counts live. No accent chip on purpose —
-		-- the mode block stays the bar's one moment of color.
-		local function ai_badge()
-			local ok, sessions = pcall(function()
-				return require("core.ai-sessions").sessions()
-			end)
-			if not ok or #sessions == 0 then
-				return ""
-			end
-			local activity = require("core.ai-activity")
-			local counts = { working = 0, awaiting = 0, idle = 0 }
-			for _, s in ipairs(sessions) do
-				local st = (activity.status and activity.status(s.bufnr)) or "idle"
-				counts[st] = (counts[st] or 0) + 1
-			end
-			local parts = {}
-			if counts.working > 0 then
-				table.insert(parts, counts.working .. " working")
-			end
-			if counts.awaiting > 0 then
-				table.insert(parts, counts.awaiting .. " needs input")
-			end
-			if counts.idle > 0 then
-				table.insert(parts, counts.idle .. " idle")
-			end
-			return "AI: " .. table.concat(parts, " · ")
-		end
-
 		local function apply()
 			local c = require("core.carbon").colors()
 
@@ -74,13 +43,16 @@ return {
 					component_separators = "",
 					section_separators = "",
 					globalstatus = true,
-					refresh = { statusline = 100 },
+					-- No refresh override: lualine's default is event-driven
+					-- (WinEnter/BufEnter/CursorMoved/ModeChanged/…, 16ms coalescing)
+					-- with a 1s fallback timer. The 100ms override existed only to
+					-- keep the removed AI badge counts live.
 				},
 				sections = {
 					lualine_a = { "mode" },
 					lualine_b = { "branch" },
 					lualine_c = { "filename" },
-					lualine_x = { ai_badge, "diagnostics", "filetype" },
+					lualine_x = { "diagnostics", "filetype" },
 					lualine_y = { "progress" },
 					lualine_z = { "location" },
 				},

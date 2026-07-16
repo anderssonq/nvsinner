@@ -47,10 +47,13 @@ Note: `splitright` is load-bearing — it is why the AI column's
 
 | Constant | Value | File | Effect |
 |---|---|---|---|
-| `POLL_MS` | 120 | `lua/core/ai-activity.lua` | spinner frame rate + idle-check cadence (ms) |
+| `POLL_MS` | 120 | `lua/core/ai-activity.lua` | spinner frame rate + idle-check cadence (ms); busy-gated — the timer runs only while a terminal is busy (`M._ticking`) |
 | `IDLE_MS` | 1200 | `lua/core/ai-activity.lua` | quiet ms before busy→idle flip |
 | `SPINNER` | 10 braille frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` | `lua/core/ai-activity.lua` | busy animation |
 | `LABEL_BUSY` / `LABEL_IDLE` / `DOT_IDLE` | `"working…"` / `"idle"` / `"●"` | `lua/core/ai-activity.lua` | winbar labels |
+| `DEBOUNCE_MS` | 50 | `lua/core/colorizer.lua` | edit/scroll rescan coalescing (BufWinEnter/InsertLeave stay immediate) |
+| `DEBOUNCE_MS` | 50 | `lua/core/todo.lua` | edit/scroll rescan coalescing (same shape as colorizer) |
+| `DEBOUNCE_MS` | 50 | `lua/core/markdown.lua` | edit/scroll rescan coalescing; the autocmds cost one `M.on` boolean while the view is off |
 | toast dedup window | **250 ms** | `lua/core/autoreload.lua` (`notify_ai_edit`) | suppress double toast for same file |
 | AI-edit toast | msg `"edited <name>"`, title `"🤖 AI"`, `timeout = 250` | `lua/core/autoreload.lua` | external-edit notification |
 | checktime poll timer | 1000 ms | `lua/core/autoreload.lua` | disk-change poll while focus sits in a terminal |

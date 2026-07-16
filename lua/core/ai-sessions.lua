@@ -1,7 +1,7 @@
 -- ─── AI session registry + send-to-AI bridge ───────────────────────────────
 -- The single place that knows which AI columns exist. toggleterm.lua PUSHES
 -- sessions in here on first open (plugin→core dependency — core never requires
--- a plugin), so the bridge keymaps, the lualine cockpit badge, and the tests
+-- a plugin), so the bridge keymaps, the <leader>ja picker, and the tests
 -- can all reach the sessions without loading toggleterm.
 --
 -- Send semantics (probed 2026-07 — see the plan's Phase 0):

@@ -231,16 +231,61 @@ end
 -- label and wire the %@…%X click region.
 _G.NvMdReader = M
 
+-- Debounced rescans: same shape as colorizer.lua/todo.lua. The M.on guard
+-- comes FIRST in both callbacks — the reading view is off by default, so
+-- markdown edit/scroll events must cost one boolean (no call, no timer
+-- churn) while it is off. BufWinEnter and InsertLeave stay immediate: first
+-- paint, and InsertLeave must promptly restore the insert-skipped cursor
+-- line. Handles anchored on M._debounce against luv GC.
+M.DEBOUNCE_MS = 50
+M._debounce = {} -- bufnr -> one-shot uv timer
+
+local function debounced_refresh(buf)
+	local t = M._debounce[buf]
+	if not t then
+		t = assert(vim.uv.new_timer())
+		M._debounce[buf] = t
+	end
+	t:stop()
+	t:start(
+		M.DEBOUNCE_MS,
+		0,
+		vim.schedule_wrap(function()
+			M.refresh(buf)
+		end)
+	)
+end
+
 local grp = vim.api.nvim_create_augroup("nv_markdown", { clear = true })
-vim.api.nvim_create_autocmd(
-	{ "BufWinEnter", "TextChanged", "TextChangedI", "InsertLeave", "WinScrolled" },
-	{
-		group = grp,
-		callback = function(args)
-			M.refresh(args.buf)
-		end,
-	}
-)
+vim.api.nvim_create_autocmd({ "BufWinEnter", "InsertLeave" }, {
+	group = grp,
+	callback = function(args)
+		if not M.on then
+			return
+		end
+		M.refresh(args.buf)
+	end,
+})
+vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "WinScrolled" }, {
+	group = grp,
+	callback = function(args)
+		if not M.on then
+			return
+		end
+		debounced_refresh(args.buf)
+	end,
+})
+vim.api.nvim_create_autocmd("BufWipeout", {
+	group = grp,
+	callback = function(args)
+		local t = M._debounce[args.buf]
+		if t then
+			t:stop()
+			t:close()
+			M._debounce[args.buf] = nil
+		end
+	end,
+})
 vim.api.nvim_create_autocmd("FileType", {
 	group = grp,
 	pattern = "markdown",

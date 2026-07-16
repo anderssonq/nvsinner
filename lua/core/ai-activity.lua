@@ -96,6 +96,14 @@ function M.status(buf)
 	return "idle"
 end
 
+-- Busy-gating: the poll timer runs ONLY while at least one terminal is busy.
+-- on_lines starts it with the first output chunk; tick() stops it once nothing
+-- is busy anymore, right after the idle-flip's final redraw. Idle terminals
+-- and an empty editor cost ZERO wakeups. M._ticking is the "loop is running"
+-- flag (and the test seam pinning start/stop).
+M._ticking = false
+local ensure_ticking -- defined below tick(), which it schedules
+
 -- Attach the output listener to a terminal buffer (idempotent).
 local function attach(buf)
 	if not is_term(buf) then
@@ -107,13 +115,15 @@ local function attach(buf)
 	state[buf] = state[buf] or { busy = false, last = uv.now() }
 	state[buf].attached = true
 	vim.api.nvim_buf_attach(buf, false, {
-		-- FAST event context: touch ONLY the plain Lua table here (uv.now() is
-		-- fine; vim.* API calls are not allowed). The timer does the redraw.
+		-- FAST event context: only the plain Lua table write, uv.now(), and
+		-- uv timer ops here (all fast-context legal — the restriction is
+		-- vim.api/vim.fn). The timer does the redraw.
 		on_lines = function(_, b)
 			local s = state[b]
 			if s then
 				-- Fresh output always trumps a stale "needs input" prompt mark.
 				s.busy, s.last, s.awaiting = true, uv.now(), false
+				ensure_ticking()
 			end
 		end,
 		on_detach = function(_, b)
@@ -151,6 +161,22 @@ local function tick()
 			vim.cmd("redrawstatus!")
 		end
 	end
+	-- Nothing busy → nothing animates and no idle-flip is pending: stop waking
+	-- up. This runs AFTER the redraw above, so the idle-flip's final repaint
+	-- always lands. The next output chunk restarts the loop from on_lines;
+	-- "awaiting" needs no ticks (_on_osc repaints on its own).
+	if not any_busy then
+		M._timer:stop()
+		M._ticking = false
+	end
+end
+
+function ensure_ticking()
+	if M._ticking then
+		return
+	end
+	M._ticking = true
+	M._timer:start(POLL_MS, POLL_MS, vim.schedule_wrap(tick))
 end
 
 -- ─── "Needs input" via OSC sequences (opportunistic) ────────────────────────
@@ -209,8 +235,9 @@ for _, buf in ipairs(vim.api.nvim_list_bufs()) do
 end
 
 -- Kept on M so the handle is never garbage-collected (an unreferenced active luv
--- timer can be reaped and silently stop animating).
+-- timer can be reaped and silently stop animating). Deliberately NOT started
+-- here: the loop is busy-gated — on_lines starts it with the first output
+-- chunk, tick() stops it once nothing is busy (see ensure_ticking above).
 M._timer = assert(uv.new_timer())
-M._timer:start(POLL_MS, POLL_MS, vim.schedule_wrap(tick))
 
 return M

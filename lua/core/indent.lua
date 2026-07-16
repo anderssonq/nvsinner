@@ -125,13 +125,41 @@ vim.api.nvim_set_decoration_provider(ns, {
 	end,
 })
 
+-- Same-position early-exit: the scope is a pure function of (buffer content,
+-- cursor line, viewport, shiftwidth), so when none of those changed since the
+-- last recompute — a column-only cursor move (h/l, the hottest CursorMoved
+-- case) or a duplicate event — the recompute is skipped. Keyed per buffer;
+-- M.refresh itself stays unconditional (the specs call it directly).
+local seen = {}
+
 local grp = vim.api.nvim_create_augroup("nv_indent", { clear = true })
 vim.api.nvim_create_autocmd(
 	{ "CursorMoved", "CursorMovedI", "TextChanged", "TextChangedI", "BufEnter", "WinScrolled" },
 	{
 		group = grp,
 		callback = function(args)
-			M.refresh(args.buf)
+			local buf = args.buf
+			local win = vim.api.nvim_get_current_win()
+			local key = {
+				win = win,
+				lnum = vim.api.nvim_win_get_buf(win) == buf and vim.api.nvim_win_get_cursor(win)[1] or 0,
+				top = vim.fn.line("w0", win),
+				bot = vim.fn.line("w$", win),
+				tick = vim.api.nvim_buf_get_changedtick(buf),
+			}
+			local s = seen[buf]
+			if
+				s
+				and s.win == key.win
+				and s.lnum == key.lnum
+				and s.top == key.top
+				and s.bot == key.bot
+				and s.tick == key.tick
+			then
+				return
+			end
+			seen[buf] = key
+			M.refresh(buf)
 		end,
 	}
 )
@@ -139,6 +167,7 @@ vim.api.nvim_create_autocmd(
 -- Test seam: drop cached scopes between specs.
 function M._reset()
 	scopes = {}
+	seen = {}
 end
 
 return M

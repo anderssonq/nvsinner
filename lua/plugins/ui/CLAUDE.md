@@ -15,11 +15,10 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
 - `lualine.lua` — statusline with the carbon **mode→accent** map: the mode
   block is a solid accent chip with dark `base00` text (normal `base09`,
   insert `base12`, visual `base14`, replace `base08`, command `base13`,
-  terminal `base11`); all other sections stay `base04` on `base00`.
-  `lualine_x` also carries the **AI cockpit badge** (`AI: 2 working · 1 needs
-  input`) built from `core/ai-sessions.sessions()` +
-  `core/ai-activity.status()` — plain text, no accent chip, empty when no
-  sessions exist (see `lua/core/CLAUDE.md` §Agent activity).
+  terminal `base11`); all other sections stay `base04` on `base00`. The
+  AI cockpit badge that used to ride `lualine_x` was removed for performance
+  (see `docs/nvsinner-perf-analysis.md` §5); per-session status lives in the
+  terminal winbars and the `<leader>ja` picker.
 - `incline.lua` — **disabled** (`enabled = false`): replaced by the native
   winbar badge in `lua/core/filebadge.lua` — incline's float overlapped the
   first buffer line on winbar-less (markdown) windows and its non-focusable

@@ -196,6 +196,9 @@ TermOpen autocmd
       (state[buf].busy = true, .last = uv.now())
   → vim.uv timer, 120ms (POLL_MS)             -- animates spinner, flips busy→idle
       after 1200ms quiet (IDLE_MS); handle kept on M._timer so luv can't GC it
+      BUSY-GATED: on_lines starts it (uv timer ops are fast-context legal —
+      probed by the real-PTY spec), tick() stops it once nothing is busy,
+      after the idle-flip's final redraw. Zero wakeups while idle.
     → nvim__redraw{statusline,winbar,flush}   -- NOT :redrawstatus (doesn't repaint
       (pcall, fallback redrawstatus!)            the winbar from inside a terminal)
   → rendered by the per-window winbar expression that ui-touch.lua builds:
