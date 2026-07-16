@@ -57,6 +57,7 @@ lua/core/colorizer.lua       #hex color chips on the visible range (native, repl
 lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
 lua/core/window-picker.lua   Letter-overlay window picker; serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
 lua/core/markdown.lua        Markdown reading view: heading bars, bullets, checkboxes, quote/fence/rule styling on the visible range (native, replaces render-markdown.nvim)
+lua/nvsinner/init.lua        Distro metadata — `require("nvsinner").version` (currently "beta"; surfaced in the :NvSinnerHelp title)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```

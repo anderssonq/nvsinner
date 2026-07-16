@@ -1,105 +1,70 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Skip the pre-push review by passing the --skip-review push option:
-#   git push -o --skip-review
-# Alternatively, disable the hook entirely: git push --no-verify
-
-for ((i = 0; i < GIT_PUSH_OPTION_COUNT; i++)); do
-  opt="GIT_PUSH_OPTION_$i"
-  if [ "${!opt}" = "skip-review" ] || [ "${!opt}" = "--skip-review" ]; then
-    echo "[pre-push] Skipped via --skip-review push option."
-    exit 0
-  fi
-done
+# Pre-push gate: format check (stylua) + test suite (make test). ~20s total.
+#
+# Mirrors what .github/workflows/ci.yml enforces, so a red CI is caught here
+# instead of after the push. Only runs when the push actually touches Lua.
+#
+# Skip once:                git push --no-verify
+# Disable for this repo:    git config --unset core.hooksPath
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-PROMPT_FILE="$REPO_ROOT/.claude/prompts/pre-push-review.md"
-LOG_DIR="$REPO_ROOT/.claude/logs"
-LOG_FILE="$LOG_DIR/pre-push-$(date +%Y%m%d-%H%M%S).json"
+cd "$REPO_ROOT"
 
-mkdir -p "$LOG_DIR"
+# Every tracked *.lua lives under one of these (after/ftplugin/markdown.lua is
+# why `after` is here — it is easy to miss).
+LUA_PATHS=(init.lua colors lua tests after)
 
+# Nothing to check when the push carries no Lua. `@{u}` is unset for a brand-new
+# branch, so fall back to origin/main.
 REMOTE_REF="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || echo 'origin/main')"
-DIFF="$(git diff "$REMOTE_REF"...HEAD -- '*.lua' 'CLAUDE.md' 2>/dev/null || true)"
-
-if [ -z "$DIFF" ]; then
-  echo "[pre-push] No .lua changes to review, skipping."
+# --quiet exits 0 when there is NO diff. An unresolvable ref errors non-zero,
+# which falls through to running the checks — fail toward checking, not skipping.
+if git diff --quiet "$REMOTE_REF"...HEAD -- '*.lua' 2>/dev/null; then
+  echo "[pre-push] No .lua changes to check, skipping."
   exit 0
 fi
 
-if ! command -v claude &> /dev/null; then
-  echo "[pre-push] claude CLI not found, skipping review (push not blocked)."
-  exit 0
-fi
-
-echo "[pre-push] Running review with Claude Code..."
-echo "[pre-push] (to skip: git push -o --skip-review, or git push --no-verify)"
-
-if ! RESULT="$(
-  claude -p "$(cat "$PROMPT_FILE")
-
-## Diff to review
-
-\`\`\`diff
-$DIFF
-\`\`\`" \
-    --allowedTools "Read" "Grep" "Glob" \
-    --permission-mode plan \
-    --output-format json \
-    --max-turns 6 2>&1
-)"; then
+fail() {
   echo ""
-  echo "❌ [pre-push] claude CLI failed — push NOT blocked, but no review ran."
-  echo "   To retry the push anyway: just push again."
-  echo "   To force-review later: run 'claude' manually, or remove the hook with:"
-  echo "     git push --no-verify   # skip this once"
-  echo "   To disable the hook for this repo:"
-  echo "     git config --unset core.hooksPath"
-  exit 0
+  echo "❌ [pre-push] $1"
+  echo "   Skip once (not recommended): git push --no-verify"
+  exit 1
+}
+
+# ── 1. Format ────────────────────────────────────────────────────────────────
+# No .stylua.toml on purpose: stylua's defaults (tabs, 120 cols) already match
+# the house style, and none-ls formats on save with those same defaults.
+if command -v stylua > /dev/null 2>&1; then
+  echo "[pre-push] stylua --check…"
+  if ! stylua --check "${LUA_PATHS[@]}"; then
+    fail "Formatting drift. Fix it with:  stylua ${LUA_PATHS[*]}"
+  fi
+  echo "[pre-push] format OK"
+else
+  # Not fatal: stylua is Mason-installed (lua/plugins/lsp/mason-tools.lua) and
+  # may be missing on a fresh clone. CI still enforces the suite.
+  echo "[pre-push] stylua not found — skipping format check."
 fi
 
-echo "$RESULT" > "$LOG_FILE"
+# ── 2. Tests ─────────────────────────────────────────────────────────────────
+# Quiet on success (275 passing lines is noise); the full output is printed only
+# when something breaks, which is when you actually want it.
+echo "[pre-push] make test…"
+TEST_LOG="$(mktemp)"
+trap 'rm -f "$TEST_LOG"' EXIT
 
-REVIEW_JSON="$(echo "$RESULT" | python3 -c '
-import json, sys, re
-try:
-    data = json.load(sys.stdin)
-    text = data.get("result", "")
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    print(match.group(0) if match else "{}")
-except Exception:
-    print("{}")
-')"
+if ! make test > "$TEST_LOG" 2>&1; then
+  cat "$TEST_LOG"
+  fail "Test suite failed."
+fi
 
-VERDICT="$(echo "$REVIEW_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("verdict","warn"))' 2>/dev/null || echo "warn")"
-SUMMARY="$(echo "$REVIEW_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("summary",""))' 2>/dev/null || echo "")"
+# plenary reports failures in its own summary; `make test` exits non-zero too
+# (verified: exit 2 on a failing spec), so the exit check above is the gate and
+# this is just the human-readable tally.
+sed 's/\x1b\[[0-9;]*m//g' "$TEST_LOG" | awk '
+  /^Success: / { s += $2 } /^Failed : / { f += $3 } /^Errors : / { e += $3 }
+  END { printf "[pre-push] tests: %d passed, %d failed, %d errors\n", s, f, e }'
 
-echo ""
-echo "[pre-push] Verdict: $VERDICT"
-echo "[pre-push] $SUMMARY"
-echo "[pre-push] Full report: $LOG_FILE"
-echo ""
-
-case "$VERDICT" in
-  block)
-    echo ""
-    echo "❌ [pre-push] Push blocked — critical findings."
-    echo "   See report: $LOG_FILE"
-    echo ""
-    echo "   How to proceed:"
-    echo "     1. Fix the findings above, then re-push as usual."
-    echo "     2. Skip review once (keeps findings log):  git push -o --skip-review"
-    echo "     3. Bypass hook entirely (not recommended): git push --no-verify"
-    echo "     4. Disable the hook for this repo:         git config --unset core.hooksPath"
-    exit 1
-    ;;
-  warn)
-    echo "⚠️  Push allowed, but warnings. See $LOG_FILE"
-    exit 0
-    ;;
-  *)
-    echo "✅ All good."
-    exit 0
-    ;;
-esac
+echo "✅ [pre-push] All good."

@@ -649,22 +649,28 @@ was tested with.
 > a warning names it and gives the rollback recipe:
 > `git restore lazy-lock.json` + `:Lazy restore`.
 
-## 🪝 Pre-push review hook
+## 🪝 Pre-push hook
 
 A `pre-push` git hook lives in [`.githooks/pre-push`](.githooks/pre-push).
-When you `git push`, it diffs your pending `.lua` + `CLAUDE.md` changes against
-the upstream tip and runs a **read-only Claude Code review** (plan mode, only
-`Read`/`Grep`/`Glob` tools) against the prompt in
-[`.claude/prompts/pre-push-review.md`](.claude/prompts/pre-push-review.md). The
-review returns a JSON verdict:
+When you `git push`, it runs the same gates as
+[CI](.github/workflows/ci.yml) — so a red pipeline is caught *before* the push
+rather than after:
 
-| Verdict | Behaviour |
-|---------|-----------|
-| `pass` | Push proceeds. |
-| `warn` | Push proceeds, warnings printed. |
-| `block` | Push **rejected** — critical findings only. |
+| Step | What it does |
+|------|--------------|
+| `stylua --check` | Format check over every tracked Lua path (`init.lua colors lua tests after`). ~0s. |
+| `make test` | The plenary suite. ~18s. |
 
-The full run is logged to `.claude/logs/pre-push-<timestamp>.json`.
+Either one failing rejects the push. Test output is suppressed on success and
+printed in full on failure. The hook skips itself entirely when the push
+carries no `.lua` changes, and skips just the format step when `stylua` isn't
+on `PATH` (it's Mason-installed, so a fresh clone may not have it yet — CI
+still enforces the suite).
+
+There's no `.stylua.toml` on purpose: stylua's defaults (tabs, 120 columns)
+already match the house style, and none-ls formats on save with those same
+defaults. If the hook reports drift, `stylua init.lua colors lua tests after`
+fixes it.
 
 ### Installing the hook
 
@@ -678,14 +684,10 @@ chmod +x .githooks/pre-push
 The `install.sh` path already wires `core.hooksPath` for you on a fresh
 install.
 
-### Skipping the review
+### Skipping the hook
 
-- **One push:** `git push -o --skip-review` (`-o skip-review` also works) —
-  the hook reads git's `GIT_PUSH_OPTION_*` env vars and exits 0 immediately.
-- **Any push:** `git push --no-verify` — bypasses the hook entirely.
-
-If the `claude` CLI isn't on `PATH`, or there are no `.lua`/`CLAUDE.md`
-changes to review, the hook skips itself without blocking the push.
+- **One push:** `git push --no-verify` — bypasses the hook entirely.
+- **This repo:** `git config --unset core.hooksPath` — disables it for good.
 
 ## 🩺 Health check
 

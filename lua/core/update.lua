@@ -72,7 +72,11 @@ function M.update(opts)
 				return
 			end
 
-			vim.notify((out ~= "" and out or "Pulled.") .. "\nRestoring plugins…", vim.log.levels.INFO, { title = TITLE })
+			vim.notify(
+				(out ~= "" and out or "Pulled.") .. "\nRestoring plugins…",
+				vim.log.levels.INFO,
+				{ title = TITLE }
+			)
 			restore_and_check()
 		end)
 	)
