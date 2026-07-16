@@ -3,9 +3,13 @@
 local ai = require("core.ai-activity")
 
 describe("core.ai-activity", function()
-	it("exposes a winbar function and a kept-alive timer", function()
+	it("exposes a winbar function and a kept-alive timer, idle until output", function()
 		assert.are.equal("function", type(ai.winbar))
 		assert.is_not_nil(ai._timer, "the poll timer must be stored on M so luv won't GC it")
+		-- Busy-gated: with no terminal activity yet the timer must NOT run —
+		-- zero background wakeups at idle (this file's first test, fresh child).
+		assert.is_false(ai._timer:is_active(), "timer must not run with no terminal activity")
+		assert.is_false(ai._ticking)
 	end)
 
 	it("defines the NvAiBusy chip highlight", function()
@@ -108,6 +112,11 @@ describe("core.ai-activity", function()
 		end, 50)
 		assert.is_true(became_busy, "winbar should report working while output streams")
 
+		-- Busy-gating, start side: the on_lines fast-event callback must have
+		-- started the poll timer (this is the empirical probe that uv timer
+		-- ops are fast-context safe — real PTY, real on_lines).
+		assert.is_true(ai._timer:is_active(), "the poll timer must run while a terminal is busy")
+
 		local out = ai.winbar(buf)
 		assert.matches("NvAiBusy", out) -- busy is drawn in the accent chip
 		assert.matches("working", out)
@@ -117,6 +126,13 @@ describe("core.ai-activity", function()
 			return ai.winbar(buf):find("idle") ~= nil
 		end, 100)
 		assert.is_true(went_idle, "winbar should return to idle once output stops")
+
+		-- Busy-gating, stop side: once nothing is busy the tick that flipped
+		-- idle (and painted it) must also stop the timer — zero wakeups again.
+		local stopped = vim.wait(2000, function()
+			return not ai._timer:is_active()
+		end, 50)
+		assert.is_true(stopped, "the poll timer must stop once nothing is busy")
 
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)

@@ -61,6 +61,26 @@ describe("core.markdown", function()
 		cleanup()
 	end)
 
+	it("the autocmd path: one boolean while off, debounced rescan while on", function()
+		open_md_file({ "# Title" })
+		-- Off (the default): edit/scroll events must not even arm a timer.
+		vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf })
+		assert.is_nil(md._debounce[buf], "no timer churn while the view is off")
+
+		md.toggle()
+		assert.is_true(#marks() > 0)
+		vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "# Title", "- item" })
+		-- set_lines fires no TextChanged; drive the handler like typing would.
+		vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf })
+		assert.are.equal(0, #marks_on(1), "the rescan must not run synchronously")
+		local repainted = vim.wait(1000, function()
+			return #marks_on(1) > 0
+		end, 10)
+		assert.is_true(repainted, "the debounced rescan must land after the burst")
+		md.toggle()
+		cleanup()
+	end)
+
 	it("styles headings per level with an overlay bar + line group", function()
 		open_md_file({ "# One", "###### Six", "####### seven is not a heading", "plain prose" })
 		md.on = true

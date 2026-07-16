@@ -61,9 +61,8 @@ any existing `~/.config/nvim` without touching it.
 - **Live agent activity** — every terminal carries a winbar with a session
   label and a native busy/idle spinner (`⠹ working…` / `● idle`), plus an
   opportunistic `◆ needs input` state when the program signals a prompt via
-  OSC sequences (shell integration / notifying CLIs). The statusline shows a
-  cockpit badge (`AI: 2 working · 1 idle`) across all sessions, and
-  `<leader>ja` opens a picker that jumps to any session.
+  OSC sequences (shell integration / notifying CLIs). `<leader>ja` opens a
+  picker that jumps to any session.
 - **Disk-wins auto-reload** — when the agent edits a file, the open buffer
   reloads automatically and a `🤖 AI · edited <file>` toast names it.
 - **Prompt library** — `<leader>p` opens a modal of eleven reusable AI
@@ -171,9 +170,8 @@ you whether an agent — or a long build in a `<leader>t` terminal — is still
 going. When the program signals a prompt (OSC 133 shell integration, or a
 terminal notification), the bar flips to `◆ needs input` — this only works
 for programs that emit those sequences; the output-based spinner covers
-everything else. The statusline adds a cockpit badge (`AI: 2 working ·
-1 idle`) summarizing every session, and `<leader>ja` opens a picker that
-jumps to (or reopens) any of them.
+everything else. `<leader>ja` opens a picker that jumps to (or reopens) any
+session.
 
 **Send context without the clipboard:** select code and hit `<leader>as` to
 drop it into the AI column's input, `<leader>ab` to send an `@path` mention

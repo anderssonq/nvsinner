@@ -73,6 +73,24 @@ describe("core.todo", function()
 		cleanup()
 	end)
 
+	it("the autocmd path coalesces edits into one debounced rescan", function()
+		open_lua_file({ "-- HACK: temp" })
+		todo.refresh(buf)
+		assert.are.equal(1, #marks())
+
+		vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "-- HACK: temp", "-- TODO: new" })
+		-- set_lines fires no TextChanged; drive the handler like typing would.
+		-- A burst of events must land as ONE rescan after DEBOUNCE_MS.
+		vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf })
+		vim.api.nvim_exec_autocmds("TextChanged", { buffer = buf })
+		assert.is_true(#marks() < 2, "the rescan must not run synchronously")
+		local repainted = vim.wait(1000, function()
+			return #marks() == 2
+		end, 10)
+		assert.is_true(repainted, "the debounced rescan must land after the burst")
+		cleanup()
+	end)
+
 	it("skips special buftypes", function()
 		vim.cmd("terminal")
 		buf = vim.api.nvim_get_current_buf()

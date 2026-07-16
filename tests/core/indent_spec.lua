@@ -60,6 +60,33 @@ describe("core.indent", function()
 		cleanup()
 	end)
 
+	it("recomputes via the autocmd path and skips a same-position re-fire", function()
+		open_lua_file({
+			"local function outer()",
+			"    local a = 1",
+			"    if a then",
+			"        local b = 2",
+			"    end",
+			"end",
+		})
+		vim.api.nvim_win_set_cursor(0, { 2, 4 })
+		vim.api.nvim_exec_autocmds("CursorMoved", { buffer = buf })
+		local s = indent._scope(buf)
+		assert.is_table(s)
+		assert.are.equal(2, s.top)
+
+		-- Same position again: the early-exit must skip the recompute (the
+		-- cached scope table survives by reference) and stay correct.
+		vim.api.nvim_exec_autocmds("CursorMoved", { buffer = buf })
+		assert.is_true(rawequal(s, indent._scope(buf)), "same-position re-fire must not recompute")
+
+		-- A real move through the same path recomputes the deeper scope.
+		vim.api.nvim_win_set_cursor(0, { 4, 8 })
+		vim.api.nvim_exec_autocmds("CursorMoved", { buffer = buf })
+		assert.are.equal(4, indent._scope(buf).top)
+		cleanup()
+	end)
+
 	it("blank lines ride along inside a scope but trim off its edges", function()
 		open_lua_file({
 			"local function outer()", -- 1

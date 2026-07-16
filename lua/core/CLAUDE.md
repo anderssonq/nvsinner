@@ -576,12 +576,18 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   something is attached or the buffer is rendered — verified empirically — so the
   tick can sit frozen while output streams. An attached listener is always
   notified. The `on_lines` callback runs in a **fast event context**: it touches
-  only the plain Lua `state` table (and `uv.now()`); no `vim.*` API calls there.
+  only the plain Lua `state` table, `uv.now()`, and uv timer ops (all
+  fast-context legal); no `vim.*` API calls there.
 - A light `vim.uv` timer (`POLL_MS` 120ms) animates the spinner and flips a
   buffer back to idle after `IDLE_MS` (1.2s) of quiet, redrawing only while
-  something is busy or a state just changed (no idle redraws). The timer handle
-  is stored on the module table (`M._timer`) so luv won't GC the unreferenced
-  active handle and silently stop the spinner.
+  something is busy or a state just changed (no idle redraws). The timer is
+  **busy-gated**: created at require (handle on `M._timer` so luv won't GC it)
+  but NOT started — `on_lines` starts it with the first output chunk
+  (`ensure_ticking`; proven fast-context safe by the real-PTY spec) and
+  `tick()` stops it once nothing is busy, right after the idle-flip's final
+  redraw, so an idle editor costs zero wakeups. `M._ticking` is the
+  loop-running flag (and test seam); "awaiting" needs no ticks (`_on_osc`
+  repaints on its own).
 - **Redraw: `nvim__redraw{ winbar = true, flush = true }`, NOT `:redrawstatus`.**
   When focus is INSIDE a terminal (the usual case while watching an agent),
   `:redrawstatus` does NOT repaint the winbar, so the spinner looked frozen —
@@ -618,11 +624,11 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   that send notification sequences (unverified for `claude`); the 1.2s idle
   heuristic remains the primary signal. `_on_osc` repaints via the same
   `nvim__redraw` path (the idle-skipping timer wouldn't).
-- **Cockpit API + badge** — `M.status(buf)` → `"working" | "awaiting" |
-  "idle" | nil` (nil for untracked buffers) is the public per-buffer state;
-  `lualine.lua` combines it with `ai-sessions.M.sessions()` into an
-  `lualine_x` badge (`AI: 2 working · 1 needs input`, empty with no sessions —
-  the existing 100ms statusline refresh keeps it live). `<leader>ja` opens a
+- **Cockpit API** — `M.status(buf)` → `"working" | "awaiting" | "idle" |
+  nil` (nil for untracked buffers) is the public per-buffer state, consumed
+  by the `<leader>ja` picker labels and `ai-ask`'s session picker (the
+  lualine statusline badge that used to aggregate it was removed for
+  performance — `docs/nvsinner-perf-analysis.md` §5). `<leader>ja` opens a
   `vim.ui.select` picker (telescope-ui-select skins it) that jumps to a
   session's window (or reopens a hidden one via the toggleterm opener); like
   `<leader>j2…`, it costs a bare `<leader>j` one `timeoutlen`.
@@ -834,7 +840,10 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   normal context, so `vim.fn.indent` is safe — and a **decoration provider**
   paints it with *ephemeral* overlay extmarks (`virt_text_win_col`) at redraw
   time: nothing to clear, nothing stale. `on_win` gates to the window the
-  scope was computed against (the "current" scope is a cursor concept).
+  scope was computed against (the "current" scope is a cursor concept). The
+  autocmd carries a **same-position early-exit** (per-buffer cache of
+  win/line/viewport/changedtick): column-only moves and duplicate events skip
+  the recompute; `M.refresh` itself stays unconditional for the specs.
 - Scope = contiguous lines indented past `indent(cursor) - shiftwidth`
   (blank lines ride along, blank edges are trimmed; a blank cursor line takes
   the deeper of its neighbors). The scan is **clamped to the visible range**,
@@ -858,8 +867,11 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `hi clear`).
 - Boundary rules: only exact 3/6/8-digit runs, rejected when glued to a word
   char or another `#` (`abc#fff`, `##fff`); the alpha byte is dropped.
-  Rescans on `BufWinEnter` / `TextChanged(I)` / `InsertLeave` /
-  `WinScrolled`; `buftype == ""` only. Seams: `M._ns`, `M.refresh(buf, win)`.
+  Rescans: `BufWinEnter` / `InsertLeave` paint immediately; `TextChanged(I)` /
+  `WinScrolled` coalesce through a per-buffer `M.DEBOUNCE_MS` (50 ms) one-shot
+  timer (anchored on `M._debounce`, dropped on `BufWipeout`) so typing/scroll
+  bursts land as one rescan; `buftype == ""` only. Seams: `M._ns`,
+  `M.refresh(buf, win)` (immediate — the debounce lives in the autocmds).
 
 ## TODO keyword chips — `todo.lua` (required from `init.lua`)
 
@@ -874,7 +886,8 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   NOTE/INFO `base08`, TEST/TESTING/PASSED/FAILED `base07`. Groups `NvTodo*`,
   re-applied on `ColorScheme`; `M.KEYWORDS` is the public keyword→group map.
 - `:TodoTelescope` is intentionally NOT replicated — telescope live-grep
-  covers it until NvSinnerFind exists (roadmap). Same event set and guards as
+  covers it until NvSinnerFind exists (roadmap). Same event set, debounce
+  (`M.DEBOUNCE_MS` 50 ms on the edit/scroll events), and guards as
   `colorizer.lua`. Seams: `M._ns`, `M.refresh(buf, win)`.
 
 ## Window picker — `window-picker.lua` (required from `init.lua`)
@@ -915,7 +928,8 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `blend`), and full-width `─` horizontal rules. NO tables, link concealing,
   or inline-code chips — this is a reading aid, not a renderer.
 - **Pattern-based on purpose — never the markdown TS tree.** Plain Lua
-  patterns over the visible range (same shape, event set and guards as
+  patterns over the visible range (same shape, event set, debounce
+  (`M.DEBOUNCE_MS` 50 ms on the edit/scroll events) and guards as
   `colorizer.lua`/`todo.lua`; `eligible()` additionally requires
   `filetype == "markdown"`). Parsing markdown with treesitter is the 0.12.x
   `node:range` nil-node crash zone; the old plugin's startup injection-query
@@ -930,7 +944,9 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `# heading` in code is code). Any ```` ``` ````/`~~~` line toggles the
   state — indented-code and mixed-fence edge cases are not modeled.
 - **Insert-mode skip**: the cursor line stays raw while inserting in the
-  current buffer (`TextChangedI` keeps it live, `InsertLeave` restores).
-  Toggling off clears the namespace on every loaded markdown buffer; the
-  autocmds stay installed and no-op while off. Seams: `M._ns`,
+  current buffer (`TextChangedI` keeps it live, `InsertLeave` restores —
+  InsertLeave stays un-debounced for exactly that restore). Toggling off
+  clears the namespace on every loaded markdown buffer; the autocmds stay
+  installed and cost one `M.on` boolean while off (guard first in the
+  callbacks — no call, no timer churn). Seams: `M._ns`,
   `M.refresh(buf, win)`, `M.MAX_SCAN`.

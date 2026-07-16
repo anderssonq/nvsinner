@@ -57,7 +57,7 @@ verified 2026-07-02); rendering expectations are marked [interactive].
 | 3 | Multi-session labels | `<leader>j`, `<leader>j2`, `<leader>t`, `<leader>t2` | Labels `AI · 1`, `AI · 2`, `term 1`, `term 2` (from `b:nv_term_label`, set in `on_panel_open`) | Wrong/missing label → `term.bufnr` nil at `on_panel_open`, or plain `:terminal` (no label is correct there) |
 | 4 | Focus transitions | Cycle terminal ↔ code ↔ neo-tree ↔ dashboard | Terminals: bar brightens/dims, never disappears (no reflow). Code panes: glass bg + cursorline when focused. Neo-tree/dashboard/floats: untouched (`eligible()` skips `SKIP_FT` + floats) [interactive] | Special window restyled → its filetype missing from `SKIP_FT` in `ui-touch.lua` |
 | 5 | Generic busy (non-AI) | `<leader>t`, run `sleep 1 && ls -R /usr/lib 2>/dev/null` | Bar shows `term 1 ⠹ working…` in the crimson `NvAiBusy` chip while output streams [interactive] | Never busy → `nv_ai_activity` TermOpen attach failed (probe: augroup autocmd count, diagnostics-toolkit §6) |
-| 6 | Idle flip timing | After case 5's command ends, stop typing | Flips to `● idle` after ~1.2 s of quiet (`IDLE_MS = 1200`, checked every `POLL_MS = 120`) | Never flips → timer dead: check `require("core.ai-activity")._timer` non-nil (GC pin) |
+| 6 | Idle flip timing | After case 5's command ends, stop typing | Flips to `● idle` after ~1.2 s of quiet (`IDLE_MS = 1200`, checked every `POLL_MS = 120`) | Never flips → check `require("core.ai-activity")._timer` non-nil (GC pin) AND `._ticking` — the timer is busy-gated and idle-by-design when nothing is busy; it must be active while output streams |
 | 7 | Toast dedup | Two rapid external writes to an open file: `echo a >> f; echo b >> f` from another terminal within 250 ms | ONE toast `🤖 AI · edited <name>` (250 ms dedup window in `notify_ai_edit`) | Double toast → dedup window shrunk or file-name key changed |
 | 8 | Disk-wins conflict | Modify a buffer WITHOUT saving; externally overwrite the file; refocus | Buffer silently reloads to disk content; unsaved edits GONE — **by design** (`v:fcs_choice = "reload"`). Not a bug; do not "fix" without change control | Prompt W12 appears → the `FileChangedShell` handler regressed |
 | 9 | Spinner with focus INSIDE terminal | Case 5 but stay in terminal-insert mode watching the bar | Spinner animates (the `nvim__redraw{winbar=true,flush=true}` path) [interactive] | Frozen while focused-in-terminal → someone replaced nvim__redraw with `:redrawstatus` (fenced, below) |
@@ -102,6 +102,12 @@ Obligations: prove `uv_timer_start` from a fast event context is safe (probe
 it — `uv.*` is generally fast-context legal, but verify restart-under-load), and
 show CPU is actually lower than the current single 120 ms sweep before adding
 complexity. Candidate only; the current sweep already skips idle redraws.
+PARTIALLY LANDED (2026-07-15, perf campaign): the single sweep is now
+**busy-gated** — `on_lines` starts `M._timer` from the fast context (the
+`uv_timer:start`-in-fast-context obligation is proven by the real-PTY spec in
+`tests/core/ai_activity_spec.lua`) and `tick()` stops it when nothing is busy,
+so idle costs zero wakeups. The full per-buffer-timer variant remains a
+candidate.
 
 All candidates are **open/candidate status** — none is adopted. Promotion
 routes through Phase 3.
