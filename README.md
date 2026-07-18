@@ -418,6 +418,7 @@ lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<l
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run missing-tools toast
+lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
 lua/core/image-open.lua        Image files open in macOS Quick Look
 lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
 settings/prompts.json          The prompt library (committed, hand-editable)
@@ -619,6 +620,11 @@ Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load
 eagerly. Check the breakdown anytime with `:Lazy profile`.
 
 ## 🔄 Updating
+
+NvSinner tells you when it's time: once per session (on the dashboard, or when
+you open `:NvSinnerHelp`) it checks the version on `main` — if a newer one
+exists, the dashboard quote is replaced by an update prompt and the help title
+shows `· update available` next to the version.
 
 NvSinner is just a git clone, so an update is a `git pull` plus a plugin
 restore. Pick whichever you like:

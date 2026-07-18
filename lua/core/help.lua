@@ -14,6 +14,8 @@
 
 local M = {}
 
+local version = require("core.version") -- title version ("v1.0.0") + update-check state
+
 -- Highlight groups: same names + roles as core/menu.lua on purpose (identical
 -- values, so double-applying is harmless). Fg-only, so they inherit the float
 -- surface and survive transparent mode.
@@ -161,6 +163,33 @@ local function is_open()
 	return ui.win and vim.api.nvim_win_is_valid(ui.win)
 end
 
+-- Border title: distro version via core/version.display() ("v1.0.0"), plus
+-- the update-check status once known; the middle-dot idiom matches ia.lua's
+-- "NvSinner · AI". Nothing reads the title length (title_pos centers it,
+-- padding keys off WIDTH), so it can grow.
+local function win_title()
+	local suffix = ""
+	local st = version.status()
+	if st == "outdated" then
+		suffix = " · update available"
+	elseif st == "checking" then
+		suffix = " · checking…"
+	elseif st == "latest" then
+		suffix = " · up to date"
+	end
+	return "  NvSinner commands · " .. version.display() .. suffix .. " "
+end
+
+-- Retitle the open modal when the version check resolves (open() is one of
+-- the check's two triggers, so "· checking…" can be on screen when the result
+-- lands). A closed modal is skipped — the next open() rebuilds the title from
+-- current state; pcall covers a teardown race.
+version.on_change(function()
+	if is_open() then
+		pcall(vim.api.nvim_win_set_config, ui.win, { title = win_title(), title_pos = "center" })
+	end
+end)
+
 local function title_line(i) -- buffer line (1-based) of item i's title row
 	return items[i] and items[i].line or TOP_PAD + 1
 end
@@ -294,6 +323,7 @@ function M.open()
 		vim.api.nvim_set_current_win(ui.win)
 		return
 	end
+	version.check() -- once-per-session; headless no-op, so tests stay deterministic
 	M.refresh() -- re-scan so commands registered after boot show up
 	ui.sel = math.min(ui.sel, math.max(1, #items))
 	ui.hover_line = -1
@@ -307,10 +337,7 @@ function M.open()
 		relative = "editor",
 		style = "minimal",
 		border = "rounded",
-		-- Distro version from lua/nvsinner/init.lua; the middle-dot idiom
-		-- matches ia.lua's "NvSinner · AI". Nothing reads the title length
-		-- (title_pos centers it, padding keys off WIDTH), so it can grow.
-		title = "  NvSinner commands · " .. require("nvsinner").version .. " ",
+		title = win_title(),
 		title_pos = "center",
 		width = WIDTH,
 		height = height,

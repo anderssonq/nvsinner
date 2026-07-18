@@ -78,6 +78,11 @@ return {
 			vim.api.nvim_set_hl(0, "NvSinnerAttrib", { fg = c.base03, italic = true })
 			-- Hover "pill" on the focused menu item (panel lift + brighter text).
 			vim.api.nvim_set_hl(0, "NvSinnerHover", { fg = c.base05, bg = c.base02, bold = true })
+			-- Version-check footer states (core/version.lua): muted for the
+			-- spinner + "up to date" line (NvSinnerAttrib tone), the attention
+			-- accent for the update prompt.
+			vim.api.nvim_set_hl(0, "NvSinnerVersion", { fg = c.base03, italic = true })
+			vim.api.nvim_set_hl(0, "NvSinnerUpdateAvail", { fg = c.base10, italic = true })
 		end
 		apply_dashboard_hl()
 		-- Re-assert after any colorscheme reload (mirrors theme.lua's pattern).
@@ -119,7 +124,11 @@ return {
 		-- ── Footer ───────────────────────────────────────────────────────────
 		-- A dev quote picked fresh on every launch (this config runs once per
 		-- VimEnter), sitting above a CONSTANT attribution line — so the rotating
-		-- quote changes but "andersoftware.com" is always shown.
+		-- quote changes but "andersoftware.com" is always shown. The quote area
+		-- doubles as the version-check surface (core/version.lua): a spinner
+		-- while the once-per-session check is in flight, the :NvSinnerUpdate
+		-- prompt when an update is available, the quote plus a muted "up to
+		-- date" line when current, and the plain quote on idle/error.
 		local quotes = {
 			"Don't stop until you're proud",
 			"Greatness is the orphan of urgency",
@@ -131,10 +140,109 @@ return {
 			"Walking on water and developing software from a specification are easy if both are frozen. — Edward V. Berard",
 		}
 		math.randomseed(vim.uv.hrtime())
-		local quote = quotes[math.random(#quotes)]
+		local quote = "⟡ " .. quotes[math.random(#quotes)] .. " ⟡"
 
-		dashboard.section.footer.val = "⟡ " .. quote .. " ⟡"
-		dashboard.section.footer.opts.hl = "NvSinnerFooter"
+		local SPIN = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+		-- Anchored via the footer.val closure (held by alpha's config for the
+		-- session), so luv can't GC an active timer handle.
+		local spin = { frame = 1, timer = nil }
+
+		local function any_alpha_win()
+			for _, w in ipairs(vim.api.nvim_list_wins()) do
+				if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "alpha" then
+					return true
+				end
+			end
+			return false
+		end
+
+		local function stop_spinner() -- idempotent
+			if spin.timer then
+				pcall(function()
+					spin.timer:stop()
+					spin.timer:close()
+				end)
+				spin.timer = nil
+			end
+		end
+
+		-- Animate the "checking" line; self-stops once the check resolves or
+		-- the dashboard closes (the resolution redraw arrives via on_change
+		-- below, so the last tick never paints a stale frame).
+		local function ensure_spinner()
+			if spin.timer then
+				return
+			end
+			spin.timer = vim.uv.new_timer()
+			spin.timer:start(
+				120,
+				120,
+				vim.schedule_wrap(function()
+					if require("core.version").status() ~= "checking" or not any_alpha_win() then
+						stop_spinner()
+						return
+					end
+					spin.frame = spin.frame % #SPIN + 1
+					pcall(require("alpha").redraw)
+				end)
+			)
+		end
+
+		-- Per-line highlights with explicit byte ends (same idiom as the header
+		-- gradient above; offsets are relative to the unpadded line — alpha adds
+		-- the centering offset itself).
+		local function line_hl(rows)
+			local hl = {}
+			for i, row in ipairs(rows) do
+				hl[i] = { { row[1], 0, #row[2] } }
+			end
+			return hl
+		end
+
+		-- footer.val is a FUNCTION: alpha re-resolves it on every draw, so the
+		-- async check swaps states by just redrawing. It must return a TABLE of
+		-- lines — alpha renders a "\n" string as multiple screen lines but
+		-- advances its line accounting by only 1, corrupting every later
+		-- element's highlights (verified in alpha's layout_element.text).
+		dashboard.section.footer.val = function()
+			local v = require("core.version")
+			v.check() -- first draw == dashboard actually shown; the once-guard makes redraw re-calls free
+			local st = v.status()
+			local rows
+			if st == "checking" then
+				ensure_spinner()
+				rows = { { "NvSinnerVersion", SPIN[spin.frame] .. "  checking for updates…" } }
+			elseif st == "outdated" then
+				rows = {
+					{
+						"NvSinnerUpdateAvail",
+						"A new version of NvSinner is available ("
+							.. v.display(v.latest())
+							.. ") — update with :NvSinnerUpdate",
+					},
+				}
+			elseif st == "latest" then
+				rows = {
+					{ "NvSinnerFooter", quote },
+				}
+			else -- idle | error → the plain quote (an error already warned via :messages)
+				rows = { { "NvSinnerFooter", quote } }
+			end
+			dashboard.section.footer.opts.hl = line_hl(rows)
+			local lines = {}
+			for i, row in ipairs(rows) do
+				lines[i] = row[2]
+			end
+			return lines
+		end
+
+		-- Redraw when the check resolves; a closed dashboard is skipped (and
+		-- alpha.redraw itself bails with no alpha window, pcall for the rest).
+		require("core.version").on_change(function()
+			if any_alpha_win() then
+				pcall(require("alpha").redraw)
+			end
+		end)
 
 		-- A little breathing room above the logo.
 		dashboard.config.layout[1].val = 4
@@ -148,6 +256,22 @@ return {
 		})
 		table.insert(dashboard.config.layout, 3, { type = "padding", val = 1 })
 
+		-- "NvSinner is up to date" as its OWN centered element. alpha centers
+		-- each element on its longest line, so a short line riding inside the
+		-- footer (which holds the wide, variable-length quote) would
+		-- left-align under the quote. Keeping it on its own line lets it centre
+		-- on the screen. The `val` function (re-resolved on every redraw, like
+		-- the footer) only paints when the version check resolved to "latest".
+		table.insert(dashboard.config.layout, {
+			type = "text",
+			val = function()
+				if require("core.version").status() == "latest" then
+					return "NvSinner is up to date"
+				end
+				return ""
+			end,
+			opts = { position = "center", hl = "NvSinnerVersion" },
+		})
 		-- Attribution as its OWN centered element. alpha centers each element on
 		-- its longest line, so keeping this short line out of the footer (which
 		-- holds the wide, variable-length quote) lets it centre on the screen

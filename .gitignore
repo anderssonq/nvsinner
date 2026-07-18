@@ -48,3 +48,6 @@ settings/nvsinner-settings.json
 
 # Pre-push review reports (git hook output)
 .claude/logs/
+
+# Sinscribe per-feature agent prompt (generated per branch, never committed)
+AGENT_PROMPT.md

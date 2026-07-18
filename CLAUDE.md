@@ -47,6 +47,7 @@ lua/core/ai-complete.lua     Inline AI completion (ghost text), manual insert <C
 lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, model picker over the verified-safe Go models, Ask-AI, prompts); listed as the single AI row in :NvSinnerHelp (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
+lua/core/version.lua         Version state: current/display access + once-per-session async remote check against raw main (dashboard footer update prompt, :NvSinnerHelp title) (native)
 lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
 lua/core/image-open.lua      Open image files in macOS Quick Look + metadata placeholder (native)
 lua/core/git-blame.lua       Inline git blame for the cursor line, async porcelain → eol virt_text (native, replaces git-blame.nvim)
@@ -57,7 +58,7 @@ lua/core/colorizer.lua       #hex color chips on the visible range (native, repl
 lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
 lua/core/window-picker.lua   Letter-overlay window picker; serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
 lua/core/markdown.lua        Markdown reading view: heading bars, bullets, checkboxes, quote/fence/rule styling on the visible range (native, replaces render-markdown.nvim)
-lua/nvsinner/init.lua        Distro metadata — `require("nvsinner").version` (currently "beta"; surfaced in the :NvSinnerHelp title)
+lua/nvsinner/init.lua        Distro metadata — `require("nvsinner").version`, the single semver source of truth (surfaced by :NvSinnerHelp + the dashboard footer; fetched raw from `main` by core/version.lua — its one-line shape is load-bearing)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
 lua/plugins/<category>/<name>.lua   One plugin (or small related group) per file; each returns a lazy spec
 ```
@@ -149,6 +150,7 @@ when you work under that directory. Read them before editing there:
 | Colorscheme file | `colors/CLAUDE.md` |
 | Test suite: spec inventory + conventions | `tests/CLAUDE.md` |
 | Installation runbook + install/uninstall scripts | `docs/installation.md` |
+| Release flow: semver source, update check, cutting a release | `docs/releasing.md` |
 
 AI summary (details in `lua/core/CLAUDE.md` + `lua/plugins/terminal/CLAUDE.md`):
 there is no in-editor AI plugin — a CLI agent runs in a persistent vertical
