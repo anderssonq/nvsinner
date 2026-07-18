@@ -65,12 +65,16 @@ each with its rationale.
 
 - [ ] **Screenshots / GIF** in the README (dashboard, AI column, carbon theme).
       *Needs a human with a GUI terminal — can't be captured headlessly.*
-- [ ] **Versioned releases / tags.** The repo is split out, so this is just
-      picking a version (e.g. `v1.0.0`), tagging, and pushing — a publishing
-      decision for the maintainer.
 
 ## Done (see NVSINNER.md for detail)
 
+- [x] **Versioned releases + update check (v1.0.0).** The semver lives in
+      `lua/nvsinner/init.lua` (single source of truth); `lua/core/version.lua`
+      checks it against raw `main` once per session (dashboard footer +
+      `:NvSinnerHelp` title). Release runbook:
+      [docs/releasing.md](docs/releasing.md), coordinated by the `nvim-release`
+      agent. Pushing an actual `v1.0.0` git tag remains a publishing decision
+      for the maintainer.
 - [x] **Formatters via Mason** — `lua/plugins/lsp/mason-tools.lua`
       (`mason-tool-installer.nvim`) auto-installs `stylua`, `prettier`, and
       `eslint_d` on first boot; no manual `npm i -g` / `brew install` needed.

@@ -36,6 +36,7 @@ require("core.ai-complete") -- inline AI completion (ghost text), manual insert 
 require("core.ia") -- :NvSinnerIA — AI hub modal (completion on/off, model picker, Ask-AI, prompts)
 require("core.update") -- defines :NvSinnerUpdate (git pull + restore plugins + checkhealth)
 require("core.sync") -- defines :NvSinnerSync (opt-in :Lazy sync + Mason package updates)
+require("core.version") -- version state: current/display + once-per-session remote check (dashboard footer, :NvSinnerHelp title)
 require("core.health") -- :checkhealth nvsinner + a one-time first-run "missing tools" toast
 require("core.image-open") -- open images in macOS Quick Look instead of showing binary bytes
 require("core.menu") -- :NvSinnerMenu — the settings modal over core/settings.lua

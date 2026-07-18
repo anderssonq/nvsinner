@@ -59,12 +59,14 @@ describe("core.help", function()
 		help.open()
 		local win = vim.api.nvim_get_current_win()
 		assert.are.equal("editor", vim.api.nvim_win_get_config(win).relative, "must be a float")
-		-- The border title carries the distro version. Asserted against the
-		-- module, not the literal "beta", so tagging a real release keeps this
-		-- passing (nvim returns the title as {{text, hl}, …} chunks).
+		-- The border title carries the distro version via core/version's
+		-- display() ("v1.0.0"). Asserted against the module, not a literal, so
+		-- future bumps keep this passing (nvim returns the title as
+		-- {{text, hl}, …} chunks). Headless, the version check no-ops, so no
+		-- status suffix renders here.
 		local title = vim.api.nvim_win_get_config(win).title
 		title = type(title) == "table" and title[1][1] or tostring(title)
-		assert.matches("NvSinner commands · " .. require("nvsinner").version, title, nil, true)
+		assert.matches("NvSinner commands · " .. require("core.version").display(), title, nil, true)
 		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
 		for _, row in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
 			assert.matches(row, text, nil, true)
@@ -72,6 +74,45 @@ describe("core.help", function()
 		assert.matches("q close", text, nil, true) -- the keyboard hint line
 		help.close()
 		assert.are_not.equal(win, vim.api.nvim_get_current_win())
+	end)
+
+	it("title carries the update status when the check has resolved", function()
+		local version = require("core.version")
+		version._reset()
+		-- Pre-set the resolved state directly (the check itself is pinned by
+		-- tests/core/version_spec.lua; headless, open()'s trigger no-ops).
+		version._state.status = "outdated"
+		version._state.latest = "9.9.9"
+		help.open()
+		local win = vim.api.nvim_get_current_win()
+		local title = vim.api.nvim_win_get_config(win).title
+		title = type(title) == "table" and title[1][1] or tostring(title)
+		help.close()
+		version._reset()
+		assert.matches("· update available", title, nil, true)
+	end)
+
+	it("retitles the open modal when the version check resolves", function()
+		local version = require("core.version")
+		version._reset()
+		help.open()
+		local win = vim.api.nvim_get_current_win()
+		local function title()
+			local t = vim.api.nvim_win_get_config(win).title
+			return type(t) == "table" and t[1][1] or tostring(t)
+		end
+		assert.is_nil(title():find("update available", 1, true))
+		-- Resolve the check while the modal is open: the module-level
+		-- on_change subscriber must retitle the live window.
+		version._state.status = "outdated"
+		version._emit()
+		vim.wait(500, function()
+			return title():find("update available", 1, true) ~= nil
+		end)
+		local got = title()
+		help.close()
+		version._reset()
+		assert.matches("· update available", got, nil, true)
 	end)
 
 	it("groups commands under section rule headers, items on their computed lines", function()

@@ -70,6 +70,15 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
+10. ✅ **Versioned releases + update check (v1.0.0).** The semver lives in ONE
+    place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
+    (`version = "1.0.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    runs a once-per-session async check against that file fetched raw from
+    `main`: the dashboard footer swaps the quote for an update prompt (or
+    appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
+    `v1.0.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
+    the `nvim-release` agent.
 
 ## Status
 
@@ -81,7 +90,8 @@ auto-install, and NvSinner branding across the dashboard + README. On the dev
 machine `~/.config/nvsinner` is a **symlink** to this repo (`~/.config/nvim`) so
 both `nvim` and `nvsinner` load the same files. The distribution-polish items
 (PATH help, `uninstall.sh`, first-run health surfacing) are done, and so are
-Mason-managed formatters and CI.
+Mason-managed formatters, CI, and v1.0.0 versioning with the in-editor update
+check.
 **Remaining:** the "nice to have" items tracked in [TODO.md](TODO.md) — README
-screenshots/GIF (needs a human with a GUI terminal) and versioned releases (a
-maintainer publishing decision).
+screenshots/GIF (needs a human with a GUI terminal); pushing an actual
+`vX.Y.Z` git tag stays optional (the update check only depends on `main`).

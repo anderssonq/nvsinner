@@ -1,11 +1,13 @@
 -- NvSinner distro metadata. This directory doubles as the checkhealth
--- namespace (`health.lua` → `:checkhealth nvsinner`); this module makes
--- `require("nvsinner").version` resolve for UI that surfaces the version
--- (the :NvSinnerHelp title).
+-- namespace (`health.lua` → `:checkhealth nvsinner`); `require("nvsinner").version`
+-- is the SINGLE source of truth for the distro version, surfaced by the
+-- :NvSinnerHelp title and the dashboard footer (via lua/core/version.lua).
 --
--- "beta" is deliberate, not a stale placeholder: no release has been tagged
--- yet — see TODO.md "Versioned releases / tags", still an open maintainer
--- decision. Set a real semver here when one is published.
+-- core/version.lua also fetches THIS FILE raw from the `main` branch and
+-- extracts the version with the Lua pattern `version%s*=%s*"([^"]+)"` — keep
+-- the assignment on one line in that exact shape, or the remote check breaks.
+-- Bump it as part of shipping a release to main; that is what makes existing
+-- installs show "update available".
 return {
-	version = "beta",
+	version = "1.0.0",
 }

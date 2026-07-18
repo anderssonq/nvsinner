@@ -385,6 +385,14 @@ editing.
 - `M.run()` closes **before** executing on purpose: the target may open its own
   modal (`:NvSinnerMenu`, `:NvSinnerIA`) or window (`:checkhealth`) and must not
   land inside this float. It returns the command name (test seam).
+- **The border title carries the version + update status** — built by
+  `win_title()` from `core/version`: `"NvSinner commands · v1.0.0"` plus
+  `· checking… / · update available / · up to date` once the check has state
+  (nothing on idle/error). `M.open()` is one of the version check's two
+  triggers (headless it no-ops), and a module-level `version.on_change`
+  subscriber retitles the OPEN modal via `nvim_win_set_config`
+  (`is_open()`-guarded + pcall for teardown races); a closed modal just gets
+  its title rebuilt on the next open.
 
 ## AI hub — `ia.lua` (required from `init.lua`)
 
@@ -628,7 +636,7 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   nil` (nil for untracked buffers) is the public per-buffer state, consumed
   by the `<leader>ja` picker labels and `ai-ask`'s session picker (the
   lualine statusline badge that used to aggregate it was removed for
-  performance — `docs/nvsinner-perf-analysis.md` §5). `<leader>ja` opens a
+  performance — statusline components re-evaluate on every redraw). `<leader>ja` opens a
   `vim.ui.select` picker (telescope-ui-select skins it) that jumps to a
   session's window (or reopens a hidden one via the toggleterm opener); like
   `<leader>j2…`, it costs a bare `<leader>j` one `timeoutlen`.
@@ -727,6 +735,51 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   per-plugin `branch` before running and diffs it after (`M.branch_jumps`,
   the second pure test seam), WARN-ing about every jump with the rollback
   recipe. Full post-mortem: FA-24 in `nvsinner-failure-archaeology`.
+
+## Version check — `version.lua` (required from `init.lua`)
+
+- The version surface: `M.current()` reads `require("nvsinner").version` (the
+  single source of truth, bumped per release), `M.display()` renders it as
+  `v1.0.0` (the `v` is only prefixed when `vim.version.parse` accepts the
+  string — an old "beta" never reads as "vbeta"), and `M.check()` runs the
+  **once-per-session** async remote check. State machine:
+  `idle → checking → latest | outdated | error`, read via `M.status()` /
+  `M.latest()`; consumers subscribe with `M.on_change(fn)` (a plain list, no
+  unsubscribe — both consumers live for the session and guard their own UI
+  validity).
+- **The remote source is raw `main`, not tags/releases**: `M._fetch` curls
+  `raw.githubusercontent.com/anderssonq/nvsinner/main/lua/nvsinner/init.lua`
+  (the repo publishes no remote tags/releases) and `M._parse_remote`
+  pattern-matches the `version = "…"` line — that one-line shape is
+  load-bearing, documented in `lua/nvsinner/init.lua` itself. Because
+  `:NvSinnerUpdate` is `git pull` of main, "remote main carries a newer
+  semver" is exactly "updating would deliver a newer version". curl rides
+  `vim.system` (`--connect-timeout 3`, `--max-time 10`), the callback is
+  `vim.schedule_wrap`ped, and the HTTP status is split off a `-w` tail (the
+  `ai-complete._request` shape).
+- **Compare policy** (`M._compare`, pure, `vim.version.parse/cmp` with
+  `strict = false`, pcall-guarded): remote > local → `outdated`; unparseable
+  REMOTE → `latest` (until a semver lands on main the remote says "beta" — it
+  can never be declared newer and must not warn on every launch in the
+  interim); unparseable LOCAL vs a semver remote → `outdated` (an old "beta"
+  install pulling main WOULD get a newer version).
+- **Triggers**: the dashboard footer's first draw
+  (`lua/plugins/ui/dashboard.lua`) and `help.open()` — whichever comes first;
+  the once-guard makes later triggers free. `check()` sets `checking`
+  **synchronously** so the draw that triggered it already renders the spinner
+  state, and **emits are always `vim.schedule`d**: the footer function calls
+  `check()` from inside alpha's draw, so a synchronous emit → `alpha.redraw()`
+  would recurse into a draw mid-draw.
+- **Headless never checks** (`M._headless`, the `health.lua` bail pattern) —
+  the installer's headless boot and the test suite stay off the network.
+  Failures (no curl, curl error, non-200, unparseable body) degrade to status
+  `error` — consumers fall back to the plain quote / no title suffix — plus
+  ONE warning written to `:messages` history (`nvim_echo`), deliberately NOT
+  a `vim.notify` toast: an offline launch must not nag.
+- Seams: `M._fetch` (the only network toucher, swapped in specs),
+  `M._parse_remote`, `M._compare`, `M._headless`, `M._warn`, `M._emit`, and
+  `M._reset()` (keeps `_subs` — subscriber registration is load-time wiring,
+  not session state). Spec: `tests/core/version_spec.lua`.
 
 ## Health check — `health.lua` (required from `init.lua`)
 
