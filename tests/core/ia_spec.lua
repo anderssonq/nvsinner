@@ -35,6 +35,7 @@ describe("core.ia", function()
 			"Ask AI (selection)",
 			"Complete at cursor",
 			"Prompt library",
+			"Clear AI session",
 		}) do
 			assert.matches(row, text, nil, true)
 		end
@@ -83,6 +84,20 @@ describe("core.ia", function()
 		assert.is_true(fired, "the action must run its command")
 		assert.are_not.equal(win, vim.api.nvim_get_current_win(), "an action closes the modal")
 		pcall(vim.api.nvim_del_user_command, "NvSinnerAskAI")
+	end)
+
+	it("activate() on the clear-session row runs :NvSinnerAIClear and closes", function()
+		local fired = false
+		vim.api.nvim_create_user_command("NvSinnerAIClear", function()
+			fired = true
+		end, { desc = "stub" })
+		ia.open()
+		local win = vim.api.nvim_get_current_win()
+		ia.move(99) -- clamp to the last row: Clear AI session
+		ia.activate()
+		assert.is_true(fired, "the clear action must run its command")
+		assert.are_not.equal(win, vim.api.nvim_get_current_win(), "an action closes the modal")
+		pcall(vim.api.nvim_del_user_command, "NvSinnerAIClear")
 	end)
 
 	it("_model_items offers only verified-safe models, fastest first with its note", function()

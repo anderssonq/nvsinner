@@ -35,6 +35,21 @@ edits files on disk (see *Auto-reload* below).
   text, opts)` sends to an EXPLICIT session entry (registry entry or
   `sessions()` row; job_id read live from `e.term`) — `M.send` is now a thin
   auto-target wrapper over it. `M._reset()` / `M._payload()` are test seams.
+- **Clear a session** — `<leader>jc` / `:NvSinnerAIClear [n]` → `M.clear(n?)`:
+  kills the CLI and forgets the chosen agent so the next `<leader>j` open
+  re-runs the CLI picker (the counterpart to toggling, which hides without
+  killing). The panels live in toggleterm's config closure, and after a CLI
+  exits `on_exit` has already unregistered the session from the registry —
+  so BOTH enumeration and teardown come from the injected
+  `set_clearer({ list, clear })` pair (the `set_opener` pattern): core cannot
+  see a dead-but-memoised panel on its own. `M.clear` holds all the pickable
+  logic (no-panel WARN no-op, unknown-`n` WARN, single panel clears directly,
+  several ask via `vim.ui.select` with the `<leader>ja` label formula —
+  unregistered panels marked "exited") and calls `M.unregister` itself right
+  after `clearer.clear(n)` (shutdown's `on_exit` fires asynchronously;
+  unregister is idempotent, so the late echo is harmless). The command is
+  EXCLUDEd from `:NvSinnerHelp` and surfaced as an action row in the
+  `:NvSinnerIA` hub instead.
 
 ### Ask-AI modal — `ai-ask.lua` (required from `init.lua`)
 - The IDE-style "select → ask" flow: visual `<leader>x` (free — trouble's
@@ -402,9 +417,11 @@ editing.
   - **SETTINGS** — `AI completion` (`kind = "toggle"` → flips `settings.ai_complete`
     in place, same effect as `:NvSinnerCompleteToggle`) and `Model`
     (`kind = "select"` → opens a `vim.ui.select` model picker).
-  - **ACTIONS** — `Ask AI` / `Complete at cursor` / `Prompt library`
-    (`kind = "action"` → runs `:NvSinnerAskAI` / `:NvSinnerComplete` /
-    `:NvSinnerPrompts` and **closes first**, same rationale as `help.run()`).
+  - **ACTIONS** — `Ask AI` / `Complete at cursor` / `Prompt library` /
+    `Clear AI session` (`kind = "action"` → runs `:NvSinnerAskAI` /
+    `:NvSinnerComplete` / `:NvSinnerPrompts` / `:NvSinnerAIClear` and
+    **closes first**, same rationale as `help.run()` — clear may open its own
+    `vim.ui.select`).
 - `M.activate()` dispatches by `kind`; `h`/`<Left>` = `activate_back` (flip / open
   picker for settings rows, no-op on actions). Same keyboard/mouse scheme,
   `NvMenu*` styling, and `backdrop.attach` as the other modals.

@@ -157,7 +157,9 @@ there is no in-editor AI plugin — a CLI agent runs in a persistent vertical
 toggleterm column (`<leader>j`, sessions 2–9 via `<leader>j2`…); editor context
 is piped in via the send-to-AI bridge (`<leader>as`/`ab`/`ad`, visual
 `<leader>x` Ask-AI modal) and buffers auto-reload when the CLI edits files on
-disk.
+disk. Toggling hides without killing; `<leader>jc` / `:NvSinnerAIClear`
+clears a session for good (kills the CLI, forgets the chosen agent) so the
+next open re-runs the CLI picker.
 
 ## Keymaps
 

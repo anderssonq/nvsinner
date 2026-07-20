@@ -171,7 +171,10 @@ going. When the program signals a prompt (OSC 133 shell integration, or a
 terminal notification), the bar flips to `◆ needs input` — this only works
 for programs that emit those sequences; the output-based spinner covers
 everything else. `<leader>ja` opens a picker that jumps to (or reopens) any
-session.
+session. `<leader>jc` (or `:NvSinnerAIClear`) **clears** a session for good:
+it kills the CLI and forgets the chosen agent, so the next `<leader>j` open
+shows the CLI picker again — the counterpart to toggling, which only hides
+the column and keeps the process alive.
 
 **Send context without the clipboard:** select code and hit `<leader>as` to
 drop it into the AI column's input, `<leader>ab` to send an `@path` mention
@@ -413,7 +416,7 @@ lua/core/ai-edits.lua          Underlines AI-written lines after a reload, until
 lua/core/ui-touch.lua          Active-window glow + mouse-hover docs (native)
 lua/core/filebadge.lua         Per-window winbar file badge: focus dot + filename (+ markdown "Open view" chip)
 lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal winbar
-lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja)
+lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja, <leader>jc clear)
 lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
@@ -542,6 +545,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
 | `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
+| `<leader>jc` | n | Clear an AI session — kill the CLI + forget the choice, next open re-asks (`:NvSinnerAIClear`) |
 | `<leader>x` | x | Ask AI about the selection — Fix / Refactor / Explain / custom question modal (also `:NvSinnerAskAI`) |
 | double-click | n, x | Ask AI about the word under the pointer (or the active selection) — same modal |
 | `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |

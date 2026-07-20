@@ -19,8 +19,11 @@
 - `telescope.lua` — `<leader>f` find files (incl. hidden dotfiles),
   `<leader>sf` live grep, `<leader>fb` buffers, plus the `<leader>s*` pickers
   (diagnostics / keymaps / commands / resume / help / symbols / references).
-  telescope-ui-select skins `vim.ui.select` (used by the `<leader>ja` AI
-  session picker).
+  telescope-ui-select skins `vim.ui.select` (used by the `<leader>ja`/`jc`
+  AI session pickers). The spec's `init` shims `vim.ui.select` so the FIRST
+  call of a session lazy-loads telescope and re-dispatches — without it, a
+  select fired before telescope loaded fell back to Neovim's builtin
+  numbered prompt (rendered inconsistently by noice popup/cmdline).
 - `leap.lua` — `s` / `S` / `gs` motions.
 - `nvim-window-picker.lua` — **disabled** (`enabled = false`): replaced by
   the native letter-overlay picker in `lua/core/window-picker.lua`, which

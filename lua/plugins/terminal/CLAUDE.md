@@ -26,7 +26,10 @@
   (`create_ai_panel`), so a session only spawns its process the first time you
   open it — and that first open shows the **CLI picker** (below): the chosen
   CLI becomes the terminal's `cmd`, "plain terminal" runs the shell with a
-  `term` winbar title.
+  `term` winbar title. The memoised entry in `ai_panels` is what suppresses
+  the picker on later opens; `<leader>jc` / `:NvSinnerAIClear` (the injected
+  `set_clearer`, see *Bridge integration*) `shutdown()`s the Terminal and
+  drops that memo, so the next open re-runs the picker with a fresh CLI list.
 - **First-open CLI picker** — the first time an AI session is toggled, a picker
   opens *in the column's own space* (a full-height side split, not a float)
   listing `claude` / `kiro-cli` / `opencode` (not-installed ones are marked and
@@ -51,9 +54,13 @@
   on `:resize`, so the old "±20%" wording was never percentual.)
 - **Bridge integration**: `toggleterm.lua` pushes sessions into
   `core/ai-sessions.lua` (`register` on create, `touch` on open + a
-  `TermEnter` autocmd, `unregister` on exit, `set_opener` for the fallback)
-  and sets `b:nv_term_label` in `on_panel_open` for the activity winbar. Full
-  bridge/labeling contracts: `lua/core/CLAUDE.md` §AI and §Agent activity.
+  `TermEnter` autocmd, `unregister` on exit, `set_opener` for the fallback,
+  `set_clearer` for `<leader>jc`'s clear — a `{ list, clear }` pair over
+  `ai_panels`, because after a CLI exits the core registry has already
+  dropped the session and ONLY this closure can still see the memoised
+  Terminal) and sets `b:nv_term_label` in `on_panel_open` for the activity
+  winbar. Full bridge/labeling contracts: `lua/core/CLAUDE.md` §AI and
+  §Agent activity.
 
 ## Sessions — `persistence.lua`
 

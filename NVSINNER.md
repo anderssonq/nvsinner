@@ -70,15 +70,18 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0).** The semver lives in ONE
-    place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.0.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.1.0).** The
+    semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
+    (`version = "1.1.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.0.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.1.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
-    the `nvim-release` agent.
+    the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
+    `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
+    re-runs the picker) and a consistent `vim.ui.select` UI (telescope-backed
+    from the first call of a session).
 
 ## Status
 
