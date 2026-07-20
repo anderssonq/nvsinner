@@ -388,5 +388,31 @@ return {
 		require("core.ai-sessions").set_opener(function(n)
 			toggle_ai_panel(n or 1)
 		end)
+
+		-- Let <leader>jc / :NvSinnerAIClear kill a session AND forget its CLI
+		-- choice. The memoised Terminal in ai_panels is what suppresses the
+		-- first-open picker — and once a CLI exits, on_exit has already
+		-- unregistered the session from core, so only this closure can still
+		-- enumerate and drop it. shutdown() kills the job and deletes the
+		-- buffer; clearing the memo makes the next toggle re-run pick_ai_cmd.
+		require("core.ai-sessions").set_clearer({
+			list = function()
+				local out = {}
+				for n in pairs(ai_panels) do
+					table.insert(out, n)
+				end
+				table.sort(out)
+				return out
+			end,
+			clear = function(n)
+				local term = ai_panels[n]
+				if not term then
+					return false
+				end
+				pcall(term.shutdown, term)
+				ai_panels[n] = nil
+				return true
+			end,
+		})
 	end,
 }

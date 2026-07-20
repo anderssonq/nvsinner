@@ -27,6 +27,7 @@ local M = {}
 -- order depend on pairs() iteration.
 local registry = {}
 local opener -- injected by toggleterm: function(n) → toggle/open session n
+local clearer -- injected by toggleterm: { list = fn() → sorted {n,…}, clear = fn(n) → bool }
 local mru_clock = 0
 local function stamp()
 	mru_clock = mru_clock + 1
@@ -35,6 +36,10 @@ end
 
 function M.set_opener(fn)
 	opener = fn
+end
+
+function M.set_clearer(c)
+	clearer = c
 end
 
 function M.register(n, term)
@@ -88,6 +93,65 @@ function M.sessions()
 		return a.n < b.n
 	end)
 	return out
+end
+
+-- Label for the clear picker: registered sessions reuse the <leader>ja
+-- formula (winbar label + activity status); a panel the registry no longer
+-- knows (its CLI already exited — on_exit unregistered it) is marked so.
+local function clear_label(n)
+	local e = registry[n]
+	if not e then
+		return "AI · " .. n .. " — exited"
+	end
+	local bufnr = e.term.bufnr
+	local label = (bufnr and vim.api.nvim_buf_is_valid(bufnr) and vim.b[bufnr].nv_term_label) or ("AI · " .. n)
+	local activity = require("core.ai-activity")
+	local status = (activity.status and activity.status(bufnr)) or (is_open(e.term) and "idle" or "hidden")
+	return string.format("%s — %s", label, status)
+end
+
+-- Clear (definitively close) an AI session: kill its CLI and drop the
+-- memoised Terminal so the next <leader>j open shows the CLI picker again —
+-- the counterpart to toggling, which hides without killing. Both the
+-- enumeration and the teardown come from the injected clearer because the
+-- panels live in toggleterm's closure and the registry can't see a panel
+-- whose CLI already exited (on_exit unregisters it; the memo survives).
+-- With no explicit n: a single panel clears directly, several ask via
+-- vim.ui.select. Returns true when a panel was cleared.
+function M.clear(n)
+	local panels = clearer and clearer.list() or {}
+	if #panels == 0 then
+		vim.notify("No AI session to clear — open one with <leader>j", vim.log.levels.WARN)
+		return false
+	end
+	local function do_clear(sn)
+		clearer.clear(sn)
+		-- shutdown's on_exit unregisters asynchronously; do it here too so
+		-- the registry is deterministically clean (unregister is idempotent).
+		M.unregister(sn)
+		vim.notify("AI session " .. sn .. " cleared — <leader>j starts fresh", vim.log.levels.INFO)
+		return true
+	end
+	if n then
+		if not vim.tbl_contains(panels, n) then
+			vim.notify("No AI session " .. n .. " to clear", vim.log.levels.WARN)
+			return false
+		end
+		return do_clear(n)
+	end
+	if #panels == 1 then
+		return do_clear(panels[1])
+	end
+	local cleared = false
+	vim.ui.select(panels, {
+		prompt = "Clear AI session",
+		format_item = clear_label,
+	}, function(choice)
+		if choice then
+			cleared = do_clear(choice)
+		end
+	end)
+	return cleared
 end
 
 -- Most-recently-used entry passing `pred`, or nil.
@@ -263,6 +327,19 @@ vim.keymap.set("n", "<leader>ja", function()
 	end)
 end, { desc = "Jump to AI session" })
 
+-- Clear a session for good: kill the CLI and forget the choice, so the next
+-- <leader>j open asks which CLI to run again. Same <leader>j-prefix
+-- timeoutlen trade-off as <leader>ja.
+vim.keymap.set("n", "<leader>jc", function()
+	M.clear()
+end, { desc = "Clear AI session (kill CLI + forget choice)" })
+
+-- :NvSinnerAIClear [n] — the command form (hidden from :NvSinnerHelp like the
+-- other AI commands; it lives in the :NvSinnerIA hub).
+vim.api.nvim_create_user_command("NvSinnerAIClear", function(a)
+	M.clear(tonumber(a.args))
+end, { nargs = "?", desc = "Clear an AI session — kill the CLI and forget the choice (<leader>jc)" })
+
 -- Keep last_used honest when the user moves into a column by any route
 -- (mouse, <C-h/l>, window commands) — not just via the toggles.
 vim.api.nvim_create_autocmd("TermEnter", {
@@ -281,6 +358,7 @@ vim.api.nvim_create_autocmd("TermEnter", {
 function M._reset()
 	registry = {}
 	opener = nil
+	clearer = nil
 end
 
 return M

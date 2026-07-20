@@ -67,6 +67,7 @@ local ROWS = {
 	{ kind = "action", section = "actions", label = "Ask AI (selection)", cmd = "NvSinnerAskAI" },
 	{ kind = "action", section = "actions", label = "Complete at cursor", cmd = "NvSinnerComplete" },
 	{ kind = "action", section = "actions", label = "Prompt library", cmd = "NvSinnerPrompts" },
+	{ kind = "action", section = "actions", label = "Clear AI session", cmd = "NvSinnerAIClear" },
 }
 
 function M._rows() -- test seam

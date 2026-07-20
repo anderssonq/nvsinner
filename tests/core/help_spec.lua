@@ -36,7 +36,13 @@ describe("core.help", function()
 		assert.is_false(vim.tbl_contains(t, ":NvSinnerHelp"), "the palette must not list itself")
 		-- The AI commands moved into the :NvSinnerIA hub, so the palette no longer
 		-- lists them individually.
-		for _, gone in ipairs({ ":NvSinnerAskAI", ":NvSinnerComplete", ":NvSinnerCompleteToggle", ":NvSinnerPrompts" }) do
+		for _, gone in ipairs({
+			":NvSinnerAIClear",
+			":NvSinnerAskAI",
+			":NvSinnerComplete",
+			":NvSinnerCompleteToggle",
+			":NvSinnerPrompts",
+		}) do
 			assert.is_false(vim.tbl_contains(t, gone), gone .. " should live inside :NvSinnerIA")
 		end
 	end)

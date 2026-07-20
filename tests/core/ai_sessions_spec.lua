@@ -1,7 +1,9 @@
 -- Tests for the AI session registry + send-to-AI bridge (lua/core/ai-sessions.lua):
 -- registration and the sessions() snapshot, target() MRU semantics, send() into a
 -- real terminal job, the bracketed-paste payload wrapping, the no-session opener
--- fallback, and the bridge/picker keymaps existing.
+-- fallback, clear() killing a session + forgetting its CLI choice via the
+-- injected clearer (incl. the dead-but-memoised panel the registry can't see),
+-- and the bridge/picker keymaps + :NvSinnerAIClear existing.
 
 require("core.options") -- leaders must be set before the module maps <leader>a*
 local sessions = require("core.ai-sessions")
@@ -17,6 +19,31 @@ describe("core.ai-sessions", function()
 				return self.__open == true
 			end,
 		}, fields or {})
+	end
+
+	-- A stand-in for toggleterm's injected clearer over `panels` ({ [n] = true }).
+	-- Returns the list of session numbers cleared, in order.
+	local function fake_clearer(panels)
+		local cleared = {}
+		sessions.set_clearer({
+			list = function()
+				local out = {}
+				for n in pairs(panels) do
+					table.insert(out, n)
+				end
+				table.sort(out)
+				return out
+			end,
+			clear = function(n)
+				if not panels[n] then
+					return false
+				end
+				panels[n] = nil
+				cleared[#cleared + 1] = n
+				return true
+			end,
+		})
+		return cleared
 	end
 
 	before_each(function()
@@ -154,10 +181,150 @@ describe("core.ai-sessions", function()
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 
+	it("clear() with no clearer or no panels is a safe warning no-op", function()
+		local toasts = {}
+		local orig = vim.notify
+		vim.notify = function(msg, level)
+			toasts[#toasts + 1] = { msg = msg, level = level }
+		end
+
+		local ok_unset = sessions.clear() -- _reset wiped the injected clearer
+		fake_clearer({})
+		local ok_empty = sessions.clear()
+
+		vim.notify = orig -- restore BEFORE asserting so a failure can't leak it
+
+		assert.is_false(ok_unset)
+		assert.is_false(ok_empty)
+		assert.are.equal(2, #toasts)
+		for _, t in ipairs(toasts) do
+			assert.are.equal(vim.log.levels.WARN, t.level)
+			assert.matches("No AI session", t.msg, nil, true)
+		end
+	end)
+
+	it("clear() with one panel kills it, unregisters it, and confirms", function()
+		sessions.register(1, fake_term({ bufnr = 10, job_id = 100, __open = true }))
+		local cleared = fake_clearer({ [1] = true })
+		local toasts = {}
+		local orig = vim.notify
+		vim.notify = function(msg, level)
+			toasts[#toasts + 1] = { msg = msg, level = level }
+		end
+
+		local ok = sessions.clear()
+
+		vim.notify = orig
+
+		assert.is_true(ok)
+		assert.are.same({ 1 }, cleared)
+		assert.are.equal(0, #sessions.sessions(), "the cleared session must leave the registry")
+		assert.are.equal(1, #toasts)
+		assert.are.equal(vim.log.levels.INFO, toasts[1].level)
+		assert.matches("cleared", toasts[1].msg, nil, true)
+	end)
+
+	it("clear() reaches a dead panel the registry no longer knows", function()
+		-- The motivating bug: the CLI exited, on_exit unregistered the session,
+		-- but toggleterm still memoises the Terminal — so <leader>j reopens the
+		-- corpse instead of the picker. Enumeration must come from the clearer.
+		local cleared = fake_clearer({ [2] = true }) -- nothing registered in core
+		assert.is_true(sessions.clear())
+		assert.are.same({ 2 }, cleared)
+	end)
+
+	it("clear(n) targets that panel; an unknown n warns and clears nothing", function()
+		local cleared = fake_clearer({ [1] = true, [3] = true })
+		assert.is_true(sessions.clear(3))
+		assert.are.same({ 3 }, cleared)
+
+		local toasts = {}
+		local orig = vim.notify
+		vim.notify = function(msg, level)
+			toasts[#toasts + 1] = { msg = msg, level = level }
+		end
+		local ok = sessions.clear(5)
+		vim.notify = orig
+
+		assert.is_false(ok)
+		assert.are.same({ 3 }, cleared, "an unknown n must not clear anything")
+		assert.are.equal(vim.log.levels.WARN, toasts[1].level)
+		assert.matches("No AI session 5", toasts[1].msg, nil, true)
+	end)
+
+	it("clear() with several panels asks which via vim.ui.select", function()
+		-- Session 1 is registered live with a labelled buffer; sessions 2 and 3
+		-- are dead memos only the clearer knows — the picker marks them "exited".
+		local buf = vim.api.nvim_create_buf(false, true)
+		vim.b[buf].nv_term_label = "AI · 1"
+		sessions.register(1, fake_term({ bufnr = buf, __open = true }))
+		local cleared = fake_clearer({ [1] = true, [2] = true, [3] = true })
+
+		local offered, labels
+		local orig_select = vim.ui.select
+		vim.ui.select = function(items, opts, cb)
+			offered = items
+			labels = vim.tbl_map(opts.format_item, items)
+			cb(items[2]) -- pick session 2
+		end
+
+		local ok = sessions.clear()
+
+		vim.ui.select = orig_select
+
+		assert.is_true(ok)
+		assert.are.same({ 1, 2, 3 }, offered)
+		assert.matches("AI · 1", labels[1], nil, true)
+		assert.matches("exited", labels[2], nil, true)
+		assert.are.same({ 2 }, cleared)
+		assert.are.equal(1, #sessions.sessions(), "session 1 must survive")
+
+		-- Cancelling the picker (still 2 panels left) clears nothing.
+		vim.ui.select = function(_, _, cb)
+			cb(nil)
+		end
+		assert.is_false(sessions.clear())
+		vim.ui.select = orig_select
+		assert.are.same({ 2 }, cleared)
+
+		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	it("clear() kills a real terminal job and leaves the registry clean", function()
+		vim.cmd("terminal cat")
+		local buf = vim.api.nvim_get_current_buf()
+		local job = vim.b[buf].terminal_job_id
+		assert.is_not_nil(job)
+		sessions.register(1, fake_term({ bufnr = buf, job_id = job, __open = true }))
+		sessions.set_clearer({
+			list = function()
+				return { 1 }
+			end,
+			clear = function()
+				-- shutdown()'s observable effect: force-deleting the terminal
+				-- buffer kills its job.
+				vim.api.nvim_buf_delete(buf, { force = true })
+				return true
+			end,
+		})
+
+		assert.is_true(sessions.clear())
+		assert.are.equal(0, #sessions.sessions(), "clear() must unregister without waiting for on_exit")
+		local dead = vim.wait(3000, function()
+			return vim.fn.jobwait({ job }, 0)[1] ~= -1
+		end, 50)
+		assert.is_true(dead, "the CLI job must be dead after clear()")
+	end)
+
 	it("maps the bridge and picker keys", function()
 		assert.are_not.equal("", vim.fn.maparg("<leader>as", "x"), "<leader>as (visual) must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>ab", "n"), "<leader>ab must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>ad", "n"), "<leader>ad must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>ja", "n"), "<leader>ja must exist")
+		assert.are_not.equal("", vim.fn.maparg("<leader>jc", "n"), "<leader>jc must exist")
+	end)
+
+	it("defines the :NvSinnerAIClear user command", function()
+		assert.is_not_nil(vim.api.nvim_get_commands({})["NvSinnerAIClear"])
 	end)
 end)

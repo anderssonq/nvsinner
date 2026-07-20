@@ -3,6 +3,19 @@ return {
 	tag = "0.1.8",
 	-- Lazy: loads on the :Telescope command or any of the keymaps below.
 	cmd = "Telescope",
+	-- vim.ui.select is only skinned by telescope-ui-select once telescope has
+	-- loaded — without this shim, the first <leader>ja/jc of a session fell
+	-- back to Neovim's builtin numbered prompt (rendered inconsistently by
+	-- noice). First call loads telescope and re-dispatches, so every select
+	-- picker is the same dropdown (LazyVim's load-on-first-use pattern).
+	init = function()
+		local builtin = vim.ui.select
+		vim.ui.select = function(...)
+			vim.ui.select = builtin -- a failed load must not re-enter the shim
+			require("lazy").load({ plugins = { "telescope.nvim" } })
+			return vim.ui.select(...)
+		end
+	end,
 	dependencies = {
 		"nvim-lua/plenary.nvim",
 		"nvim-telescope/telescope-ui-select.nvim",
