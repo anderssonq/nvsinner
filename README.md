@@ -27,6 +27,10 @@ oxocarbon / IBM Carbon port — industrial grays, blue-forward accents). It
 installs under its own `NVIM_APPNAME=nvsinner`, so it runs side-by-side with
 any existing `~/.config/nvim` without touching it.
 
+<p align="center">
+  <img width="700" height="438" alt="nvsinner" src="https://github.com/user-attachments/assets/333f28af-e9af-4b64-85bb-46f478708a62" />
+</p>
+
 ## ✨ Features
 
 - **AI as a terminal column, not a plugin** — run any CLI agent (`claude`,
