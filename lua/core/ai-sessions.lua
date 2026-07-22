@@ -247,6 +247,45 @@ function M.buffer_mention(buf)
 	return "@" .. vim.fn.fnamemodify(name, ":.") .. " "
 end
 
+-- Claude-style @path mentions for EVERY open file buffer — current buffer
+-- first, then the rest in buffer-list order, deduped by cwd-relative path,
+-- joined with spaces + a trailing space so the user keeps typing. Single-line
+-- on purpose: M._payload sends it raw (no bracketed paste). Only listed,
+-- ordinary (buftype == "") buffers whose name exists on disk qualify, so
+-- terminals, pickers, and never-saved names can't produce dead @refs.
+-- Returns nil when nothing qualifies. opts.bufs supplies an explicit buffer
+-- list (kept in the caller's order) for picker-style reuse.
+function M.buffer_mentions(opts)
+	opts = opts or {}
+	local uv = vim.uv or vim.loop
+	local bufs = opts.bufs
+	if not bufs then
+		bufs = { vim.api.nvim_get_current_buf() }
+		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+			if buf ~= bufs[1] then
+				table.insert(bufs, buf)
+			end
+		end
+	end
+	local parts, seen = {}, {}
+	for _, buf in ipairs(bufs) do
+		if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buflisted and vim.bo[buf].buftype == "" then
+			local name = vim.api.nvim_buf_get_name(buf)
+			if name ~= "" and uv.fs_stat(name) then
+				local rel = vim.fn.fnamemodify(name, ":.")
+				if not seen[rel] then
+					seen[rel] = true
+					table.insert(parts, "@" .. rel)
+				end
+			end
+		end
+	end
+	if #parts == 0 then
+		return nil
+	end
+	return table.concat(parts, " ") .. " "
+end
+
 -- Diagnostics on the given (1-based) line of the buffer, formatted for an AI
 -- prompt; nil when the line is clean.
 function M.diagnostics_text(buf, lnum)

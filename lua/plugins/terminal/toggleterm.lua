@@ -43,6 +43,12 @@ return {
 		end
 		local h_panels = {}
 		local ai_panels = {}
+		-- pending_prime[n] holds the @-mentions text to inject into session n
+		-- on its NEXT open (the <leader>jx flow) — consumed in on_panel_open,
+		-- so it survives the first-open CLI picker's async choice. The text is
+		-- captured at keypress time: by the time the panel opens, focus (and
+		-- the "current" buffer) has already moved into the terminal.
+		local pending_prime = {}
 		local function restore_layout()
 			for _, t in pairs(h_panels) do
 				if t:is_open() then
@@ -59,6 +65,37 @@ return {
 				end
 			end
 		end
+		-- Prime a just-opened AI panel's CLI input with the captured
+		-- @-mentions text. Cold-start safety: the CLI TUI may not have
+		-- grabbed the PTY yet, so wait for the terminal's first output before
+		-- chansend-ing (~100ms polls, ~2s cap); a warm reopen already has
+		-- output and injects on the first check. Never a trailing \r — the
+		-- mentions land in the CLI input for the user to review (the bridge
+		-- contract).
+		local PRIME_POLL_MS = 100
+		local PRIME_MAX_TRIES = 20
+		local function prime_session(term, text)
+			local tries = 0
+			local function attempt()
+				local buf = term.bufnr
+				if not (buf and vim.api.nvim_buf_is_valid(buf)) then
+					return -- panel died/closed while waiting: drop the prime
+				end
+				local lines = vim.api.nvim_buf_get_lines(buf, 0, 2, false)
+				if #lines > 1 or (lines[1] or "") ~= "" then
+					-- pcall: an open column whose CLI already exited has a
+					-- dead channel — a no-op beats an E900.
+					pcall(vim.fn.chansend, term.job_id, text)
+					return
+				end
+				tries = tries + 1
+				if tries < PRIME_MAX_TRIES then
+					vim.defer_fn(attempt, PRIME_POLL_MS)
+				end
+			end
+			attempt()
+		end
+
 		-- Re-assert the layout after any panel opens, then hand focus + insert
 		-- mode back to the panel that was just opened.
 		local function on_panel_open(term)
@@ -77,7 +114,13 @@ return {
 			-- Bump the session's MRU stamp so the send-to-AI bridge targets the
 			-- panel the user opened last (AI ids are 100+; session = id - 99).
 			if (term.id or 0) >= 100 then
-				require("core.ai-sessions").touch(term.id - 99)
+				local n = term.id - 99
+				require("core.ai-sessions").touch(n)
+				local text = pending_prime[n]
+				if text then
+					pending_prime[n] = nil
+					prime_session(term, text)
+				end
 			end
 			if term.window and vim.api.nvim_win_is_valid(term.window) then
 				vim.api.nvim_set_current_win(term.window)
@@ -178,7 +221,7 @@ return {
 		local AI_CLIS = { "claude", "kiro-cli", "opencode" }
 		local picker_ns = vim.api.nvim_create_namespace("nvsinner_ai_picker")
 
-		local function pick_ai_cmd(n, on_choice)
+		local function pick_ai_cmd(n, on_choice, on_cancel)
 			local entries = {}
 			for _, cli in ipairs(AI_CLIS) do
 				table.insert(entries, { cmd = cli, name = cli, ok = vim.fn.executable(cli) == 1 })
@@ -237,9 +280,17 @@ return {
 				end
 			end
 
-			local function cancel()
+			local function close_win()
 				if vim.api.nvim_win_is_valid(win) then
 					pcall(vim.api.nvim_win_close, win, true)
+				end
+			end
+			-- Dismissing is distinguishable from choosing: the <leader>jx flow
+			-- clears its pending prime flag when the picker is cancelled.
+			local function cancel()
+				close_win()
+				if on_cancel then
+					on_cancel()
 				end
 			end
 			local function choose(i)
@@ -251,7 +302,7 @@ return {
 					vim.notify(e.name .. " is not on PATH — install it or pick another option", vim.log.levels.WARN)
 					return
 				end
-				cancel()
+				close_win()
 				on_choice(e)
 			end
 
@@ -321,7 +372,36 @@ return {
 			end
 			pick_ai_cmd(n, function(choice)
 				create_ai_panel(n, choice):toggle()
+			end, function()
+				pending_prime[n] = nil -- a cancelled first open must not prime later
 			end)
+		end
+
+		-- <leader>jx flow: capture the @-mentions for every open file buffer
+		-- NOW (focus moves into the terminal next, which would lose the
+		-- current-buffer-first order), then focus session n's column —
+		-- opening it first when needed. EVERY press injects the mentions:
+		-- an already-open column gets them chansent straight into the
+		-- running CLI (the input can't be read, so they append to whatever
+		-- is typed — deliberate: the key means "insert the references");
+		-- a closed one stashes them in pending_prime for on_panel_open.
+		-- With no eligible buffers this degrades to a plain focus/open.
+		local function focus_and_prime_ai_panel(n)
+			n = n or 1
+			local text = require("core.ai-sessions").buffer_mentions()
+			local term = ai_panels[n]
+			if term and term:is_open() then
+				if term.window and vim.api.nvim_win_is_valid(term.window) then
+					vim.api.nvim_set_current_win(term.window)
+					vim.cmd("startinsert!")
+				end
+				if text then
+					prime_session(term, text)
+				end
+				return
+			end
+			pending_prime[n] = text
+			toggle_ai_panel(n)
 		end
 
 		-- Re-assert the column side live when it changes in :NvSinnerMenu.
@@ -381,6 +461,23 @@ return {
 			vim.keymap.set("n", "<leader>j" .. n, function()
 				toggle_ai_panel(n)
 			end, { desc = "Toggle AI session " .. n })
+		end
+
+		-- <leader>jx / <leader>jx2 .. <leader>jx9 -> focus-or-open an AI
+		-- session with the CLI input primed with @-mentions for every open
+		-- file buffer, so a question typed right after is about those files.
+		-- A separate suffix in the <leader>j namespace (beside ja/jc):
+		-- <leader>j/<leader>jN stays the plain hide/show toggle (and the
+		-- no-prime path). <leader>jx is itself a prefix of <leader>jx2.., so
+		-- a bare <leader>jx waits one 'timeoutlen' before falling back to
+		-- session 1 — the documented <leader>t/<leader>j trade-off.
+		vim.keymap.set("n", "<leader>jx", function()
+			focus_and_prime_ai_panel(1)
+		end, { desc = "AI session 1 — focus + @-mention open buffers" })
+		for n = 2, 9 do
+			vim.keymap.set("n", "<leader>jx" .. n, function()
+				focus_and_prime_ai_panel(n)
+			end, { desc = "AI session " .. n .. " — focus + @-mention open buffers" })
 		end
 
 		-- Let the bridge open a session when a send finds none alive (and let

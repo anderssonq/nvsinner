@@ -38,9 +38,9 @@ describe("core.version", function()
 		return env
 	end
 
-	it("current() reads the nvsinner module and pins the 1.1.0 release", function()
+	it("current() reads the nvsinner module and pins the 1.2.0 release", function()
 		assert.are.equal(require("nvsinner").version, version.current())
-		assert.are.equal("1.1.0", version.current())
+		assert.are.equal("1.2.0", version.current())
 	end)
 
 	it("display() prefixes v for semver strings only", function()

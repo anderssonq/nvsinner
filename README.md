@@ -41,7 +41,9 @@ any existing `~/.config/nvim` without touching it.
   without touching the clipboard: `<leader>as` sends the visual selection,
   `<leader>ab` an `@path` mention, `<leader>ad` the current line's
   diagnostics. Text lands in the CLI's input as one editable block — never
-  auto-submitted.
+  auto-submitted. And `<leader>jx` (sessions 2–9 via `<leader>jx2`…) focuses —
+  or opens — an AI session with the input pre-primed with `@path` mentions of
+  **every open file buffer**, so you just type the question.
 - **Ask AI modal** — select code and hit `<leader>x` (or just **double-click
   a word**) for the IDE-style quick-action menu: **Fix / Refactor / Explain /
   Ask custom question**. The chosen prompt (with the file path and line
@@ -185,7 +187,16 @@ drop it into the AI column's input, `<leader>ab` to send an `@path` mention
 of the current file, `<leader>ad` to send the current line's diagnostics.
 Multi-line text arrives as one editable block (bracketed paste) and is never
 auto-submitted — you review and press Enter. With no session open yet, the
-bridge opens session 1 and asks you to resend.
+bridge opens session 1 and asks you to resend. (To send `@path` mentions of
+every open file buffer, use `<leader>jx` — see below.)
+
+**Ask about the files you have open:** `<leader>jx` (or `<leader>jx2` …
+`<leader>jx9` for sessions 2–9) focuses the session's column — opening it
+first if it was closed, CLI picker included — and drops `@path` mentions of
+every open file buffer into the CLI input. Land in insert mode, type your
+question after the mentions, press Enter. Every press inserts the mentions
+(they add to whatever is already typed) and nothing is ever auto-submitted;
+plain `<leader>j` stays the no-prime toggle.
 
 **Ask AI about a selection:** select code and hit `<leader>x` to open the
 Ask-AI modal — **Fix**, **Refactor**, **Explain**, or **Ask custom question**
@@ -548,6 +559,8 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>t2` … `<leader>t9` | n | Toggle horizontal terminals 2–9 (independent) |
 | `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
+| `<leader>jx` | n | Focus AI session 1 (open it if closed) with the CLI input primed with `@path` mentions of every open file buffer |
+| `<leader>jx2` … `<leader>jx9` | n | Same focus-or-open + prime for AI sessions 2–9 |
 | `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
 | `<leader>jc` | n | Clear an AI session — kill the CLI + forget the choice, next open re-asks (`:NvSinnerAIClear`) |
 | `<leader>x` | x | Ask AI about the selection — Fix / Refactor / Explain / custom question modal (also `:NvSinnerAskAI`) |

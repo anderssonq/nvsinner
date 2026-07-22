@@ -47,6 +47,26 @@
 - `<leader>j` is also a prefix of `<leader>j2`…, so a bare `<leader>j` waits
   one `timeoutlen` (which-key shows the menu) before falling back to session
   1; press a digit right after `<leader>j` to jump straight to that session.
+- **`<leader>jx` / `<leader>jx2`…`<leader>jx9` — focus-or-open with primed
+  input** (`focus_and_prime_ai_panel`): captures
+  `core/ai-sessions.buffer_mentions()` — `@`-mentions for every open file
+  buffer — **at keypress time** (focus moves into the terminal right
+  after, and a later capture would lose the current-first order), then
+  EITHER focuses an already-open column (+ `startinsert!`) and chansends
+  the mentions straight into the running CLI's input, OR (closed) stashes
+  them in `pending_prime[n]` and runs the normal `toggle_ai_panel` path
+  (CLI picker included on a first open) — `on_panel_open` consumes the
+  stash and `prime_session(term, text)` injects it. **Every press
+  injects** (the key means "insert the references": repeated presses stack
+  mentions, and text already in the input gets appended to — the input
+  can't be read, so this is deliberate), never auto-submitted (no `\r`).
+  Cold-start safety: the send waits for the terminal's first output
+  (~100ms polls, ~2s cap) so a CLI TUI that hasn't grabbed the PTY yet
+  can't lose it; an open/warm panel passes the check immediately, and the
+  chansend is pcall-guarded so a dead CLI in an open window is a no-op.
+  With no eligible buffers it degrades to a plain focus/open; cancelling
+  the first-open picker clears the stash (`pick_ai_cmd`'s `on_cancel`);
+  plain `<leader>j`/`<leader>jN` stays the no-prime toggle path.
 - Resize via the global split-resize keymaps in `core/keymaps.lua`: `<C-,>` /
   `<C-.>` (width ±20 columns, use for the vertical AI panel) and `<C-;>` /
   `<C-'>` (height ±5 rows, use for the horizontal terminal). Both work from
