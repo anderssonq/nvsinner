@@ -19,11 +19,18 @@ edits files on disk (see *Auto-reload* below).
 - Pipes editor context straight into an AI column's terminal job via
   `chansend()`: `<leader>as` (visual mode) sends the selection, `<leader>ab`
   sends a claude-style `@path ` mention for the current buffer (cwd-relative,
-  trailing space), `<leader>ad` sends the current line's diagnostics with a
-  `Fix this diagnostic in <file>:` header. Multi-line payloads are
+  trailing space), and `<leader>ad` sends the current line's diagnostics with
+  a `Fix this diagnostic in <file>:` header. Multi-line payloads are
   **bracketed-paste wrapped** (`\27[200~ … \27[201~`) so a TUI CLI receives ONE
   editable block instead of submitting each line; the bridge **never
   auto-submits** (no trailing `\r`) — text lands in the CLI input for review.
+- `M.buffer_mentions(opts)` is the all-buffers `@path` builder (NOT bound to a
+  bridge keymap — consumed by toggleterm's `<leader>jx` prime flow): `@path`
+  mentions for EVERY open file buffer, current buffer first then buffer-list
+  order, deduped by cwd-relative path; only listed `buftype == ""` buffers
+  whose name exists on disk qualify (terminals/pickers/unsaved names never
+  produce dead refs); single-line so `_payload` sends it raw; `opts.bufs`
+  takes an explicit list; `nil` when nothing qualifies.
 - Targeting: the terminal you are inside > the most-recently-used session with
   an open column > MRU with a live (hidden) job; with none, it calls the
   injected opener to open session 1 and warns you to resend once the CLI is up

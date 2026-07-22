@@ -1,9 +1,10 @@
 -- Tests for the AI session registry + send-to-AI bridge (lua/core/ai-sessions.lua):
 -- registration and the sessions() snapshot, target() MRU semantics, send() into a
 -- real terminal job, the bracketed-paste payload wrapping, the no-session opener
--- fallback, clear() killing a session + forgetting its CLI choice via the
--- injected clearer (incl. the dead-but-memoised panel the registry can't see),
--- and the bridge/picker keymaps + :NvSinnerAIClear existing.
+-- fallback, the single- and all-buffers @path mention builders (current-first
+-- order, dedup, eligibility filters), clear() killing a session + forgetting its
+-- CLI choice via the injected clearer (incl. the dead-but-memoised panel the
+-- registry can't see), and the bridge/picker keymaps + :NvSinnerAIClear existing.
 
 require("core.options") -- leaders must be set before the module maps <leader>a*
 local sessions = require("core.ai-sessions")
@@ -141,6 +142,39 @@ describe("core.ai-sessions", function()
 		vim.api.nvim_buf_set_name(buf, vim.fn.getcwd() .. "/lua/core/ai-sessions.lua")
 		assert.are.equal("@lua/core/ai-sessions.lua ", sessions.buffer_mention(buf))
 		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	it("builds @path mentions for every open file buffer, current first", function()
+		local a = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(a, vim.fn.getcwd() .. "/lua/core/ai-sessions.lua")
+		local b = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(b, vim.fn.getcwd() .. "/README.md")
+		vim.api.nvim_set_current_buf(b)
+
+		assert.are.equal("@README.md @lua/core/ai-sessions.lua ", sessions.buffer_mentions())
+
+		vim.api.nvim_buf_delete(a, { force = true })
+		vim.api.nvim_buf_delete(b, { force = true })
+	end)
+
+	it("dedups mentions and filters ineligible buffers, nil when none qualify", function()
+		local file = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(file, vim.fn.getcwd() .. "/README.md")
+		local unnamed = vim.api.nvim_create_buf(true, false)
+		local ghost = vim.api.nvim_create_buf(true, false) -- named but not on disk
+		vim.api.nvim_buf_set_name(ghost, vim.fn.getcwd() .. "/no-such-file.lua")
+		local scratch = vim.api.nvim_create_buf(false, true) -- unlisted nofile
+		vim.cmd("terminal cat")
+		local term = vim.api.nvim_get_current_buf()
+
+		local text = sessions.buffer_mentions({ bufs = { file, file, unnamed, ghost, scratch, term } })
+		assert.are.equal("@README.md ", text, "one mention: duplicates and ineligible buffers dropped")
+
+		assert.is_nil(sessions.buffer_mentions({ bufs = { unnamed, ghost, scratch, term } }))
+
+		for _, buf in ipairs({ file, unnamed, ghost, scratch, term }) do
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end
 	end)
 
 	it("formats line diagnostics with a fix-this header, nil on a clean line", function()

@@ -157,9 +157,10 @@ there is no in-editor AI plugin — a CLI agent runs in a persistent vertical
 toggleterm column (`<leader>j`, sessions 2–9 via `<leader>j2`…); editor context
 is piped in via the send-to-AI bridge (`<leader>as`/`ab`/`ad`, visual
 `<leader>x` Ask-AI modal) and buffers auto-reload when the CLI edits files on
-disk. Toggling hides without killing; `<leader>jc` / `:NvSinnerAIClear`
-clears a session for good (kills the CLI, forgets the chosen agent) so the
-next open re-runs the CLI picker.
+disk. `<leader>jx<N>` focuses (or opens) a session with the CLI input primed
+with `@`-mentions of every open file buffer. Toggling hides without killing;
+`<leader>jc` / `:NvSinnerAIClear` clears a session for good (kills the CLI,
+forgets the chosen agent) so the next open re-runs the CLI picker.
 
 ## Keymaps
 
@@ -167,11 +168,13 @@ The full keybindings reference lives in **README.md §Full keybindings
 reference** — check it before adding a map. Leader namespaces (leader = Space):
 
 - `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview) · `h` hunks
-  (gitsigns) · `j` ai sessions (toggleterm columns) · `l` lsp · `s` search
+  (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
+  primed with `@`-mentions of all open buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
   NvSinner shortcuts (normal) / Ask-AI modal (visual)
-- `<leader>t` and `<leader>j` are prefixes of their numbered variants, so a
-  bare press waits one `timeoutlen` before falling back to terminal/session 1.
+- `<leader>t`, `<leader>j`, and `<leader>jx` are prefixes of their numbered
+  variants, so a bare press waits one `timeoutlen` before falling back to
+  terminal/session 1.
 - Neovim 0.11 builtins are documented, not remapped: `grn` / `grr` / `gri` /
   `gO` / `]d` / `[d`.
 
