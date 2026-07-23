@@ -144,17 +144,60 @@ describe("core.ai-sessions", function()
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 
-	it("builds @path mentions for every open file buffer, current first", function()
+	it("builds @path mentions for every VISIBLE file buffer, current first", function()
 		local a = vim.api.nvim_create_buf(true, false)
 		vim.api.nvim_buf_set_name(a, vim.fn.getcwd() .. "/lua/core/ai-sessions.lua")
 		local b = vim.api.nvim_create_buf(true, false)
 		vim.api.nvim_buf_set_name(b, vim.fn.getcwd() .. "/README.md")
-		vim.api.nvim_set_current_buf(b)
+
+		local first = vim.api.nvim_get_current_win()
+		vim.cmd("split")
+		local second = vim.api.nvim_get_current_win()
+		vim.api.nvim_win_set_buf(first, a)
+		vim.api.nvim_win_set_buf(second, b) -- current window → leads the list
 
 		assert.are.equal("@README.md @lua/core/ai-sessions.lua ", sessions.buffer_mentions())
 
+		vim.api.nvim_win_close(second, true)
 		vim.api.nvim_buf_delete(a, { force = true })
 		vim.api.nvim_buf_delete(b, { force = true })
+	end)
+
+	it("skips buffers that are listed and loaded but shown in no window", function()
+		local shown = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(shown, vim.fn.getcwd() .. "/README.md")
+		-- The buffer list is not "what I have open": a file :e-ed earlier stays
+		-- listed long after its window is gone and must not be mentioned.
+		local hidden = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(hidden, vim.fn.getcwd() .. "/lua/core/ai-sessions.lua")
+		vim.fn.bufload(hidden)
+		vim.api.nvim_win_set_buf(vim.api.nvim_get_current_win(), shown)
+
+		assert.are.equal("@README.md ", sessions.buffer_mentions())
+
+		vim.api.nvim_buf_delete(shown, { force = true })
+		vim.api.nvim_buf_delete(hidden, { force = true })
+	end)
+
+	it("skips floating windows so a preview float can't leak a mention", function()
+		local shown = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(shown, vim.fn.getcwd() .. "/README.md")
+		local floated = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(floated, vim.fn.getcwd() .. "/lua/core/ai-sessions.lua")
+		vim.api.nvim_win_set_buf(vim.api.nvim_get_current_win(), shown)
+		local float = vim.api.nvim_open_win(floated, false, {
+			relative = "editor",
+			row = 1,
+			col = 1,
+			width = 10,
+			height = 3,
+		})
+
+		assert.are.equal("@README.md ", sessions.buffer_mentions())
+
+		vim.api.nvim_win_close(float, true)
+		vim.api.nvim_buf_delete(shown, { force = true })
+		vim.api.nvim_buf_delete(floated, { force = true })
 	end)
 
 	it("dedups mentions and filters ineligible buffers, nil when none qualify", function()

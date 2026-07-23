@@ -49,8 +49,9 @@
   1; press a digit right after `<leader>j` to jump straight to that session.
 - **`<leader>jx` / `<leader>jx2`…`<leader>jx9` — focus-or-open with primed
   input** (`focus_and_prime_ai_panel`): captures
-  `core/ai-sessions.buffer_mentions()` — `@`-mentions for every open file
-  buffer — **at keypress time** (focus moves into the terminal right
+  `core/ai-sessions.buffer_mentions()` — `@`-mentions for every file buffer
+  **visible in a window** (never the merely-listed ones a closed window left
+  behind) — **at keypress time** (focus moves into the terminal right
   after, and a later capture would lose the current-first order), then
   EITHER focuses an already-open column (+ `startinsert!`) and chansends
   the mentions straight into the running CLI's input, OR (closed) stashes
@@ -64,7 +65,7 @@
   (~100ms polls, ~2s cap) so a CLI TUI that hasn't grabbed the PTY yet
   can't lose it; an open/warm panel passes the check immediately, and the
   chansend is pcall-guarded so a dead CLI in an open window is a no-op.
-  With no eligible buffers it degrades to a plain focus/open; cancelling
+  With no visible file buffer it degrades to a plain focus/open; cancelling
   the first-open picker clears the stash (`pick_ai_cmd`'s `on_cancel`);
   plain `<leader>j`/`<leader>jN` stays the no-prime toggle path.
 - Resize via the global split-resize keymaps in `core/keymaps.lua`: `<C-,>` /

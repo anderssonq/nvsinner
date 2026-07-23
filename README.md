@@ -43,7 +43,7 @@ any existing `~/.config/nvim` without touching it.
   diagnostics. Text lands in the CLI's input as one editable block — never
   auto-submitted. And `<leader>jx` (sessions 2–9 via `<leader>jx2`…) focuses —
   or opens — an AI session with the input pre-primed with `@path` mentions of
-  **every open file buffer**, so you just type the question.
+  **every file you have on screen**, so you just type the question.
 - **Ask AI modal** — select code and hit `<leader>x` (or just **double-click
   a word**) for the IDE-style quick-action menu: **Fix / Refactor / Explain /
   Ask custom question**. The chosen prompt (with the file path and line
@@ -188,15 +188,18 @@ of the current file, `<leader>ad` to send the current line's diagnostics.
 Multi-line text arrives as one editable block (bracketed paste) and is never
 auto-submitted — you review and press Enter. With no session open yet, the
 bridge opens session 1 and asks you to resend. (To send `@path` mentions of
-every open file buffer, use `<leader>jx` — see below.)
+every file on screen, use `<leader>jx` — see below.)
 
-**Ask about the files you have open:** `<leader>jx` (or `<leader>jx2` …
+**Ask about the files you can see:** `<leader>jx` (or `<leader>jx2` …
 `<leader>jx9` for sessions 2–9) focuses the session's column — opening it
 first if it was closed, CLI picker included — and drops `@path` mentions of
-every open file buffer into the CLI input. Land in insert mode, type your
-question after the mentions, press Enter. Every press inserts the mentions
-(they add to whatever is already typed) and nothing is ever auto-submitted;
-plain `<leader>j` stays the no-prime toggle.
+every file buffer **currently shown in a window** into the CLI input. Land in
+insert mode, type your question after the mentions, press Enter. Only what you
+can actually see counts: a file you opened earlier and then closed the window
+on is still in Neovim's buffer list, but it is deliberately not mentioned —
+split the files you want in scope (and floating previews never count). Every
+press inserts the mentions (they add to whatever is already typed) and nothing
+is ever auto-submitted; plain `<leader>j` stays the no-prime toggle.
 
 **Ask AI about a selection:** select code and hit `<leader>x` to open the
 Ask-AI modal — **Fix**, **Refactor**, **Explain**, or **Ask custom question**
@@ -559,7 +562,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>t2` … `<leader>t9` | n | Toggle horizontal terminals 2–9 (independent) |
 | `<leader>j` | n | Toggle AI session 1 (vertical column; first open asks which CLI to run) |
 | `<leader>j2` … `<leader>j9` | n | Toggle AI sessions 2–9 (independent columns) |
-| `<leader>jx` | n | Focus AI session 1 (open it if closed) with the CLI input primed with `@path` mentions of every open file buffer |
+| `<leader>jx` | n | Focus AI session 1 (open it if closed) with the CLI input primed with `@path` mentions of every file buffer visible in a window |
 | `<leader>jx2` … `<leader>jx9` | n | Same focus-or-open + prime for AI sessions 2–9 |
 | `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
 | `<leader>jc` | n | Clear an AI session — kill the CLI + forget the choice, next open re-asks (`:NvSinnerAIClear`) |

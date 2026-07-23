@@ -377,15 +377,16 @@ return {
 			end)
 		end
 
-		-- <leader>jx flow: capture the @-mentions for every open file buffer
-		-- NOW (focus moves into the terminal next, which would lose the
-		-- current-buffer-first order), then focus session n's column —
+		-- <leader>jx flow: capture the @-mentions for every VISIBLE file
+		-- buffer NOW (focus moves into the terminal next, which would lose
+		-- the current-buffer-first order), then focus session n's column —
 		-- opening it first when needed. EVERY press injects the mentions:
 		-- an already-open column gets them chansent straight into the
 		-- running CLI (the input can't be read, so they append to whatever
 		-- is typed — deliberate: the key means "insert the references");
 		-- a closed one stashes them in pending_prime for on_panel_open.
-		-- With no eligible buffers this degrades to a plain focus/open.
+		-- With no visible file buffer (only the column + neo-tree on screen,
+		-- say) this degrades to a plain focus/open.
 		local function focus_and_prime_ai_panel(n)
 			n = n or 1
 			local text = require("core.ai-sessions").buffer_mentions()
@@ -464,8 +465,9 @@ return {
 		end
 
 		-- <leader>jx / <leader>jx2 .. <leader>jx9 -> focus-or-open an AI
-		-- session with the CLI input primed with @-mentions for every open
-		-- file buffer, so a question typed right after is about those files.
+		-- session with the CLI input primed with @-mentions for every file
+		-- buffer visible on screen, so a question typed right after is about
+		-- the files you are looking at.
 		-- A separate suffix in the <leader>j namespace (beside ja/jc):
 		-- <leader>j/<leader>jN stays the plain hide/show toggle (and the
 		-- no-prime path). <leader>jx is itself a prefix of <leader>jx2.., so
@@ -473,11 +475,11 @@ return {
 		-- session 1 — the documented <leader>t/<leader>j trade-off.
 		vim.keymap.set("n", "<leader>jx", function()
 			focus_and_prime_ai_panel(1)
-		end, { desc = "AI session 1 — focus + @-mention open buffers" })
+		end, { desc = "AI session 1 — focus + @-mention visible buffers" })
 		for n = 2, 9 do
 			vim.keymap.set("n", "<leader>jx" .. n, function()
 				focus_and_prime_ai_panel(n)
-			end, { desc = "AI session " .. n .. " — focus + @-mention open buffers" })
+			end, { desc = "AI session " .. n .. " — focus + @-mention visible buffers" })
 		end
 
 		-- Let the bridge open a session when a send finds none alive (and let

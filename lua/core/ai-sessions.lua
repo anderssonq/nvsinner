@@ -247,23 +247,32 @@ function M.buffer_mention(buf)
 	return "@" .. vim.fn.fnamemodify(name, ":.") .. " "
 end
 
--- Claude-style @path mentions for EVERY open file buffer — current buffer
--- first, then the rest in buffer-list order, deduped by cwd-relative path,
--- joined with spaces + a trailing space so the user keeps typing. Single-line
--- on purpose: M._payload sends it raw (no bracketed paste). Only listed,
+-- Claude-style @path mentions for every VISIBLE file buffer — current buffer
+-- first, then the rest in window order, deduped by cwd-relative path, joined
+-- with spaces + a trailing space so the user keeps typing. Single-line on
+-- purpose: M._payload sends it raw (no bracketed paste). Only listed,
 -- ordinary (buftype == "") buffers whose name exists on disk qualify, so
 -- terminals, pickers, and never-saved names can't produce dead @refs.
--- Returns nil when nothing qualifies. opts.bufs supplies an explicit buffer
--- list (kept in the caller's order) for picker-style reuse.
+-- Returns nil when nothing qualifies.
+--
+-- Discovery walks WINDOWS, not vim.api.nvim_list_bufs(): the buffer list is
+-- not "what I have open" — every file you :e, jump to with gd, or peek at
+-- from neo-tree stays listed long after its window is gone, and mentioning
+-- those scopes the AI to files the user already closed. Only the current
+-- tabpage counts (seeing is tab-local) and floats are skipped, so a
+-- telescope preview or hover float can't leak a mention.
+-- opts.bufs supplies an explicit buffer list (kept in the caller's order,
+-- bypassing window discovery) for picker-style reuse; opts.wins overrides the
+-- window list.
 function M.buffer_mentions(opts)
 	opts = opts or {}
 	local uv = vim.uv or vim.loop
 	local bufs = opts.bufs
 	if not bufs then
 		bufs = { vim.api.nvim_get_current_buf() }
-		for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-			if buf ~= bufs[1] then
-				table.insert(bufs, buf)
+		for _, win in ipairs(opts.wins or vim.api.nvim_tabpage_list_wins(0)) do
+			if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_config(win).relative == "" then
+				table.insert(bufs, vim.api.nvim_win_get_buf(win))
 			end
 		end
 	end
