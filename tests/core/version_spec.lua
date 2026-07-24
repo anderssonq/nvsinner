@@ -38,9 +38,9 @@ describe("core.version", function()
 		return env
 	end
 
-	it("current() reads the nvsinner module and pins the 1.2.0 release", function()
+	it("current() reads the nvsinner module and pins the 1.2.1 release", function()
 		assert.are.equal(require("nvsinner").version, version.current())
-		assert.are.equal("1.2.0", version.current())
+		assert.are.equal("1.2.1", version.current())
 	end)
 
 	it("display() prefixes v for semver strings only", function()
@@ -50,8 +50,8 @@ describe("core.version", function()
 	end)
 
 	it("_parse_remote extracts the version from a raw init.lua body", function()
-		local body = '-- NvSinner distro metadata.\nreturn {\n\tversion = "1.2.0",\n}\n'
-		assert.are.equal("1.2.0", version._parse_remote(body))
+		local body = '-- NvSinner distro metadata.\nreturn {\n\tversion = "1.2.1",\n}\n'
+		assert.are.equal("1.2.1", version._parse_remote(body))
 		assert.is_nil(version._parse_remote("<html>404 moved</html>"))
 		assert.is_nil(version._parse_remote(nil))
 	end)
