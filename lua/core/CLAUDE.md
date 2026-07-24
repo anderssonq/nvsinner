@@ -24,13 +24,20 @@ edits files on disk (see *Auto-reload* below).
   **bracketed-paste wrapped** (`\27[200~ … \27[201~`) so a TUI CLI receives ONE
   editable block instead of submitting each line; the bridge **never
   auto-submits** (no trailing `\r`) — text lands in the CLI input for review.
-- `M.buffer_mentions(opts)` is the all-buffers `@path` builder (NOT bound to a
-  bridge keymap — consumed by toggleterm's `<leader>jx` prime flow): `@path`
-  mentions for EVERY open file buffer, current buffer first then buffer-list
-  order, deduped by cwd-relative path; only listed `buftype == ""` buffers
-  whose name exists on disk qualify (terminals/pickers/unsaved names never
-  produce dead refs); single-line so `_payload` sends it raw; `opts.bufs`
-  takes an explicit list; `nil` when nothing qualifies.
+- `M.buffer_mentions(opts)` is the visible-buffers `@path` builder (NOT bound to
+  a bridge keymap — consumed by toggleterm's `<leader>jx` prime flow): `@path`
+  mentions for every file buffer **displayed in a window**, current buffer first
+  then window order, deduped by cwd-relative path; only listed `buftype == ""`
+  buffers whose name exists on disk qualify (terminals/pickers/unsaved names
+  never produce dead refs); single-line so `_payload` sends it raw; `nil` when
+  nothing qualifies. Discovery walks **windows, not `nvim_list_bufs()`**: the
+  buffer list is not "what I have open" — every file `:e`-ed, jumped to with
+  `gd`, or peeked at from neo-tree stays listed long after its window is gone,
+  and mentioning those scoped the AI to files the user had already closed.
+  Only the **current tabpage** counts (seeing is tab-local) and **floats are
+  skipped**, so a telescope preview or hover float can't leak a mention.
+  `opts.bufs` takes an explicit buffer list (bypassing window discovery),
+  `opts.wins` an explicit window list.
 - Targeting: the terminal you are inside > the most-recently-used session with
   an open column > MRU with a live (hidden) job; with none, it calls the
   injected opener to open session 1 and warns you to resend once the CLI is up
