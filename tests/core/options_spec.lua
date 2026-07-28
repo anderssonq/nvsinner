@@ -21,6 +21,13 @@ describe("core.options", function()
 		assert.is_true(vim.o.termguicolors)
 	end)
 
+	-- Regression guard for FA-25: unset means Neovim's 1000ms default, which is
+	-- the full pause a bare <leader>t / <leader>j / <leader>jx / <leader>f pays
+	-- for being a prefix of a longer map.
+	it("calibrates the prefix-key wait well below Neovim's 1000ms default", function()
+		assert.are.equal(300, vim.o.timeoutlen)
+	end)
+
 	it("splits below/right and enables the mouse", function()
 		assert.is_true(vim.o.splitbelow)
 		assert.is_true(vim.o.splitright)

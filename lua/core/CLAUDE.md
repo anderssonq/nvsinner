@@ -329,8 +329,12 @@ editing.
   legacy persisted `background` key migrates to `moon`/`carbon` on load) /
   `transparent` / `accent` / `folder` / `notif` / `variables` / `strings` /
   `functions` (carbon flags), `tree_side` (neo-tree position), `ai_side` (AI/vertical
-  terminal column side), `quiet` (mute INFO-level `vim.notify`; WARN/ERROR
-  always pass). **Required right after `core.options` in `init.lua`** so it
+  terminal column side), `key_timeout` (`'timeoutlen'` — the prefix wait on
+  `<leader>t`/`j`/`jx`/`f`; applied straight over `core/options.lua`'s 300 ms
+  baseline in `M.setup`, since unlike the carbon flags it has no `vim.g`/env
+  layer for `seed_flag` to respect), `quiet` (mute INFO-level `vim.notify`;
+  WARN/ERROR always pass).
+  **Required right after `core.options` in `init.lua`** so it
   can seed the carbon `vim.g` flags before lazy applies the theme — and it
   only seeds a flag when neither `vim.g` nor the env var is set, preserving
   the documented `vim.g` > env precedence. Every `M.set` persists, applies
@@ -342,7 +346,7 @@ editing.
   wraps/unwraps the *current* notify. `M.load({ file = … })` /
   `M.setup({ file = … })` are test seams (mirror `update.lua` / `health.lua`).
 - `menu.lua` defines **`:NvSinnerMenu`** — a Mason-style floating modal over
-  the eleven settings. Keyboard: `j`/`k` (or arrows) move, `h`/`l` / `<CR>` /
+  the settings. Keyboard: `j`/`k` (or arrows) move, `h`/`l` / `<CR>` /
   `<Space>` cycle a value, `1`-`9` jump (rows past 9 via j/k or mouse),
   `q`/`<Esc>` close. Mouse: hovering moves the selection onto the row under
   the pointer (`<MouseMove>`, same feel as the dashboard menu — the
@@ -670,7 +674,8 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   performance — statusline components re-evaluate on every redraw). `<leader>ja` opens a
   `vim.ui.select` picker (telescope-ui-select skins it) that jumps to a
   session's window (or reopens a hidden one via the toggleterm opener); like
-  `<leader>j2…`, it costs a bare `<leader>j` one `timeoutlen`.
+  `<leader>j2…`, it costs a bare `<leader>j` one `timeoutlen` (300 ms, tunable
+  in `:NvSinnerMenu` → "Key timeout").
 
 ## Auto-reload — `autoreload.lua`
 

@@ -37,11 +37,26 @@ The file's single `vim.cmd([[ ... ]])` block — the ONLY Vimscript allowed in
 the repo, and it must not grow — sets exactly: `relativenumber`,
 `foldmethod=manual`, `mouse=a`, `number`, `expandtab`, `shiftwidth=2`,
 `softtabstop=2`, `tabstop=2`, `fileencoding=utf-8`, `splitbelow`, `splitright`,
-`linebreak`, `wrap`, `clipboard+=unnamedplus`. Outside the block:
-`vim.opt.termguicolors = true`.
+`linebreak`, `wrap`, `clipboard+=unnamedplus`.
+
+Outside the block (Lua, as the conventions require):
+
+| Option | Value | Why |
+|---|---|---|
+| `termguicolors` | `true` | carbon needs 24-bit color |
+| `timeoutlen` | **300** | prefix-key wait; see below |
+| `pumblend` | `10` | glass completion popup (pum only — never a global `winblend`) |
 
 Note: `splitright` is load-bearing — it is why the AI column's
 `direction = "vertical"` opens on the right.
+
+`timeoutlen` is load-bearing too, in the opposite direction: `<leader>t`,
+`<leader>j`, `<leader>jx` and `<leader>f` are strict prefixes of longer maps,
+so each waits this long before firing. Neovim's **unset default is 1000 ms**,
+which made the config's most-used keys its slowest; 300 ms is the calibrated
+value (FA-25). It is the only core option a user can retune at runtime —
+`settings.key_timeout` (`:NvSinnerMenu` → "Key timeout",
+200/250/300/400/500/1000) is applied over this baseline in `settings.M.setup`.
 
 ## 2. Tunable constants (core modules)
 

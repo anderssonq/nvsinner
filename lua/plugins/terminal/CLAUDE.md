@@ -7,8 +7,9 @@
   independent horizontal terminals (ids 2–9), each via
   `exe "<N>ToggleTerm direction=horizontal"`. `<leader>t` is a prefix of
   `<leader>t2`…, so a bare `<leader>t` waits one `timeoutlen` (which-key shows
-  the menu) before falling back to terminal 1. (Moved off `<C-t>` to avoid a
-  Ctrl+T conflict.)
+  the menu) before falling back to terminal 1 — 300 ms, set in
+  `lua/core/options.lua` and tunable in `:NvSinnerMenu` → "Key timeout".
+  (Moved off `<C-t>` to avoid a Ctrl+T conflict.)
 - AI panels → **multiple persistent vertical columns** (right by default; side
   configurable via `:NvSinnerMenu`'s `ai_side` — `restore_layout()` forces
   `wincmd L`/`wincmd H` accordingly and a `User NvSinnerSetting` autocmd
@@ -47,6 +48,11 @@
 - `<leader>j` is also a prefix of `<leader>j2`…, so a bare `<leader>j` waits
   one `timeoutlen` (which-key shows the menu) before falling back to session
   1; press a digit right after `<leader>j` to jump straight to that session.
+- **Terminal-mode maps deliberately exclude `jk`.** `<esc>` is the only escape
+  to terminal-normal mode. A `jk` map makes every literal `j` a prefix, so the
+  keystroke is withheld one `timeoutlen` before reaching the CLI — typing
+  "json" into the AI column felt broken. Do not add it back; the same reasoning
+  already rules out a t-mode `<Space>` map.
 - **`<leader>jx` / `<leader>jx2`…`<leader>jx9` — focus-or-open with primed
   input** (`focus_and_prime_ai_panel`): captures
   `core/ai-sessions.buffer_mentions()` — `@`-mentions for every file buffer

@@ -27,7 +27,23 @@ describe("core.settings", function()
 		assert.are.equal("right", settings.get("ai_side"))
 		assert.is_true(settings.get("ai_complete"))
 		assert.are.equal("minimax-m2.5", settings.get("ai_model"))
+		assert.are.equal(300, settings.get("key_timeout"))
 		assert.is_false(settings.get("quiet"))
+	end)
+
+	-- FA-25: the prefix wait on <leader>t/j/jx/f is the one core option a user
+	-- can retune at runtime, so set() must reach 'timeoutlen', not just disk.
+	it("applies key_timeout to 'timeoutlen' and persists it", function()
+		local original = vim.o.timeoutlen
+		settings.set("key_timeout", 500)
+		assert.are.equal(500, vim.o.timeoutlen)
+		settings.load({ file = temp })
+		assert.are.equal(500, settings.get("key_timeout"))
+		-- setup() re-applies the persisted value over core/options.lua's baseline.
+		vim.opt.timeoutlen = 1000
+		settings.setup({ file = temp })
+		assert.are.equal(500, vim.o.timeoutlen)
+		vim.opt.timeoutlen = original
 	end)
 
 	it("persists the ai_model choice (the :NvSinnerIA model picker)", function()

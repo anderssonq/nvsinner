@@ -61,7 +61,7 @@ the repo lives only at `~/.config/nvsinner`, prefix commands with
 | 3c | Bar label invisible when terminal unfocused | `NvTermBarDim` has `fg == bg` | Inspect the highlight; fg must be `#7a7f8d`-ish, not the bg | §3 |
 | 4 | `<leader>t` opens/toggles the AI column instead of a horizontal terminal | toggleterm id collision — AI panel claimed a low id (1–9) | List all terminal ids; AI panels must be ≥100 | §4; full story: nvsinner-failure-archaeology |
 | 5 | Buffer didn't reload after the AI CLI edited it / no 🤖 toast | Autoreload chain broken (autoread off, autocmds gone, timer dead) — OR the file simply isn't open in a buffer (by design) | Real external-write test (§5); run `tests/core/autoreload_spec.lua` | §5 |
-| 6 | Bare `<leader>t` or `<leader>j` hangs ~1s | `timeoutlen` prefix wait — `<leader>t` is a prefix of `<leader>t2`…`t9` (same for `j`) | Press `<leader>t` then a digit immediately: instant | NOT A BUG (§6) |
+| 6 | Bare `<leader>t`, `<leader>j` or `<leader>f` pauses before acting | `timeoutlen` prefix wait — `<leader>t` is a prefix of `<leader>t2`…`t9` (same for `j`, `jx`, and `f`/`fb`) | `:set timeoutlen?` — must be 300, not 1000; press the prefix then a digit immediately: instant | NOT A BUG (§6) — but if it's ~1s, the setting regressed |
 | 7 | Syntax colors flatten/change ~1s after opening a file | LSP semantic tokens (`@lsp.*`) repainting over Treesitter — the `on_attach` nil was removed, or a server started before the `"*"` config | Check `semanticTokensProvider` on attached clients (§7) | §7; full story: nvsinner-failure-archaeology |
 | 8 | Startup errors / config won't boot | Lua error in a core module or plugin spec | Headless boot probe + per-file `loadfile` check | §8 |
 | 9 | Errors from hover/doc floats | Something re-enabled a markdown-treesitter float path (noice LSP hover, or `filetype=markdown` on the ui-touch float) | Grep the three guard sites (§9) | §9 — keep them OFF on 0.12.x |
@@ -283,16 +283,39 @@ Expected: 3 successes, 0 failed (asserts autoread, both autocmds in group
 If the autocmds are missing, confirm `require("core.autoreload")` is still in
 `init.lua`.
 
-## §6 Bare `<leader>t` or `<leader>j` hangs ~1 second — NOT A BUG
+## §6 Bare `<leader>t` / `<leader>j` / `<leader>f` pauses before acting — NOT A BUG (but check the value)
 
-`<leader>t` is a prefix of `<leader>t2`…`<leader>t9` (and `<leader>j` of
-`<leader>j2`…`j9`), so Neovim waits one `timeoutlen` for a possible digit
-before running the bare mapping; which-key shows the menu during the wait.
-`timeoutlen` is not set anywhere in this config (verified by grep), so it's
-Neovim's default **1000 ms**. Pressing a digit immediately after the prefix
-jumps straight to that terminal/session with no wait. This is the documented
-trade-off for having 9 numbered terminals + 9 AI sessions on two prefixes — do
-not "fix" it by removing the numbered maps (see nvsinner-change-control).
+When a mapping is a strict prefix of a longer one, Neovim waits one
+`timeoutlen` for a possible continuation before running the bare mapping;
+which-key shows its menu during the wait. Four prefixes in this config pay it:
+
+| Prefix | Continuations |
+|---|---|
+| `<leader>t` | `<leader>t2`…`t9` |
+| `<leader>j` | `<leader>j2`…`j9`, `jx`, `ja`, `jc` |
+| `<leader>jx` | `<leader>jx2`…`jx9` (stacks on `<leader>j`'s own wait) |
+| `<leader>f` | `<leader>fb` — note the split ownership: `<leader>f` is a lazy `keys` stub in `lua/plugins/navigation/telescope.lua`, `<leader>fb` an eager map in `lua/core/keymaps.lua` |
+
+`timeoutlen` **is** set now — `lua/core/options.lua` puts it at **300 ms**, and
+`lua/core/settings.lua`'s `key_timeout` (the `:NvSinnerMenu` → "Key timeout"
+row) can retune it per user. Neovim's unset default is 1000 ms, which is what
+made the flagship keys feel broken.
+
+**Triage:** if the pause is back to ~1 s, `:set timeoutlen?` — something dropped
+the option, not the keymaps. If `<leader>t3` keeps opening terminal 1, the value
+is too low for how fast that user types: raise it from the menu, don't touch code.
+
+Pressing a digit immediately after the prefix skips the wait entirely.
+
+**Still forbidden:** do not "fix" this by removing the numbered maps (see
+nvsinner-change-control). Lowering `timeoutlen` was the sanctioned fix and is
+already applied — see FA-25 in nvsinner-failure-archaeology.
+
+**Related, same root cause:** there is deliberately no `jk` map in terminal
+mode. It made every literal `j` typed into an AI CLI a prefix, so the keystroke
+was withheld one `timeoutlen` before reaching the program. `<esc>` is the
+terminal-normal-mode escape. If someone reports "typing in the AI column drops
+or delays characters", check `maparg("jk", "t")` first.
 
 ## §7 Syntax colors flatten/change ~1s after opening a file
 
@@ -400,6 +423,11 @@ prepends this repo and `<stdpath data>/lazy/plenary.nvim` to the runtimepath —
 `tests/core/autoreload_spec.lua`, plus live runs of every probe printed above
 (Neovim 0.12.3, `make test` green).
 
+**Keymap-timeout facts re-verified: 2026-07-28** — `timeoutlen = 300` set in
+`lua/core/options.lua`, retunable via `key_timeout` in `lua/core/settings.lua`,
+and no `t`-mode `jk` map in `lua/plugins/terminal/toggleterm.lua`. Every other
+claim on this page still carries the 2026-07-02 date.
+
 Re-verify before trusting, if this file is older than the last commit touching
 the named module:
 
@@ -413,7 +441,8 @@ the named module:
 | NvTermBarDim fg ≠ bg | `make test-file FILE=tests/core/ui_touch_spec.lua` |
 | Reserved AI ids 99+N | `grep -n "99 + n\|id = n" lua/plugins/terminal/toggleterm.lua` |
 | Autoreload chain + 250ms dedup | `grep -n "autoread\|FileChangedShellPost\|250\|1000" lua/core/autoreload.lua` |
-| timeoutlen still unset (default 1000ms) | `grep -rn "timeoutlen" lua/ init.lua` (expect comment-only hits) |
+| timeoutlen set to 300ms (NOT unset — unset means 1000) | `nvim --headless -c 'lua print(vim.o.timeoutlen)' -c qa` (expect `300`); source: `grep -n "timeoutlen" lua/core/options.lua lua/core/settings.lua` |
+| No `jk` map in terminal mode | `nvim --headless -c 'lua print(vim.fn.maparg("jk", "t"))' -c qa` (expect empty) |
 | Semantic tokens nilled + automatic_enable=false | `grep -n "semanticTokensProvider\|automatic_enable" lua/plugins/lsp/lsp-config.lua` |
 | noice LSP hover/signature off | `grep -n "enabled = false" lua/plugins/ui/noice.lua` |
 | Suite green | `make test` |

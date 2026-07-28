@@ -18,10 +18,10 @@ effects). Deeper QA doctrine (evidence bar, new-spec template) lives in the
 
 | Spec | Covers |
 |------|--------|
-| `tests/core/options_spec.lua` | leaders + core editor options |
+| `tests/core/options_spec.lua` | leaders + core editor options, incl. `timeoutlen = 300` (the calibrated prefix-key wait — unset would mean Neovim's 1000 ms) |
 | `tests/core/carbon_spec.lua` | carbon role tables, the named background themes (registry coherence + every palette filling the full role set), the theme/transparency flags (`vim.g` + env, legacy background fallback), and `:colorscheme carbon` resolving through the active theme (opaque vs transparent surfaces) |
 | `tests/core/keymaps_spec.lua` | global keymaps exist (save/undo/redo, resize in n+t, buffer picker), the full `<leader>x*` NvSinner shortcut namespace routed to its commands, + the resize step applied behaviorally (+20 cols) |
-| `tests/core/settings_spec.lua` | settings defaults (incl. `ai_model` = minimax-m2.5), JSON save/load roundtrip + the `ai_model` persist path + corrupt-file fallback, the legacy background→theme migration, vim.g seeding precedence, the quiet notify filter, and the carbon accent/folder packs + single-role color slots |
+| `tests/core/settings_spec.lua` | settings defaults (incl. `ai_model` = minimax-m2.5 and `key_timeout` = 300), `key_timeout` writing through to `'timeoutlen'` live + on `setup()`, JSON save/load roundtrip + the `ai_model` persist path + corrupt-file fallback, the legacy background→theme migration, vim.g seeding precedence, the quiet notify filter, and the carbon accent/folder packs + single-role color slots |
 | `tests/core/menu_spec.lua` | `:NvSinnerMenu` command, the modal float rendering every row, the background-theme row cycling in carbon's declared order, and move/cycle writing through to core/settings |
 | `tests/core/prompts_spec.lua` | `:NvSinnerPrompts` command, JSON loading (array/string content, corrupt-file fallback), the modal listing title+description rows, copy() returning the prompt + closing, and the shipped library carrying 11 valid entries |
 | `tests/core/help_spec.lua` | `:NvSinnerHelp` command, refresh() discovering NvSinner* commands (self excluded, the AI commands EXCLUDEd into `:NvSinnerIA`, late registrations included) + the checkhealth extra, the modal listing rows, the version title (v-prefixed via core/version.display() + the status suffix, and the live retitle when the check resolves while open), section rule headers + items landing on their refresh()-computed lines, the strtrans desc sanitizer (no mangled bytes ever render), the solid NvMenuNormal surface + backdrop pairing/teardown, and run() executing + auto-closing |
@@ -51,6 +51,7 @@ effects). Deeper QA doctrine (evidence bar, new-spec template) lives in the
 | `tests/core/window_picker_spec.lua` | the package.preload shim serving `require("window-picker")` (neo-tree seam), the candidate filter (floats + denylisted ft/buftype out), single-candidate autoselect, the letter-overlay pick flow (choice, abort, overlay teardown), and the NvWinPick chip group |
 | `tests/core/neotree_hover_spec.lua` | the neo-tree hover row wash: the NvTreeHover base01 group (+ ColorScheme re-apply), `update(mp)` washing exactly one row and following the pointer (cached row is a no-op), the clear paths (non-tree window, invalid/zero win, float, out-of-range + blank rows), the two-tree handoff, and the WinClosed teardown |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
+| `tests/plugins/terminal_keymaps_spec.lua` | source-level guard on toggleterm's `t`-mode maps: `<esc>` present, and no plain-letter map (FA-25 — a `jk` map withholds every literal `j` typed into the CLI for one `timeoutlen`). Reads the file because the maps live in `config`, which never runs headless |
 
 ## Conventions for new specs
 

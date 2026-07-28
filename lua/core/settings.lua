@@ -20,6 +20,7 @@
 --   * ai_side   → AI/vertical terminal column side (lua/plugins/terminal/toggleterm.lua)
 --   * ai_complete → inline AI completion on/off (lua/core/ai-complete.lua)
 --   * ai_model   → inline-completion model (lua/core/ai-complete.lua; :NvSinnerIA)
+--   * key_timeout → 'timeoutlen': the prefix wait on <leader>t/j/jx/f
 --   * quiet     → mute info-level vim.notify toasts (warnings/errors still show)
 -- Every M.set fires `User NvSinnerSetting` (data = { key, value }) so lazy
 -- specs can react without requiring this module eagerly.
@@ -39,6 +40,7 @@ M.defaults = {
 	ai_side = "right", -- AI / vertical terminal columns: "left" | "right"
 	ai_complete = true, -- inline AI completion (ghost text) on/off; no-ops without $OPENCODE_API_KEY
 	ai_model = "minimax-m2.5", -- inline-completion model (:NvSinnerIA picker; fastest verified OpenCode Zen id); $OPENCODE_MODEL still overrides
+	key_timeout = 300, -- 'timeoutlen' ms: the prefix wait on <leader>t/j/jx/f (core/options.lua sets the same baseline)
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
 }
 
@@ -179,6 +181,9 @@ local apply = {
 		end)
 	end,
 	ai_model = function() end, -- read at request time by ai-complete.M.model(); nothing to apply live
+	key_timeout = function(v)
+		vim.opt.timeoutlen = v
+	end,
 }
 
 -- Set + persist + apply live + broadcast.
@@ -208,6 +213,10 @@ end
 
 function M.setup(opts)
 	M.load(opts)
+	-- 'timeoutlen' has no vim.g/env flag layer (unlike the carbon flags below),
+	-- so seed_flag does not apply — apply the persisted value straight over
+	-- core/options.lua's baseline.
+	vim.opt.timeoutlen = data.key_timeout
 	-- The legacy NVSINNER_BACKGROUND env var still overrides (carbon.theme()
 	-- falls back to it when the theme flag is unset), so don't seed over it.
 	if vim.env.NVSINNER_BACKGROUND == nil then

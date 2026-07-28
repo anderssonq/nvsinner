@@ -152,14 +152,18 @@ return {
 		-- <leader>t2 .. <leader>t9 -> additional independent horizontal terminals.
 		-- (<leader>t is a prefix of <leader>t2.., so a bare <leader>t waits one
 		-- 'timeoutlen' — which-key shows the menu — before falling back to
-		-- terminal 1. Press a digit right after <leader>t to jump straight to it.)
+		-- terminal 1. That wait is 300ms by default, tunable in :NvSinnerMenu's
+		-- "Key timeout" row. Press a digit right after <leader>t to skip it.)
 		for n = 2, 9 do
 			vim.keymap.set("n", "<leader>t" .. n, function()
 				get_h_panel(n):toggle()
 			end, { desc = "Horizontal terminal " .. n })
 		end
 		vim.keymap.set("t", "<esc>", [[<C-\><C-n>]], opts)
-		vim.keymap.set("t", "jk", [[<C-\><C-n>]], opts)
+		-- No `jk` escape here on purpose: it made every literal `j` typed into a
+		-- CLI a prefix, so the character was held back one 'timeoutlen' before
+		-- reaching the program — typing "json" into the AI column felt broken.
+		-- <esc> above is the terminal-normal-mode escape.
 		vim.keymap.set("t", "<C-h>", [[<Cmd>wincmd h<CR>]], opts)
 		vim.keymap.set("t", "<C-j>", [[<Cmd>wincmd j<CR>]], opts)
 		vim.keymap.set("t", "<C-k>", [[<Cmd>wincmd k<CR>]], opts)
@@ -176,7 +180,8 @@ return {
 		--
 		-- <leader>j is also a prefix of <leader>j2.., so a bare <leader>j waits
 		-- one 'timeoutlen' (which-key shows the menu) before falling back to
-		-- session 1. Press a digit right after <leader>j to jump straight to it.
+		-- session 1 — 300ms by default, tunable in :NvSinnerMenu. Press a digit
+		-- right after <leader>j to jump straight to a session with no wait.
 		-- (Terminal, ai_panels and on_panel_open are declared near the top, with
 		-- the shared layout helpers.)
 
@@ -471,8 +476,9 @@ return {
 		-- A separate suffix in the <leader>j namespace (beside ja/jc):
 		-- <leader>j/<leader>jN stays the plain hide/show toggle (and the
 		-- no-prime path). <leader>jx is itself a prefix of <leader>jx2.., so
-		-- a bare <leader>jx waits one 'timeoutlen' before falling back to
-		-- session 1 — the documented <leader>t/<leader>j trade-off.
+		-- a bare <leader>jx waits one 'timeoutlen' (300ms, tunable in
+		-- :NvSinnerMenu) before falling back to session 1 — the documented
+		-- <leader>t/<leader>j trade-off, and it stacks on <leader>j's own wait.
 		vim.keymap.set("n", "<leader>jx", function()
 			focus_and_prime_ai_panel(1)
 		end, { desc = "AI session 1 — focus + @-mention visible buffers" })

@@ -263,10 +263,16 @@ Rules-as-gates form of these (what a reviewer should block) lives in
   goes "idle" during any >1.2s silent compute pause. `IDLE_MS = 1200` is a
   guess, not a measured constant. This is the core of the owner's stated
   hardest live problem — terminal/agent-UX fragility.
-- **`timeoutlen` lag on the two flagship keys.** Bare `<leader>t` and
-  `<leader>j` are prefixes of `<leader>t2..9` / `<leader>j2..9`, so each waits
-  one `timeoutlen` before acting. The most-used bindings in the config are the
-  slowest to respond.
+- **`timeoutlen` lag on the flagship keys — MITIGATED, not eliminated.** Bare
+  `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f` are prefixes of longer
+  maps, so each still waits one `timeoutlen` before acting. The wait is now
+  **300 ms** (`lua/core/options.lua`, retunable via `settings.key_timeout` /
+  `:NvSinnerMenu`) instead of Neovim's 1000 ms default, and the terminal-mode
+  `jk` escape — which imposed the same wait on every literal `j` typed into an
+  AI CLI — was removed. What remains is structural: keeping 9 numbered
+  terminals and 9 AI sessions on two prefixes means the bare press can never be
+  instant, only fast. The residual trade-off is now the user's to set: too low
+  and `<leader>t3` opens terminal 1. See FA-25.
 - **0.12.x compatibility is reactive.** The config targets 0.11+ but is only
   exercised on the dev machine's 0.12.3. The markdown-treesitter crash was
   patched around in three files after it bit; there is no version matrix and
@@ -290,6 +296,11 @@ single-sourcing) belongs to `nvsinner-frontier`.
 Facts verified: 2026-07-02 — every claim above checked against the working
 tree at commit `a65af7f` (clean status) by direct file read; hexes, ids, and
 timings quoted from source lines, not from docs.
+
+**Keymap-timeout facts re-verified: 2026-07-28** — `timeoutlen = 300` set in
+`lua/core/options.lua`, retunable via `key_timeout` in `lua/core/settings.lua`,
+and no `t`-mode `jk` map in `lua/plugins/terminal/toggleterm.lua`. Every other
+claim on this page still carries the 2026-07-02 date.
 
 Re-verification one-liners (run from the repo root):
 
