@@ -689,9 +689,11 @@ was tested with.
 ## 🪝 Pre-push hook
 
 A `pre-push` git hook lives in [`.githooks/pre-push`](.githooks/pre-push).
-When you `git push`, it runs the same gates as
-[CI](.github/workflows/ci.yml) — so a red pipeline is caught *before* the push
-rather than after:
+When you `git push`, it runs the test suite that
+[CI](.github/workflows/ci.yml) also runs — so a red pipeline is caught
+*before* the push rather than after — plus a format check that CI does **not**
+have, making the hook the only thing standing between formatting drift and
+`main`:
 
 | Step | What it does |
 |------|--------------|

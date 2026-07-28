@@ -273,21 +273,29 @@ Rules-as-gates form of these (what a reviewer should block) lives in
   terminals and 9 AI sessions on two prefixes means the bare press can never be
   instant, only fast. The residual trade-off is now the user's to set: too low
   and `<leader>t3` opens terminal 1. See FA-25.
-- **0.12.x compatibility is reactive.** The config targets 0.11+ but is only
-  exercised on the dev machine's 0.12.3. The markdown-treesitter crash was
-  patched around in three files after it bit; there is no version matrix and
-  nothing will catch the next such regression before a user does.
-- **No CI at all.** `make test` passes today (2026-07-02) but only when someone
-  runs it; CI is an open item in `TODO.md`, alongside Mason-managed formatters
-  and versioned releases.
+- **0.12.x compatibility is reactive.** The config targets 0.11+; CI exercises
+  `stable` on ubuntu every PR, and the dev machine runs 0.12.3 — but nothing
+  exercises 0.12.x/nightly automatically, which is exactly where the crash
+  class lives. The markdown-treesitter crash was patched around in three files
+  after it bit; there is no version matrix, so a 0.12.x-specific regression
+  still reaches a user before it reaches a check.
+- **CI covers correctness, not formatting or platform spread.**
+  `.github/workflows/ci.yml` (added 2026-07-04) runs on every push to `main`
+  and every pull request: `Lazy! restore` against the pinned lockfile, a
+  headless boot check that fails on startup errors, then `make test`. What it
+  does NOT do: run `stylua --check` — formatting is caught earlier, by the
+  `.githooks/pre-push` hook (`install.sh` wires `core.hooksPath`), which is
+  local and skippable with `--no-verify`, so drift can still reach `main`.
+  And it runs a single `ubuntu-latest` × `stable` Neovim — see the 0.12.x
+  bullet above for why that matters.
 - **Layout determinism depends on a repair function.** `restore_layout()` in
   `toggleterm.lua` re-asserts the bottom/right split geometry after every panel
   open because toggleterm's own split placement is order-dependent — a
   workaround, not a fix.
 
 What to *do* about the terminal/agent-UX items is `nvsinner-terminal-ux-campaign`'s
-territory; the broader remediation roadmap (CI, version matrix, palette
-single-sourcing) belongs to `nvsinner-frontier`.
+territory; the broader remediation roadmap (version matrix, formatting in CI,
+palette single-sourcing) belongs to `nvsinner-frontier`.
 
 ---
 

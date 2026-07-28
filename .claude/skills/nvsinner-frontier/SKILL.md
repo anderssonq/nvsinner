@@ -130,19 +130,31 @@ falsifiable milestone. All are **open**; none is promised.
   specs and no palette/startup regression, and the plugin spec is kept as
   `enabled = false` for revert.
 
-### F5 — Distro-engineering rigor (CI, releases, script tests)
-- **Gap:** TODO.md items — no CI, no versioned releases; install.sh/
-  uninstall.sh untested (`nvsinner-testing-and-qa` known gaps).
-- **Asset:** the suite is already headless-runnable (`make test`);
-  scripts are POSIX bash.
-- **First steps:** (1) GitHub Actions workflow: matrix {macOS, ubuntu} ×
-  {0.11.x, 0.12.x, nightly} running `make test` + `boot-check.sh`; (2) bats or
-  bash-based tests for install.sh/uninstall.sh against a sandboxed
-  `$HOME`/`$XDG_*`; (3) tag `v0.1.0` + release notes template
-  (`nvsinner-docs-and-style`).
-- **Result when:** a green CI badge on a tagged release, with the 0.12.x
-  markdown workaround exercised by the matrix (it should FAIL loudly when
-  upstream fixes land and the workaround can be retired).
+### F5 — Distro-engineering rigor (CI depth, script tests)
+- **Shipped since this was written:** CI exists
+  (`.github/workflows/ci.yml`, 2026-07-04 — boot check + `make test` on push
+  to `main` and every PR) and versioned releases exist (semver in
+  `lua/nvsinner/init.lua` + the once-per-session remote update check; see
+  `docs/releasing.md`). Both were listed here as gaps; both are done.
+- **Gap that remains:** CI is a single `ubuntu-latest` × `stable` job. No
+  macOS — the dev platform, and where `image-open.lua`'s `qlmanage`/`sips`
+  path lives — and no 0.12.x, which is precisely where the
+  markdown-treesitter crash class lives, so the one version that bites is the
+  one CI never exercises. `stylua --check` is not a step either. And
+  `install.sh` / `uninstall.sh` still have zero automated coverage
+  (`nvsinner-testing-and-qa` known gaps).
+- **Asset:** the suite is already headless-runnable (`make test`) and now
+  wired into Actions, so widening it is editing a matrix, not building a
+  pipeline; scripts are POSIX bash.
+- **First steps:** (1) widen the existing workflow to a matrix {macOS,
+  ubuntu} × {0.11.x, 0.12.x, nightly} and add a `stylua --check` step;
+  (2) bats or bash-based tests for install.sh/uninstall.sh against a
+  sandboxed `$HOME`/`$XDG_*`.
+- **Result when:** the matrix + a `stylua` step are on the existing workflow,
+  a green CI badge sits in the README on a tagged release, and the 0.12.x
+  markdown workaround is exercised by the matrix (it should FAIL loudly when
+  upstream fixes land and the workaround can be retired). None of those three
+  exist yet — the workflow does.
 
 ## 5. Proof-before-claim table
 
@@ -151,14 +163,17 @@ falsifiable milestone. All are **open**; none is promised.
 | "Deepest AI-terminal integration" | F1 or F2 shipped + a dated feature-matrix check against ≥3 named distros |
 | "Beat Cursor in-terminal" | A written task-level comparison (agent visibility, edit review, multi-session) with dates and versions |
 | "Native-first" | F4's first replacement shipped; count of native modules vs chrome plugins published with the counting rule |
-| "Distro rigor" | F5's CI badge is green on a tagged release |
+| "Distro rigor" | F5's matrix CI is green on a tagged release, with the badge in the README. CI exists but is one OS × one Neovim and skips formatting — that is not yet "rigor" in public |
 | "≈60 ms startup" | Median-of-3 re-measure documented in the same commit that states it |
 
 ## Provenance and maintenance
 
 Facts verified: 2026-07-02 at commit `a65af7f` — repo-side rows of §1, the
 startup measurements (62–113 ms headless), `TermRequest` availability, suite
-green, TODO.md open items. All statements about other distros/Cursor are
+green, TODO.md open items. **F5 re-verified 2026-07-28:** CI and versioned
+releases shipped after that date (2026-07-04 and v1.0.0), so the TODO.md
+"open items" reading above is stale for those two — re-run `cat TODO.md`
+rather than trusting the 07-02 snapshot. All statements about other distros/Cursor are
 **believed, unverified (as of 2026-07-02)** — no web verification was
 performed; verify before publishing.
 

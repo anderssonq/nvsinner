@@ -199,6 +199,14 @@ nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa
 
 Also useful interactively: `:Lazy`, `:checkhealth`, `:Mason`.
 
+**What runs automatically.** `.github/workflows/ci.yml` re-runs the boot check
+and `make test` on every pull request and every push to `main`, on a clean
+machine against the pinned `lazy-lock.json`. Before that, `.githooks/pre-push`
+(wired by `install.sh`) runs `stylua --check` + `make test` locally. Two gaps
+worth knowing: **CI does not check formatting** — only the hook does, and it is
+skippable with `--no-verify` — and CI is one `ubuntu-latest` × `stable` job, so
+nothing automatically exercises macOS or 0.12.x.
+
 ## Tests
 
 ```bash

@@ -14,6 +14,11 @@ puts this config + plenary on the runtimepath (no plugins loaded, no side
 effects). Deeper QA doctrine (evidence bar, new-spec template) lives in the
 `nvsinner-testing-and-qa` skill.
 
+`make test` also runs in CI ([.github/workflows/ci.yml](../.github/workflows/ci.yml))
+on every pull request and every push to `main`, and locally via the
+`.githooks/pre-push` hook — so a spec you add here guards the repo on every
+future change, not just when someone remembers to run the suite.
+
 ## Spec inventory
 
 | Spec | Covers |

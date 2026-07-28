@@ -9,7 +9,8 @@ description: >
   rendering), the golden inventory of every spec and the hard-won behavior it
   pins, spec-writing conventions (real-Neovim-over-mocking, vim.wait, test
   seams, notify capture), a complete new-spec template, the acceptance evidence
-  bar, and the suite's known gaps (no CI, shell scripts untested).
+  bar, what CI does and does not enforce, and the suite's known gaps (no
+  formatting check in CI, single-platform matrix, shell scripts untested).
 ---
 
 # NvSinner testing and QA
@@ -335,7 +336,7 @@ lives in `nvsinner-change-control`):
    nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
    ```
 3. **Full `make test` green** — not just the spec for your module. Suite
-   baseline is 64/64; any regression is your regression.
+   baseline is 303 passing (2026-07-28); any regression is your regression.
 4. **New or changed behavior gets a spec.** If you added a user-visible
    behavior to `lua/core/*` and no `it` block would fail if it broke, the
    change is unfinished. Plugin additions are covered structurally by
@@ -356,6 +357,15 @@ lives in `nvsinner-change-control`):
    `nvsinner-empirical-verification`'s territory; your job here is to encode
    the result.)
 
+**What runs this bar for you, and what does not.** Items 2 and 3 are enforced
+automatically: `.github/workflows/ci.yml` re-runs the headless boot check and
+`make test` on every pull request and every push to `main`, on a clean machine
+against the pinned lockfile — so a green PR is stronger evidence than "it
+passed locally". The `.githooks/pre-push` hook (wired by `install.sh`) catches
+both plus `stylua --check` before the push even lands. Neither covers items 1,
+4 and 5, nor formatting once someone passes `--no-verify`: those stay yours.
+See §6 for what CI still misses.
+
 ### When a spec fails — triage order
 
 1. **Reproduce in isolation**: `make test-file FILE=<the failing spec>`. If it
@@ -374,10 +384,20 @@ lives in `nvsinner-change-control`):
 
 ## 6. Known gaps — plainly
 
-- **No CI.** An open `TODO.md` item ("CI that boots the config headless + runs
-  `make test` on push"). Today the suite runs only on dev machines, only when
-  someone remembers. Treat "make test passed locally" as the strongest evidence
-  that currently exists.
+- **CI runs the suite, but not everything the gates ask for.**
+  `.github/workflows/ci.yml` (added 2026-07-04) runs on every push to `main`
+  and every pull request: stable Neovim, plugin cache keyed on
+  `lazy-lock.json`, `Lazy! restore` against the pinned set, a headless boot
+  check that fails on startup errors, then `make test`. So a green PR means
+  the suite passed on a clean machine — stronger evidence than "it passed
+  locally". Two gaps remain:
+  - **`stylua --check` is not a CI step.** Formatting is enforced only by
+    whoever remembers to run it before committing. Run it yourself; nothing
+    downstream will catch you.
+  - **One platform, one Neovim.** `ubuntu-latest` × `version: stable`. No
+    macOS (the dev platform, and where `image-open.lua`'s `qlmanage`/`sips`
+    path lives) and no 0.12.x, which is exactly where the markdown-treesitter
+    crash class lives. A green CI does not mean "works on the dev machine".
 - **Not covered by the suite:**
   - **Visual rendering** — highlights are asserted as *defined* (group exists,
     fg ≠ bg), never as *looking right* on screen. Theme regressions that keep
@@ -400,8 +420,9 @@ lives in `nvsinner-change-control`):
   - **`health.setup()` interactive path** — the `User VeryLazy` + 800ms-defer
     first-run wiring bails in headless (`#nvim_list_uis() == 0`), so only
     `first_run_notify` itself is testable; the autocmd timing is not.
-- Ambitions to close these (CI, script tests, screenshot/PTY harnesses) belong
-  in `nvsinner-frontier` — do not bolt them onto the suite ad hoc.
+- Ambitions to close these (widening the CI matrix, script tests, screenshot/
+  PTY harnesses) belong in `nvsinner-frontier` — do not bolt them onto the
+  suite ad hoc. CI itself is no longer an ambition: it shipped 2026-07-04.
 
 ## Provenance and maintenance
 

@@ -229,6 +229,15 @@ subsystem behavior, convention, or tool requirement must be reflected there
 README plugin table. Style and the full doc-sync checklist:
 **nvsinner-docs-and-style**.
 
+**Which gates run without you.** `.githooks/pre-push` (wired by `install.sh`;
+skips itself when the push carries no Lua) runs `stylua --check` + Gate 4
+before the push lands. `.github/workflows/ci.yml` then re-runs **Gate 2 and
+Gate 4** on every pull request and every push to `main` — clean machine,
+pinned lockfile. Gates 1, 3 and 5 have no automation at all, and **CI never
+checks formatting** (only the hook does, and `--no-verify` bypasses it). Run
+the gates yourself regardless: CI tells you afterwards, the checklist below is
+what stops you shipping the failure in the first place.
+
 Interactive spot-checks when relevant: `:Lazy`, `:Mason`,
 `:checkhealth nvsinner`. Install/update flow details (install.sh anatomy,
 `:NvSinnerUpdate`, uninstall traps): **nvsinner-build-and-run**.
@@ -252,6 +261,7 @@ Interactive spot-checks when relevant: `:Lazy`, `:Mason`,
 | 13 | Gate 4: `make test` green; specs updated/added for behavior changes | Section 3 |
 | 14 | Gate 5: CLAUDE.md synced; README keymap/plugin tables synced | Section 3 |
 | 15 | Cross-category effects flagged (palette, keymaps, init.lua) | Section 1 |
+| 16 | `stylua --check` clean — **no CI step covers this**; only the pre-push hook, which `--no-verify` bypasses | Section 3 |
 
 ## Provenance and maintenance
 
