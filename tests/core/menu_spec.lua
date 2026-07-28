@@ -34,6 +34,7 @@ describe("core.menu", function()
 			"Neo-tree side",
 			"AI column side",
 			"AI completion",
+			"Key timeout",
 			"Notifications",
 		}
 		for _, row in ipairs(rows) do

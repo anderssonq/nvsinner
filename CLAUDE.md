@@ -174,8 +174,13 @@ reference** — check it before adding a map. Leader namespaces (leader = Space)
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
   NvSinner shortcuts (normal) / Ask-AI modal (visual)
 - `<leader>t`, `<leader>j`, and `<leader>jx` are prefixes of their numbered
-  variants, so a bare press waits one `timeoutlen` before falling back to
-  terminal/session 1.
+  variants, and `<leader>f` is a prefix of `<leader>fb`, so a bare press waits
+  one `timeoutlen` before falling back. That wait is **300 ms** (set in
+  `lua/core/options.lua`, tunable in `:NvSinnerMenu` → "Key timeout"), not
+  Neovim's 1000 ms default — the numbered maps stay, the wait got calibrated.
+- **No `jk` escape in terminal mode** — it made every literal `j` typed into a
+  CLI a prefix, holding the keystroke back one `timeoutlen`. `<Esc>` is the
+  terminal-normal-mode escape; don't reintroduce `jk`.
 - Neovim 0.11 builtins are documented, not remapped: `grn` / `grr` / `gri` /
   `gO` / `]d` / `[d`.
 

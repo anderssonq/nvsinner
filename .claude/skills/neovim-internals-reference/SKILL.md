@@ -427,12 +427,20 @@ or auto-enable path bypasses the semantic-token surgery.
   `focusable = false`, `noautocmd = true`. The float shows LSP hover as **plain
   text** deliberately — see the markdown-crash bullet below.
 - **`timeoutlen` and prefix keymaps**: when one mapping is a strict prefix of
-  another (`<leader>t` vs `<leader>t2`, `<leader>j` vs `<leader>j2`), Neovim
-  waits `'timeoutlen'` after the prefix for a possible continuation (which-key
-  uses the pause to show its menu), then falls back to the short mapping. This
-  is intended behavior in `lua/plugins/terminal/toggleterm.lua` — the bare
-  `<leader>t`/`<leader>j` are *supposed* to have that one-beat delay; don't
-  "fix" it.
+  another (`<leader>t` vs `<leader>t2`, `<leader>j` vs `<leader>j2`,
+  `<leader>f` vs `<leader>fb`), Neovim waits `'timeoutlen'` after the prefix
+  for a possible continuation (which-key uses the pause to show its menu),
+  then falls back to the short mapping. The wait itself is intended — it is
+  what makes the numbered maps reachable — but its *length* is a tunable, not
+  a given: this repo sets `timeoutlen = 300` in `lua/core/options.lua`
+  (Neovim's unset default is 1000 ms) and exposes it as
+  `settings.key_timeout` / `:NvSinnerMenu` → "Key timeout". Do not "fix" the
+  delay by deleting the numbered maps; do not restore the 1000 ms default.
+  The same rule applies in **terminal mode**, where the cost is per-character:
+  a `t`-mode `jk` map makes every literal `j` a prefix and withholds it one
+  `timeoutlen` before it reaches the running program — which is why
+  `toggleterm.lua` maps only `<esc>` there. Never map a common typing
+  character as a `t`-mode prefix.
 - **`vim.health` provider discovery**: `:checkhealth <name>` finds a check by
   module path `lua/<name>/health.lua` returning `{ check = fn }`. Hence
   `lua/nvsinner/health.lua` is a thin shim delegating to
@@ -471,6 +479,11 @@ document. Documented-but-not-locally-probed: the luv handle GC behavior (luv
 docs + this repo's defensive pin), lazy.nvim's import/restore semantics (lazy
 docs + this repo's reliance), and `relative="mouse"` float anchoring (in use in
 `ui-touch.lua`, not exercised headless).
+
+**Keymap-timeout facts re-verified: 2026-07-28** — `timeoutlen = 300` set in
+`lua/core/options.lua`, retunable via `key_timeout` in `lua/core/settings.lua`,
+and no `t`-mode `jk` map in `lua/plugins/terminal/toggleterm.lua`. Every other
+claim on this page still carries the 2026-07-02 date.
 
 Re-verify with:
 

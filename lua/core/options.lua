@@ -35,6 +35,18 @@ vim.g.loaded_ruby_provider = 0
 vim.g.loaded_perl_provider = 0
 vim.g.loaded_node_provider = 0
 
+-- Prefix-key responsiveness. When a mapping is a strict prefix of a longer one,
+-- Neovim waits 'timeoutlen' after it for a possible continuation before firing
+-- the short mapping (which-key only fills that dead time with its menu — it
+-- cannot shorten it). This config has four such prefixes, and they are among
+-- its most-used keys: <leader>t (of <leader>t2..t9), <leader>j (of j2..j9, jx,
+-- ja, jc), <leader>jx (of jx2..jx9) and <leader>f (of <leader>fb). At Neovim's
+-- 1000ms default that reads as the editor being slow, so the wait is calibrated
+-- down here instead of dropping the numbered maps. core/settings.lua (required
+-- immediately after this file) overrides this with the persisted `key_timeout`
+-- value, so :NvSinnerMenu can retune it without editing this file.
+vim.opt.timeoutlen = 300
+
 -- Subtle "glass" completion popup: blend the pum with the terminal background.
 -- pumblend is self-contained to the completion menu, so it does not touch the
 -- NvSinner modals (solid on purpose) or other floats — a global winblend would.

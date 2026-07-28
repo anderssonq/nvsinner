@@ -74,6 +74,7 @@ richest narrative source and are cited by filename.
 | FA-22 | AI column width: 30% proportional → fixed 50 columns | toggleterm | settled |
 | FA-23 | Auto-reload: disk wins over unsaved buffer edits | autoreload | by-design trade-off |
 | FA-24 | `:NvSinnerSync` jumped nvim-treesitter master → main (upstream default-branch flip) | install/update / treesitter | settled |
+| FA-25 | "NvSinner feels slow": 1000 ms `timeoutlen` on the flagship prefix keys + a `jk` map delaying every `j` typed into the AI CLI | keymaps / terminal | settled |
 
 ---
 
@@ -283,6 +284,50 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
 - **Status:** by-design trade-off.
 - **Do not "fix":** adding a W11/W12-style prompt would break the AI workflow
   this exists for. Any change here goes through `nvsinner-change-control`.
+
+### FA-25 — "NvSinner feels slow": the 1000 ms prefix wait (2026-07-28)
+
+- **Symptom:** the owner reported that `<leader>t` and `<leader>j` pause
+  noticeably before the panel appears, and that the editor felt sluggish in
+  general.
+- **Diagnosis:** correct on both counts, and the second had a cause the first
+  didn't. `timeoutlen` was **never set anywhere in the repo** — verified by a
+  whole-tree grep returning only comments — so Neovim's **1000 ms** default
+  governed every strict-prefix mapping. Four prefixes paid it: `<leader>t`
+  (of `t2`…`t9`), `<leader>j` (of `j2`…`j9`, `jx`, `ja`, `jc`), `<leader>jx`
+  (of `jx2`…`jx9`, stacking on `<leader>j`'s), and — previously undocumented,
+  found during this investigation — **`<leader>f`** (of `<leader>fb`). That
+  last one hid because the collision spans two ownership layers: `<leader>f`
+  is a lazy `keys` stub in `lua/plugins/navigation/telescope.lua:24`,
+  `<leader>fb` an eager map in `lua/core/keymaps.lua:83`.
+  The diffuse "everything is slow" feeling traced to a fifth site nobody had
+  connected to `timeoutlen`: `toggleterm.lua` mapped **`jk` in terminal
+  mode**, making every literal `j` a prefix, so each `j` typed into the AI
+  CLI was withheld a full second before reaching the program.
+- **Fix:** `vim.opt.timeoutlen = 300` in `lua/core/options.lua`, overridable
+  by a new persisted `key_timeout` setting (`lua/core/settings.lua` +
+  a `:NvSinnerMenu` → "Key timeout" row cycling 200/250/300/400/500/1000), and
+  the `t`-mode `jk` map deleted. Pinned by specs in `options_spec`,
+  `settings_spec`, `menu_spec` and `keymaps_spec`.
+- **Prior state of the record:** the delay was documented in eight places and
+  classified *NOT A BUG*, which is why it survived so long. Re-reading those
+  carefully was the unlock: the only fix ever **forbidden** was "removing the
+  numbered maps". Lowering `timeoutlen` had never been tried, tested, or
+  vetoed, and `nvsinner-architecture-contract` already listed the lag as a
+  known **weak point** — an acknowledged cost, not a defended design.
+- **Rejected:** (a) *removing or relocating the numbered maps* — still
+  forbidden, it is the one veto that predates this work; (b) *a which-key
+  `delay`/`triggers` tweak* — which-key only decides when the popup paints,
+  it cannot change when the mapping fires, and editing that spec has its own
+  history (FA-18); (c) *a per-mapping continuation reader* (`getchar` with a
+  short custom wait, which would make the bare press truly instant while
+  keeping every numbered map) — it works in principle but adds blocking,
+  fragile input code to buy 300 ms over a one-line option.
+- **Status:** settled.
+- **Do not retry:** restoring Neovim's 1000 ms default, or re-adding a
+  `t`-mode `jk` (or any other common typing character) as an escape — in
+  terminal mode a prefix map costs one `timeoutlen` **per keystroke typed
+  into the CLI**, which is the expensive case.
 
 ---
 
@@ -575,6 +620,11 @@ files. FA-15's disjoint-history claim was verified by an empty
 **Facts verified: 2026-07-02** (dev machine: NVIM v0.12.3; `make test` green
 per `.tmp/07-02-26_01_...md`).
 
+**Keymap-timeout facts re-verified: 2026-07-28** — `timeoutlen = 300` set in
+`lua/core/options.lua`, retunable via `key_timeout` in `lua/core/settings.lua`,
+and no `t`-mode `jk` map in `lua/plugins/terminal/toggleterm.lua`. Every other
+claim on this page still carries the 2026-07-02 date.
+
 Re-verification one-liners (run from the repo root):
 
 - Histories still disjoint: `git merge-base main feat/nvsinner-distro || echo disjoint`
@@ -587,3 +637,4 @@ Re-verification one-liners (run from the repo root):
 - FA-10/17: `grep -n 'enabled = false' lua/plugins/ui/noice.lua lua/plugins/ui/mini-animate.lua lua/plugins/ui/cursorline.lua`
 - FA-16 doctrine: `grep -n 'unshallow\|Lazy! restore' install.sh`
 - FA-21 guards: `grep -n 'semanticTokensProvider\|automatic_enable' lua/plugins/lsp/lsp-config.lua`
+- FA-25 timeout + no t-mode `jk`: `nvim --headless -c 'lua print(vim.o.timeoutlen, "jk=" .. vim.fn.maparg("jk", "t"))' -c qa` (expect `300  jk=`)

@@ -346,7 +346,8 @@ end, { desc = "Send line diagnostics to AI" })
 
 -- Cockpit picker: jump to (or reopen) a session. Sits under the bare
 -- <leader>j prefix, so like <leader>j2.. it costs bare <leader>j one
--- 'timeoutlen' — the documented prefix trade-off.
+-- 'timeoutlen' — the documented prefix trade-off (300ms, tunable in
+-- :NvSinnerMenu's "Key timeout" row).
 vim.keymap.set("n", "<leader>ja", function()
 	local sessions = M.sessions()
 	if #sessions == 0 then
@@ -377,7 +378,7 @@ end, { desc = "Jump to AI session" })
 
 -- Clear a session for good: kill the CLI and forget the choice, so the next
 -- <leader>j open asks which CLI to run again. Same <leader>j-prefix
--- timeoutlen trade-off as <leader>ja.
+-- 'timeoutlen' trade-off as <leader>ja.
 vim.keymap.set("n", "<leader>jc", function()
 	M.clear()
 end, { desc = "Clear AI session (kill CLI + forget choice)" })

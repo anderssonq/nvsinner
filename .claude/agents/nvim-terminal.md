@@ -20,7 +20,11 @@ directory.
     independent horizontal terminals (ids 2–9) via
     `exe "<N>ToggleTerm direction=horizontal"`. `<leader>t` is a prefix of
     `<leader>t2`…, so a bare `<leader>t` waits one `timeoutlen` (which-key menu) then
-    falls back to terminal 1. (Moved off `<C-t>` to avoid a conflict.)
+    falls back to terminal 1 — 300 ms, set in `lua/core/options.lua` and tunable in
+    `:NvSinnerMenu` → "Key timeout". (Moved off `<C-t>` to avoid a conflict.)
+  - **No `jk` in terminal mode**: `<esc>` is the only escape to terminal-normal mode.
+    A `jk` map makes every literal `j` a prefix, withholding the keystroke one
+    `timeoutlen` before it reaches the CLI. Do not re-add it.
   - **AI columns**: multiple persistent vertical columns on the right, each an
     independent AI CLI session; toggling hides without killing the process. Session 1
     → `<leader>j`, `<M-J>` (iTerm2 Cmd+Opt+J via Send Escape Sequence = `J`), or

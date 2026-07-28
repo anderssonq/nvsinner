@@ -352,6 +352,7 @@ hovering moves the selection and a click cycles the row's value.
 | Neo-tree side | `left` / `right` |
 | AI column side | `left` / `right` |
 | AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
+| Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
 
 ### Theme options (carbon)
@@ -556,6 +557,12 @@ spec; new files in an existing category are picked up automatically.
 
 ### Terminals & AI (toggleterm)
 
+> `<leader>t`, `<leader>j`, `<leader>jx` (and `<leader>f` in the table above)
+> are prefixes of longer maps, so a bare press waits one `timeoutlen` — **300
+> ms**, tunable in `:NvSinnerMenu` → "Key timeout" — before falling back to
+> terminal/session 1. Typing the digit right after the prefix skips the wait
+> entirely.
+
 | Keys | Mode | Action |
 |------|------|--------|
 | `<leader>t` | n | Toggle horizontal terminal 1 |
@@ -578,7 +585,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>p` | n | Prompt library (`:NvSinnerPrompts`) — copy a reusable AI prompt to the clipboard |
 | `<M-J>` | n, i, t | Toggle the AI session you're inside, else session 1 (sent by iTerm2's `⌘⌥J`) |
 | `<D-M-j>` | n, t | Toggle the AI session you're inside, else session 1 (GUI Neovim `⌘⌥J`) |
-| `<Esc>` / `jk` | t | Leave terminal mode |
+| `<Esc>` | t | Leave terminal mode (no `jk` map on purpose — it would delay every literal `j` typed into the CLI) |
 | `<C-h/j/k/l>` | t | Move to window left/down/up/right |
 | `<C-w>` | t | Leave terminal mode + start a window command (`<C-w>` prefix) |
 

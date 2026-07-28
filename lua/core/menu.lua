@@ -66,6 +66,14 @@ local ITEMS = {
 	{ key = "tree_side", label = "Neo-tree side", values = { "left", "right" } },
 	{ key = "ai_side", label = "AI column side", values = { "left", "right" } },
 	{ key = "ai_complete", label = "AI completion", values = { false, true }, show = bool_show("on", "off") },
+	{
+		key = "key_timeout",
+		label = "Key timeout",
+		values = { 200, 250, 300, 400, 500, 1000 },
+		show = function(v)
+			return v .. "ms"
+		end,
+	},
 	{ key = "quiet", label = "Notifications", values = { false, true }, show = bool_show("hidden", "shown") },
 }
 

@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.2.1).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.3.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.2.1"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.3.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.2.1` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.3.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -85,7 +85,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     focus-or-open an AI session with the CLI input primed with `@path`
     mentions of your open buffers; **v1.2.1** narrowed those mentions to the
     buffers actually **visible in a window**, so files whose window you closed
-    (still in Neovim's buffer list) no longer scope the agent.
+    (still in Neovim's buffer list) no longer scope the agent. **v1.3.0**
+    calibrated `timeoutlen` to 300 ms (it had never been set, so Neovim's
+    1000 ms default made every prefix key — `<leader>t`, `<leader>j`,
+    `<leader>jx`, `<leader>f` — pause a full second before acting), exposed it
+    as the persisted **"Key timeout"** row in `:NvSinnerMenu`, and dropped the
+    terminal-mode `jk` escape that was withholding every literal `j` typed
+    into an AI CLI for the same interval.
 
 ## Status
 
