@@ -225,7 +225,9 @@ editor background like a tinted cursor-line so the code stays readable) right
 in the file pane — you see at a glance what the AI just touched while you're
 still reading its summary in the column. The marks clear as soon as you take
 over the file — move the cursor in it or start editing. For a persistent,
-reviewable diff use `<leader>gd` (Diffview) as usual.
+reviewable diff use `<leader>gd` (Diffview) as usual — or `<leader>gi` to jump
+straight into the diff of the file you're reading, at the line you're on, and
+`<leader>go` to drop back out onto the editable buffer.
 
 ### Inline AI completion (ghost text)
 
@@ -513,7 +515,7 @@ spec; new files in an existing category are picked up automatically.
 | `persistence.lua` | persistence.nvim | **Disabled** — native sessions in `lua/core/sessions.lua` keep `<leader>SQ` / `<leader>Sc` / `<leader>Sl` |
 | `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua` (`:NvSinnerBlameToggle`) |
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
-| `diffview.lua` | diffview.nvim | `<leader>gd` diff · `<leader>gh`/`<leader>gH` file/repo history · `<leader>gq` close |
+| `diffview.lua` | diffview.nvim | `<leader>gd` diff · `<leader>gh`/`<leader>gH` file/repo history · `<leader>gq` close · `<leader>gi`/`<leader>go` into/out of the diff |
 | `todocomment.lua` | todo-comments.nvim | **Disabled** — replaced by the native keyword chips (`lua/core/todo.lua`) |
 | `which-key.lua` | which-key.nvim | `<leader>?` shows buffer keymaps · group labels for the leader namespaces |
 | `lsp/neoconf.lua` | neoconf.nvim | `:Neoconf` project-local settings |
@@ -618,6 +620,8 @@ Ask-AI modal.
 | `<leader>gd` | n | Diffview: working tree vs index |
 | `<leader>gh` / `<leader>gH` | n | Diffview: current-file / whole-repo history |
 | `<leader>gq` | n | Diffview: close |
+| `<leader>gi` | n | Diffview: **into** the diff — open on the current file at the current line, focus the working-tree pane; inside the view, toggle file panel ⇄ diff |
+| `<leader>go` | n | Diffview: **out** of the diff — back to the editable file at the cursor line, closing the diff tab (built-in `gf` does the same but keeps the tab) |
 
 ### Sessions, folds, windows & misc
 

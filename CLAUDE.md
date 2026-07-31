@@ -168,7 +168,8 @@ forgets the chosen agent) so the next open re-runs the CLI picker.
 The full keybindings reference lives in **README.md §Full keybindings
 reference** — check it before adding a map. Leader namespaces (leader = Space):
 
-- `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview) · `h` hunks
+- `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview; `gi`/`go` = into /
+  out of the diff for the current file at the current line) · `h` hunks
   (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
   primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
