@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.3.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.4.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.3.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.4.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.3.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.4.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -91,7 +91,10 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     `<leader>jx`, `<leader>f` — pause a full second before acting), exposed it
     as the persisted **"Key timeout"** row in `:NvSinnerMenu`, and dropped the
     terminal-mode `jk` escape that was withholding every literal `j` typed
-    into an AI CLI for the same interval.
+    into an AI CLI for the same interval. **v1.4.0** added `<leader>gi`/
+    `<leader>go` to diffview — jump straight into the diff of the file and
+    line you're on (toggling file panel ⇄ diff once inside), then back out to
+    an editable buffer at the same line, closing the diff tab.
 
 ## Status
 
