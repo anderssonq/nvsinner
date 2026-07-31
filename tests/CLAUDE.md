@@ -57,6 +57,7 @@ future change, not just when someone remembers to run the suite.
 | `tests/core/neotree_hover_spec.lua` | the neo-tree hover row wash: the NvTreeHover base01 group (+ ColorScheme re-apply), `update(mp)` washing exactly one row and following the pointer (cached row is a no-op), the clear paths (non-tree window, invalid/zero win, float, out-of-range + blank rows), the two-tree handoff, and the WinClosed teardown |
 | `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` loads and returns a valid lazy spec |
 | `tests/plugins/terminal_keymaps_spec.lua` | source-level guard on toggleterm's `t`-mode maps: `<esc>` present, and no plain-letter map (FA-25 — a `jk` map withholds every literal `j` typed into the CLI for one `timeoutlen`). Reads the file because the maps live in `config`, which never runs headless |
+| `tests/plugins/diffview_spec.lua` | the diffview spec's load-bearing shape: `enhanced_diff_hl` + the `Diffview*` cmd triggers, all six `<leader>g*` maps carrying a which-key `desc`, the `<leader>gi`/`<leader>go` round trip being Lua callbacks (not `<cmd>` strings), the `diff_buf_win_enter` / `view_closed` hooks the async cursor jump depends on, and the hook staying inert (no cursor move) when no jump is queued |
 
 ## Conventions for new specs
 

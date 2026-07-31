@@ -25,14 +25,20 @@ per-file contracts and ownership rules for this directory.
 - `diffview.lua` — `diffview.nvim`: full side-by-side diff viewer (file panel + two
   versions). Lazy on `Diffview*` cmds + keymaps: `<leader>gd` working-tree-vs-index,
   `<leader>gh` current-file history, `<leader>gH` whole-repo history, `<leader>gq`
-  close. `enhanced_diff_hl` on for word-level highlights; everything else at defaults
-  (intentionally minimal — "just see the differences"). Owns the `<leader>g*`
-  namespace.
+  close, plus the review round trip `<leader>gi` (into the diff for the current
+  file at the current line; inside the view it toggles file panel ⇄ diff) and
+  `<leader>go` (out to the editable buffer, closing the diff tab).
+  `enhanced_diff_hl` on for word-level highlights; the round trip is the only
+  non-default behaviour. Owns the `<leader>g*` namespace.
 
 ## Hard constraints
 - Keep the split: **inline blame = git-blame.nvim**, **popup blame = gitsigns**.
   Never enable gitsigns `current_line_blame`.
 - Namespaces: gitsigns owns `<leader>h*`; diffview owns `<leader>g*`. Don't collide.
+- The `<leader>gi`/`<leader>go` round trip has non-obvious contracts (async cursor
+  placement via the `diff_buf_win_enter` hook, `--selected-file` for selection,
+  `set_file_by_path` matching *relative* paths, and `diffview.close(tabpage)` not
+  actually closing anything). Read `lua/plugins/git/CLAUDE.md` before touching it.
 - Theme any new git UI to the carbon palette: roles from `lua/core/carbon.lua` (bg `base00 #161616`,
   panels `base01`/`base02`, body `base04 #d0d0d0`, muted `base03`; semantic
   accents — `base09` blue identity, `base10` magenta attention).
