@@ -1,3 +1,53 @@
+-- ─── Mouse: click-to-open ────────────────────────────────────────────────────
+-- neo-tree's ONLY stock mouse binding is `["<2-LeftMouse>"] = "open"`
+-- (neo-tree/defaults.lua). The maps below add a single-click path behind the
+-- persisted `tree_click` setting (:NvSinnerMenu → "Neo-tree click"). They MERGE
+-- with the stock mapping table — neo-tree discards the defaults only when
+-- `use_default_mappings = false` — so all ~40 built-in bindings survive.
+
+--- Buffer line actually under the pointer, or nil when the click missed a node.
+--- `getmousepos().line` CLAMPS to the last buffer line, so without this a click
+--- on the empty space below the tree would open the last file. topline plus the
+--- winbar offset recover the true row (the tree's winbar carries the
+--- Files/Buffers/Git selector, so that offset is always in play here).
+local function clicked_line(winid)
+	local mp = vim.fn.getmousepos()
+	if mp.winid ~= winid then
+		return nil
+	end
+	local wi = vim.fn.getwininfo(winid)[1]
+	if not wi then
+		return nil
+	end
+	local row = mp.winrow - (wi.winbar or 0)
+	if row < 1 then
+		-- The source-selector winbar itself; it has its own %@…@ click regions.
+		return nil
+	end
+	local line = wi.topline + row - 1
+	if line > vim.api.nvim_buf_line_count(wi.bufnr) then
+		return nil
+	end
+	return line
+end
+
+--- Open the clicked node. `open` already routes a directory to `toggle_node`
+--- (neo-tree/sources/common/commands.lua), so one call covers files and folders;
+--- resolving through `state.commands` keeps any per-source override.
+local function open_clicked(state)
+	if not clicked_line(state.winid) then
+		return
+	end
+	local cmd = state.commands and state.commands.open
+	if cmd then
+		cmd(state)
+	end
+end
+
+local function single_click()
+	return require("core.settings").get("tree_click") == "single"
+end
+
 return {
 	"nvim-neo-tree/neo-tree.nvim",
 	branch = "v3.x",
@@ -69,6 +119,42 @@ return {
 				-- defaults are hardcoded near-black hexes that ignore the theme.
 				highlight_tab = "NeoTreeTabInactive",
 				highlight_tab_active = "NeoTreeTabActive",
+			},
+			window = {
+				mappings = {
+					-- <LeftRelease>, not <LeftMouse>: the press still positions the
+					-- cursor first (the choice every NvSinner modal makes), and the
+					-- handler then acts on the row that press selected.
+					["<LeftRelease>"] = function(state)
+						if single_click() then
+							open_clicked(state)
+						end
+					end,
+					-- While single-click is active, swallow the second click of a
+					-- reflexive double-click: it would immediately re-collapse a
+					-- folder the first click just expanded. In "double" mode this
+					-- is the stock binding (plus the missed-row guard).
+					["<2-LeftMouse>"] = function(state)
+						if not single_click() then
+							open_clicked(state)
+						end
+					end,
+				},
+			},
+			buffers = {
+				-- PERF. neo-tree's buffers source subscribes a BEFORE_RENDER handler
+				-- that calls the SYNCHRONOUS git.status (`vim.fn.system`, at
+				-- neo-tree/git/init.lua:251) on EVERY render — and `git_status_async`
+				-- does NOT cover it: only the filesystem source reads that option.
+				-- On a repo with a large ignored/untracked tree that blocks the UI
+				-- each time the Buffers tab draws.
+				-- The subscription sits in an `elseif config.before_render` branch
+				-- (neo-tree/sources/buffers/init.lua), so defining before_render here
+				-- means it is never registered at all.
+				-- Trade-off, accepted deliberately: buffer rows lose their git
+				-- symbols. Files keeps its git state — that source uses the
+				-- genuinely async path.
+				before_render = function() end,
 			},
 			filesystem = {
 				filtered_items = {

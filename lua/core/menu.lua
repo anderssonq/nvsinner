@@ -64,6 +64,7 @@ local ITEMS = {
 	{ key = "strings", label = "Strings", values = SLOT_VALUES },
 	{ key = "functions", label = "Functions", values = SLOT_VALUES },
 	{ key = "tree_side", label = "Neo-tree side", values = { "left", "right" } },
+	{ key = "tree_click", label = "Neo-tree click", values = { "single", "double" } },
 	{ key = "ai_side", label = "AI column side", values = { "left", "right" } },
 	{ key = "ai_complete", label = "AI completion", values = { false, true }, show = bool_show("on", "off") },
 	{
