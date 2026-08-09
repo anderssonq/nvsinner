@@ -28,6 +28,14 @@ describe("core.options", function()
 		assert.are.equal(300, vim.o.timeoutlen)
 	end)
 
+	-- The terminal tab is the only place several nvsinner windows are tellable
+	-- apart; unset 'title' means the terminal picks its own text.
+	it("names the terminal tab after the project", function()
+		assert.is_true(vim.o.title)
+		assert.are.equal(require("core.project").EXPR, vim.o.titlestring)
+		assert.are.equal(require("core.project").name(), vim.api.nvim_eval_statusline(vim.o.titlestring, {}).str)
+	end)
+
 	it("splits below/right and enables the mouse", function()
 		assert.is_true(vim.o.splitbelow)
 		assert.is_true(vim.o.splitright)

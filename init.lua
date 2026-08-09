@@ -22,6 +22,7 @@ vim.opt.rtp:prepend(lazypath)
 -- Core config: options FIRST (sets the leaders before lazy reads `keys` specs),
 -- then keymaps, the AI-workflow autoreload, and the native touch/focus layer.
 require("core.options")
+require("core.project") -- project name behind 'titlestring' (terminal tab) + the lualine component
 require("core.settings") -- persisted :NvSinnerMenu settings; seeds the carbon flags BEFORE lazy/theme
 require("core.keymaps")
 require("core.autoreload")

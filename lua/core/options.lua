@@ -26,6 +26,14 @@ vim.cmd([[
 
 vim.opt.termguicolors = true
 
+-- Name the terminal window/tab after the project, so several nvsinner tabs are
+-- tellable apart. 'titlestring' is evaluated like 'statusline' because it
+-- contains a "%", and the expression re-requires core/project.lua at evaluation
+-- time. Requiring the module here is safe (it depends on nothing but vim.*) and
+-- keeps the expression string owned by the module that implements it.
+vim.opt.title = true
+vim.opt.titlestring = require("core.project").EXPR
+
 -- This config is Lua-only and drives AI via a CLI in a terminal column, so the
 -- python3/ruby/perl/node remote-plugin host providers are never used. Disabling
 -- them removes provider-probe work at startup and silences the matching
