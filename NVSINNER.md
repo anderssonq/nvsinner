@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.4.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.5.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.4.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.5.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.4.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.5.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -94,7 +94,15 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     into an AI CLI for the same interval. **v1.4.0** added `<leader>gi`/
     `<leader>go` to diffview — jump straight into the diff of the file and
     line you're on (toggling file panel ⇄ diff once inside), then back out to
-    an editable buffer at the same line, closing the diff tab.
+    an editable buffer at the same line, closing the diff tab. **v1.5.0** made
+    the editor stop losing your place: the project folder now names both the
+    terminal tab and the statusline (`󰉋 myproject`), neo-tree opens on a
+    **single click** (persisted "Neo-tree click" row) and its Buffers tab no
+    longer blocks the UI on a synchronous `git status` every render, and the
+    `<leader>gi`/`<leader>go` round trip stopped destroying the file tree on
+    exit, honours the file selected in neo-tree, keeps `gi` inside the view as
+    a diff ⇄ file-list toggle, and no longer lets a `<leader>gh` history tab
+    hijack the jump.
 
 ## Status
 
