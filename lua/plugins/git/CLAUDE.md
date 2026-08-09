@@ -26,7 +26,9 @@
   - `<leader>gi` *into* the diff. Outside a Diffview tab it opens (or switches
     to) the view **on the current file, at the current line**, with focus in
     the right-hand working-tree pane. Inside the tab it toggles focus between
-    the file panel and the diff.
+    the diff and the file panel, so you can walk the changed files. It must
+    **never** land on the editable buffer — leaving the view is `<leader>go`'s
+    job, and conflating the two costs you the file list mid-review.
   - `<leader>go` *out of* the diff — back to the real editable buffer at the
     cursor line, and the Diffview tab is closed.
 
@@ -34,6 +36,26 @@
 
   - **Selection goes through `--selected-file`**, not a manual open-then-seek.
     Diffview normalises the absolute path against the repo toplevel itself.
+  - **The in-view toggle calls `panel:focus()` directly**, not
+    `emit("focus_files")`. The event is dropped while the view is closing and
+    depends on the listener table being wired; the listener body is exactly
+    that call. `Panel:focus()` also reopens a panel that was toggled away
+    (`<leader>b`), so the key is never a silent no-op.
+  - **The exit pre-positions the target tab's window.** `goto_file_edit` opens
+    the file in the target tabpage's *last accessed window* — which is just as
+    often neo-tree or the AI terminal column as a code pane, and `:edit` there
+    wipes the panel. `leave_diff` points the tab at
+    `core.window-picker.editable_win(tab)` (the same buftype/filetype filter
+    neo-tree's window picker uses) BEFORE calling the action.
+  - **`<leader>gi` outside a view prefers a real `DiffView`.** A `<leader>gh`
+    tab is a `FileHistoryView`: no `files:iter()`, no `set_file_by_path`, so
+    adopting it turns the jump into a bogus "no changes" toast. `open_view()`
+    scans for `files` **and** `set_file` first and only then falls back.
+  - **The file `<leader>gi` means is resolved, not assumed.** From a non-file
+    window it is neo-tree's selected node (`get_state_for_window` →
+    `tree:get_node()`, files only — a directory row designates nothing), else
+    the last file window in the tab. A bare `DiffviewOpen` (first changed file)
+    is the last resort, not the first answer.
   - **The cursor lands from the `diff_buf_win_enter` hook, never a timer.**
     `DiffviewOpen` and `set_file` are `async.void`, so nothing is placeable
     synchronously. Only `ctx.symbol == "b"` (the working-tree side) may take

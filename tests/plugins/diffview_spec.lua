@@ -53,6 +53,63 @@ describe("diffview spec", function()
 		assert.are.equal("function", type(hooks.view_closed))
 	end)
 
+	-- Both maps are live from the moment lazy registers them, but diffview only
+	-- loads on the first press — so every entry point starts with a
+	-- `pcall(require, "diffview.lib")` and must be a silent no-op if it fails.
+	-- minimal_init loads no plugins, so this is that state for real.
+	it("is a silent no-op while diffview is not on the runtimepath", function()
+		assert.is_nil(package.loaded["diffview.lib"], "the plugin must not be loadable here")
+		local cursor = vim.api.nvim_win_get_cursor(0)
+		for _, lhs in ipairs({ "<leader>gi", "<leader>go" }) do
+			local ok, err = pcall(by_lhs[lhs][2])
+			assert.is_true(ok, lhs .. " must not error without diffview: " .. tostring(err))
+		end
+		assert.are.same(cursor, vim.api.nvim_win_get_cursor(0), "no window may move")
+	end)
+
+	-- Behaviours that live inside the `keys` callbacks, which never run headless
+	-- (no diffview runtime). Same source-level guard as
+	-- tests/plugins/terminal_keymaps_spec.lua: cheap, and it catches the silent
+	-- deletion that would otherwise regress the round trip with no error.
+	describe("round-trip source guards", function()
+		local src = table.concat(vim.fn.readfile(repo_root() .. "/lua/plugins/git/diffview.lua"), "\n")
+
+		-- The two keys own different halves of the trip. <leader>gi staying
+		-- INSIDE the view is the whole point of having both: conflating them
+		-- costs you the file list mid-review.
+		it("keeps <leader>gi inside the view — only <leader>go leaves it", function()
+			local body = src:match("local function into_diff%(%).-\nend\n")
+			assert.is_truthy(body, "into_diff must still be a local function")
+			assert.is_truthy(body:match("focus_panel"), "the in-view toggle focuses the file list")
+			assert.is_nil(body:match("leave_diff"), "<leader>gi must never exit to the buffer")
+
+			local exit = src:match("local function out_of_diff%(%).-\nend\n")
+			assert.is_truthy(exit and exit:match("leave_diff"), "<leader>go is the exit")
+		end)
+
+		it("routes the exit through core.window-picker's editable_win", function()
+			assert.is_truthy(
+				src:match("editable_win"),
+				"goto_file_edit edits into the target tab's last-accessed window — "
+					.. "without pre-positioning it, the file lands in neo-tree or the AI column"
+			)
+		end)
+
+		it("resolves the selected file from neo-tree", function()
+			assert.is_truthy(
+				src:match("neo%-tree%.sources%.manager"),
+				"<leader>gi from the tree must diff the selected node, not the first changed file"
+			)
+		end)
+
+		it("prefers a DiffView over a FileHistoryView when adopting an open tab", function()
+			assert.is_truthy(
+				src:match("view%.files and view%.set_file"),
+				"a <leader>gh tab has neither, and adopting it swallows the jump"
+			)
+		end)
+	end)
+
 	-- diffview fires diff_buf_win_enter for every diff window it opens, including
 	-- the ones nobody asked to jump to. With no jump queued the hook must be
 	-- inert: it runs on windows/buffers it was never told about.
