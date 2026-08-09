@@ -319,6 +319,42 @@ editing.
   fixed accent, `gray` gives a monochrome tree. Like accents, only text
   accents change — never surfaces.
 
+## Project identity — `project.lua` (required from `init.lua`)
+
+Answers "which project is this window?" in the two places the user looks: the
+**terminal tab** (`'titlestring'`, set in `core/options.lua` from `M.EXPR`) and
+the **statusline** (a lualine component in `lua/plugins/ui/lualine.lua`).
+
+- **CWD-anchored, not buffer-anchored.** NvSinner is launched as
+  `cd myproject && nvsinner`, so the cwd's root is the "main folder" the name
+  should report. A buffer-anchored `vim.fs.root(0, …)` would re-resolve per
+  file and rename the window as you move around a monorepo.
+- **`M.MARKERS` order is priority, not proximity** — and this is the
+  non-obvious part. `vim.fs.root` loops the marker list and returns on the
+  **first marker that matches anywhere in the upward walk** (verified in
+  `runtime/lua/vim/fs.lua`: `for _, mark in ipairs(markers)` … `if #paths ~= 0
+  then return`). It is NOT "innermost directory containing any marker".
+  Keeping `.git` first is exactly what makes `cd packages/foo && nvsinner`
+  inside a monorepo still report the REPO name; the manifests
+  (`package.json`/`Cargo.toml`/`go.mod`/`pyproject.toml`) only apply when there
+  is no repo at all. Reordering the list silently changes the title.
+- **`M.EXPR` is the plain `%{…}` form, so `M.title()` must NOT escape `%`.**
+  Measured on 0.12.3: `%{expr}` inserts its result **literally** (a file named
+  `100%done` renders as `100%done`; escaping would render `100%%done`), while
+  `%{%expr%}` re-parses its result as statusline items — which is why
+  `filebadge.lua`'s `fragment()` *does* escape. The two forms have opposite
+  escaping requirements; switching this module to `%{%…%}` means adding the
+  escape back.
+- Title layout is `<project> · <file> [+]` with the **project first**, so a
+  narrow terminal tab truncates the file path rather than the identity — the
+  whole point is telling two nvsinner tabs apart. Non-file buffers (dashboard,
+  terminals) show the name alone.
+- The root lookup is filesystem-only (no `git` subprocess) and **cached** until
+  `DirChanged`, because `M.statusline()` is read from a lualine component and
+  statusline components re-evaluate on every redraw (the same cost that got the
+  AI badge removed from lualine). Seam: `M._reset()`.
+  Spec: `tests/core/project_spec.lua`.
+
 ## Settings & menu — `settings.lua` + `menu.lua` (required from `init.lua`)
 
 - `settings.lua` persists user choices as JSON in the distro's **`settings/`
@@ -995,6 +1031,14 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   on `base09`) with a letter from `M.CHARS`, and `getcharstr()` picks
   (case-insensitive; anything unmapped/interrupt → nil). Overlays are always
   torn down. Seams: `M._candidates()`, `M._getchar` (stub point).
+- **`M.editable_win(tabpage)`** generalises the same predicate (`M._editable`,
+  shared with `_candidates`) to ANY tabpage: the tab's current window when it
+  is an ordinary editor pane, else the first one that is, else nil. It exists
+  because moving a file into another tabpage lands it in whatever window that
+  tab last focused — as often neo-tree or an AI terminal column as a code
+  pane. Consumer: `lua/plugins/git/diffview.lua`'s `<leader>gi`/`<leader>go`
+  exit, which points the target tab at a real pane before diffview's
+  `goto_file_edit` runs.
 
 ## Markdown reading view — `markdown.lua` (required from `init.lua`)
 

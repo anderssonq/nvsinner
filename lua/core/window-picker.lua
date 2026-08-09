@@ -24,18 +24,52 @@ end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = apply_hl })
 
+-- Is this an ordinary editor pane — a non-floating window a file could be
+-- opened in? (Not the tree, not a terminal, not a picker/notification float.)
+function M._editable(win)
+	if not (win and win ~= 0 and vim.api.nvim_win_is_valid(win)) then
+		return false
+	end
+	if vim.api.nvim_win_get_config(win).relative ~= "" then
+		return false
+	end
+	local buf = vim.api.nvim_win_get_buf(win)
+	return not M.BT_IGNORE[vim.bo[buf].buftype] and not M.FT_IGNORE[vim.bo[buf].filetype]
+end
+
 -- Non-floating windows of the current tabpage a file could be opened in.
 function M._candidates()
 	local wins = {}
 	for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-		if vim.api.nvim_win_get_config(win).relative == "" then
-			local buf = vim.api.nvim_win_get_buf(win)
-			if not M.BT_IGNORE[vim.bo[buf].buftype] and not M.FT_IGNORE[vim.bo[buf].filetype] then
-				wins[#wins + 1] = win
-			end
+		if M._editable(win) then
+			wins[#wins + 1] = win
 		end
 	end
 	return wins
+end
+
+--- The window of `tabpage` a file should be `:edit`ed into: its current window
+--- when that is an ordinary editor pane, else the first one that is.
+--- Consumers that move a file into ANOTHER tabpage need this — `:edit` lands in
+--- whatever window that tab last had focused, which is just as likely to be
+--- neo-tree or an AI terminal column as a code pane.
+---@param tabpage integer|nil 0/nil = the current tabpage
+---@return integer|nil winid
+function M.editable_win(tabpage)
+	tabpage = tabpage or 0
+	local ok, wins = pcall(vim.api.nvim_tabpage_list_wins, tabpage)
+	if not ok then
+		return nil
+	end
+	local cur = select(2, pcall(vim.api.nvim_tabpage_get_win, tabpage))
+	if type(cur) == "number" and M._editable(cur) then
+		return cur
+	end
+	for _, win in ipairs(wins) do
+		if M._editable(win) then
+			return win
+		end
+	end
 end
 
 -- Test seam: specs stub this instead of synthesizing a keypress.

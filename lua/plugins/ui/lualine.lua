@@ -51,7 +51,19 @@ return {
 				sections = {
 					lualine_a = { "mode" },
 					lualine_b = { "branch" },
-					lualine_c = { "filename" },
+					-- Project name (the cwd's root folder) ahead of the filename, so
+					-- the bar answers "which project?" before "which file?". The name
+					-- keeps the section's muted base04; only the folder icon carries
+					-- the base09 identity accent — the same icon-colored/name-muted
+					-- split core/filebadge.lua uses, so the bar stays gray-dominant.
+					-- core/project.lua caches the lookup: this runs on every redraw.
+					lualine_c = {
+						{
+							require("core.project").statusline,
+							icon = { "󰉋", color = { fg = c.base09 } },
+						},
+						"filename",
+					},
 					lualine_x = { "diagnostics", "filetype" },
 					lualine_y = { "progress" },
 					lualine_z = { "location" },

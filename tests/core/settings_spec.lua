@@ -24,6 +24,7 @@ describe("core.settings", function()
 			assert.are.equal("default", settings.get(slot), slot)
 		end
 		assert.are.equal("left", settings.get("tree_side"))
+		assert.are.equal("single", settings.get("tree_click"))
 		assert.are.equal("right", settings.get("ai_side"))
 		assert.is_true(settings.get("ai_complete"))
 		assert.are.equal("minimax-m2.5", settings.get("ai_model"))
@@ -50,6 +51,14 @@ describe("core.settings", function()
 		settings.set("ai_model", "minimax-m2.7")
 		settings.load({ file = temp })
 		assert.are.equal("minimax-m2.7", settings.get("ai_model"))
+	end)
+
+	-- neo-tree's click handlers read this on every click (their mappings are
+	-- installed once at setup()), so the round trip is the whole contract.
+	it("persists the tree_click choice", function()
+		settings.set("tree_click", "double")
+		settings.load({ file = temp })
+		assert.are.equal("double", settings.get("tree_click"))
 	end)
 
 	it("persists a set() and reads it back from disk", function()

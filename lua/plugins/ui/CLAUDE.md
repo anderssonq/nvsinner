@@ -31,6 +31,12 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   AI cockpit badge that used to ride `lualine_x` was removed for performance
   (statusline components re-evaluate on every redraw); per-session status
   lives in the terminal winbars and the `<leader>ja` picker.
+  `lualine_c` leads with the **project name** from `lua/core/project.lua`
+  (`󰉋` icon in `base09`, name in the section's inherited `base04` — the
+  icon-colored/name-muted split `filebadge.lua` uses, so the bar stays
+  gray-dominant). It obeys the same redraw doctrine as the removed badge: the
+  root lookup is cached in `core/project.lua` and only re-resolved on
+  `DirChanged`, so the component is a table read per redraw.
 - `incline.lua` — **disabled** (`enabled = false`): replaced by the native
   winbar badge in `lua/core/filebadge.lua` — incline's float overlapped the
   first buffer line on winbar-less (markdown) windows and its non-focusable

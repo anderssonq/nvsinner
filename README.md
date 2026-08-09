@@ -82,6 +82,11 @@ any existing `~/.config/nvim` without touching it.
 - **Carbon theme, configurable in one place** — dark/light variants,
   transparency, four accent packs, and per-role color slots, all from a
   single palette file (`lua/core/carbon.lua`) — live-applied and persisted.
+- **Knows which project you're in** — the folder you launched in names both the
+  **terminal tab** and the statusline (`󰉋 myproject`), so a row of nvsinner
+  tabs is tellable apart at a glance. The name is the repo root, so it stays
+  put when you `cd` into a subdirectory — and in a monorepo it reports the repo,
+  not the package.
 - **Native-first** — focus glow, mouse-hover docs, agent activity, the
   send-to-AI bridge, health checks, and the updater are zero-dependency core
   modules, not plugins.
@@ -226,8 +231,9 @@ in the file pane — you see at a glance what the AI just touched while you're
 still reading its summary in the column. The marks clear as soon as you take
 over the file — move the cursor in it or start editing. For a persistent,
 reviewable diff use `<leader>gd` (Diffview) as usual — or `<leader>gi` to jump
-straight into the diff of the file you're reading, at the line you're on, and
-`<leader>go` to drop back out onto the editable buffer.
+straight into the diff of the file you're reading (or the one selected in the
+tree), at the line you're on, pressing it again to hop between the diff and the
+file list, and `<leader>go` to drop back out onto the editable buffer.
 
 ### Inline AI completion (ghost text)
 
@@ -352,6 +358,7 @@ hovering moves the selection and a click cycles the row's value.
 | Strings | same choices — recolors syntax strings |
 | Functions | same choices — paints the whole function/method family in one accent |
 | Neo-tree side | `left` / `right` |
+| Neo-tree click | `single` (default — one click opens a file / expands a folder) / `double` (the stock neo-tree behavior) |
 | AI column side | `left` / `right` |
 | AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
 | Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
@@ -536,6 +543,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>sr` / `<leader>sh` | n | Telescope resume last search / help tags |
 | `<leader>ss` / `<leader>sR` | n | Telescope document symbols / LSP references |
 | `<leader>e` | n | Toggle Neo-tree (reveals the current file; side set in `:NvSinnerMenu`) |
+| Click a tree row | mouse | Open the file / expand the folder — **one click**, not two (switch to stock double-click in `:NvSinnerMenu` → "Neo-tree click") |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
 | `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down |
 
@@ -620,7 +628,7 @@ Ask-AI modal.
 | `<leader>gd` | n | Diffview: working tree vs index |
 | `<leader>gh` / `<leader>gH` | n | Diffview: current-file / whole-repo history |
 | `<leader>gq` | n | Diffview: close |
-| `<leader>gi` | n | Diffview: **into** the diff — open on the current file at the current line, focus the working-tree pane; inside the view, toggle file panel ⇄ diff |
+| `<leader>gi` | n | Diffview: **into** the diff — open on the current file (or the one selected in the tree) at the current line, focus the working-tree pane; inside the view, toggle diff ⇄ file list |
 | `<leader>go` | n | Diffview: **out** of the diff — back to the editable file at the cursor line, closing the diff tab (built-in `gf` does the same but keeps the tab) |
 
 ### Sessions, folds, windows & misc
@@ -653,6 +661,30 @@ Plugins are lazy-loaded via lazy.nvim triggers:
 
 Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load
 eagerly. Check the breakdown anytime with `:Lazy profile`.
+
+### Neo-tree's Buffers and Git tabs
+
+neo-tree computes git state by shelling out to `git status`, and for two of its
+three source tabs that call is **synchronous** — it blocks the editor.
+neo-tree's `git_status_async` option does *not* cover them; only the Files
+(filesystem) source reads it.
+
+- **Buffers** used to pay that cost on *every render*. NvSinner disables it
+  (`buffers.before_render`), so the tab is instant — at the cost of git symbols
+  on buffer rows. Files still shows git state.
+- **Git** still blocks while it scans, because the scan *is* the tab's content.
+  It runs with `--untracked-files=all` on top of `--ignored=traditional`, which
+  enumerates every ignored file (`node_modules/`, `dist/`, `.venv/`…). Measured
+  on a synthetic 24k-file repo with a 24k-file ignored tree: **73 ms**, against
+  14 ms for a plain `git status` — a ~5× multiplier that grows with the ignored
+  tree, so a large `node_modules` can push it into the hundreds of ms. You only
+  pay it when you click the Git tab.
+
+If you want that faster today, the lever is your `.gitignore` scope, not
+Neovim. **`core.fsmonitor` / `core.untrackedCache` do not help** — measured A/B,
+fsmonitor was *slower* here (it never helps `--ignored` enumeration, and its
+daemon IPC costs more than it saves at this scale). The real fix belongs
+upstream in neo-tree.
 
 ## 🔄 Updating
 
