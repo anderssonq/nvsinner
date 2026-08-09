@@ -26,6 +26,7 @@ prerequisites, plugin bootstrap, fonts, AI CLI) and the `install.sh` /
 init.lua                     Bootstraps lazy.nvim, requires lua/core/*, imports the plugin folders
 colors/carbon.lua            The "carbon" colorscheme (oxocarbon/IBM Carbon port, self-contained)
 lua/core/options.lua         Leaders + core vim options (required FIRST, before lazy)
+lua/core/project.lua         Project name (cwd's root folder) behind 'titlestring' + the lualine component (native)
 lua/core/settings.lua        Persistent :NvSinnerMenu settings (JSON in settings/) — seeds the carbon flags at boot (native)
 lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over core/settings (native)
 lua/core/prompts.lua         :NvSinnerPrompts — prompt-library modal over settings/prompts.json → OS clipboard (native)
@@ -56,7 +57,7 @@ lua/core/sessions.lua        :mksession sessions per cwd — :NvSinnerSession*, 
 lua/core/indent.lua          Current-scope indent guide: decoration-provider overlay (native, replaces indentmini.nvim)
 lua/core/colorizer.lua       #hex color chips on the visible range (native, replaces nvim-colorizer)
 lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
-lua/core/window-picker.lua   Letter-overlay window picker; serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
+lua/core/window-picker.lua   Letter-overlay window picker + `editable_win(tab)` (which window a file may be `:edit`ed into); serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
 lua/core/markdown.lua        Markdown reading view: heading bars, bullets, checkboxes, quote/fence/rule styling on the visible range (native, replaces render-markdown.nvim)
 lua/nvsinner/init.lua        Distro metadata — `require("nvsinner").version`, the single semver source of truth (surfaced by :NvSinnerHelp + the dashboard footer; fetched raw from `main` by core/version.lua — its one-line shape is load-bearing)
 lua/nvsinner/health.lua      Thin provider so :checkhealth nvsinner resolves (delegates to core.health)
@@ -169,7 +170,8 @@ The full keybindings reference lives in **README.md §Full keybindings
 reference** — check it before adding a map. Leader namespaces (leader = Space):
 
 - `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview; `gi`/`go` = into /
-  out of the diff for the current file at the current line) · `h` hunks
+  out of the diff for the current file at the current line, `gi` inside the
+  view toggling diff ⇄ file list) · `h` hunks
   (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
   primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
