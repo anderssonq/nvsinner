@@ -20,8 +20,10 @@
   `["<2-LeftMouse>"] = "open"` (`neo-tree/defaults.lua`). A top-level
   `window.mappings` adds `<LeftRelease>` (single click opens a file / toggles a
   folder — `open` already routes directories to `toggle_node`) behind the
-  persisted **`tree_click`** setting (`:NvSinnerMenu` → "Neo-tree click",
-  default `single`). Notes that matter when editing this:
+  persisted **`tree_click`** setting (`:NvSinnerMenu` → "Explorer click",
+  default `single`). That setting covers **every explorer**: diffview's file
+  panels read the same key (`lua/plugins/git/CLAUDE.md`), so one knob decides
+  what a click costs everywhere. Notes that matter when editing this:
   - Mappings **merge** with the ~40 stock bindings; they are discarded only by
     `use_default_mappings = false`, which must never be set (pinned by
     `tests/plugins/neotree_spec.lua`).
@@ -29,10 +31,11 @@
     and the handler acts on the row it selected — the same split every
     NvSinner modal uses.
   - **`getmousepos().line` clamps to the last buffer line**, so a click on the
-    empty space below the tree would open the last file. `clicked_line()`
-    recovers the true row from `getwininfo()`'s `topline` + `winbar` offset and
-    bails past the last node (and on the selector winbar, which owns its own
-    `%@…@` click regions).
+    empty space below the tree would open the last file.
+    `core.mouse.clicked_line()` (shared with diffview's panels) recovers the
+    true row from `getwininfo()`'s `topline` + `winbar` offset and bails past
+    the last node (and on the selector winbar, which owns its own `%@…@` click
+    regions).
   - In `single` mode the `<2-LeftMouse>` map is a deliberate **no-op**: the
     second click of a reflexive double-click would re-collapse the folder the
     first click just expanded.

@@ -67,6 +67,58 @@ describe("diffview spec", function()
 		assert.are.same(cursor, vim.api.nvim_win_get_cursor(0), "no window may move")
 	end)
 
+	-- Click-to-preview in the file panels. Unlike neo-tree's window.mappings,
+	-- these are real spec data, so most of it is assertable directly.
+	describe("click-to-preview", function()
+		local PANELS = { "file_panel", "file_history_panel" }
+
+		for _, panel in ipairs(PANELS) do
+			it("binds both mouse events on " .. panel, function()
+				local maps = spec.opts.keymaps and spec.opts.keymaps[panel]
+				assert.is_not_nil(maps, panel .. " must carry the click maps")
+				local by_lhs_map = {}
+				for _, m in ipairs(maps) do
+					assert.are.equal("n", m[1], "the panels are normal-mode only")
+					assert.are.equal("function", type(m[3]), "handlers must be Lua callbacks")
+					assert.is_true(type(m[4].desc) == "string" and #m[4].desc > 0, "g? renders the desc")
+					by_lhs_map[m[2]] = m
+				end
+				assert.is_not_nil(by_lhs_map["<LeftRelease>"], "single click must be bound")
+				assert.is_not_nil(by_lhs_map["<2-LeftMouse>"], "the stock gesture must stay bound")
+			end)
+		end
+
+		-- diffview rebuilds its keymap tables from pristine defaults and then
+		-- extends them keyed by "<mode> <lhs>", so ours merge with the ~50 stock
+		-- bindings. `disable_defaults` would throw all of them away.
+		it("never disables the default keymaps", function()
+			assert.is_not_true(spec.opts.keymaps.disable_defaults)
+		end)
+
+		-- The whole feature is switchable from :NvSinnerMenu, and shares the tree's
+		-- setting so both explorers agree on what a click costs.
+		it("routes both gestures through the persisted tree_click setting", function()
+			local src = table.concat(vim.fn.readfile(repo_root() .. "/lua/plugins/git/diffview.lua"), "\n")
+			assert.is_truthy(src:match('get%("tree_click"%)'))
+			assert.is_truthy(
+				src:match('require%("core%.mouse"%)%.clicked_line'),
+				"getmousepos clamps to the last line — a click below the list must not preview it"
+			)
+		end)
+
+		-- Same contract as the <leader>g maps: live from registration, but
+		-- diffview only loads on first use. minimal_init loads no plugins.
+		it("is a silent no-op while diffview is not on the runtimepath", function()
+			assert.is_nil(package.loaded["diffview.actions"], "the plugin must not be loadable here")
+			for _, panel in ipairs(PANELS) do
+				for _, m in ipairs(spec.opts.keymaps[panel]) do
+					local ok, err = pcall(m[3])
+					assert.is_true(ok, panel .. " " .. m[2] .. " must not error: " .. tostring(err))
+				end
+			end
+		end)
+	end)
+
 	-- Behaviours that live inside the `keys` callbacks, which never run headless
 	-- (no diffview runtime). Same source-level guard as
 	-- tests/plugins/terminal_keymaps_spec.lua: cheap, and it catches the silent

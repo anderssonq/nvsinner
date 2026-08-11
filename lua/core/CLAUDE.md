@@ -1040,6 +1040,30 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   exit, which points the target tab at a real pane before diffview's
   `goto_file_edit` runs.
 
+## Mouse geometry — `mouse.lua` (NOT required from `init.lua`)
+
+- A pure library — no autocmds, no commands, nothing to set up — so it is
+  deliberately absent from `init.lua`; consumers `require` it inside their
+  click handlers. Sole export: **`M.clicked_line(winid, mp)`**, the missed-row
+  guard shared by the two explorers that open a row on click — neo-tree
+  (`lua/plugins/navigation/neo-tree.lua`) and diffview's file panels
+  (`lua/plugins/git/diffview.lua`).
+- **Why it exists**: `getmousepos().line` **clamps to the last buffer line**,
+  so a click on the empty space below the last row reports that row — which
+  would open the last file. The true row is recovered from the window's own
+  geometry instead: `getwininfo()`'s `topline` plus the screen row inside the
+  text area, `nil` past the last line. It also answers `nil` for a click that
+  belongs to another window (a drag released elsewhere) and for the winbar row
+  itself, which owns its own `%@…@` click regions (neo-tree's source selector,
+  filebadge's "Open view" chip).
+- The `topline + winrow` math is exact for both consumers: neo-tree and
+  diffview's panels (`diffview/ui/panel.lua`) all run `wrap = false` and
+  `foldenable = false`, so screen rows map 1:1 onto buffer lines. A future
+  consumer that wraps or folds would need a different approach.
+- `mp` (a `getmousepos()`-shaped table) is the test seam — mouse events cannot
+  be synthesized headless, the same shape as `neotree-hover`'s `M.update(mp)`.
+  Spec: `tests/core/mouse_spec.lua`.
+
 ## Markdown reading view — `markdown.lua` (required from `init.lua`)
 
 - Replaces render-markdown.nvim (spec kept disabled — but reverting is NOT a

@@ -5,37 +5,17 @@
 -- with the stock mapping table — neo-tree discards the defaults only when
 -- `use_default_mappings = false` — so all ~40 built-in bindings survive.
 
---- Buffer line actually under the pointer, or nil when the click missed a node.
---- `getmousepos().line` CLAMPS to the last buffer line, so without this a click
---- on the empty space below the tree would open the last file. topline plus the
---- winbar offset recover the true row (the tree's winbar carries the
---- Files/Buffers/Git selector, so that offset is always in play here).
-local function clicked_line(winid)
-	local mp = vim.fn.getmousepos()
-	if mp.winid ~= winid then
-		return nil
-	end
-	local wi = vim.fn.getwininfo(winid)[1]
-	if not wi then
-		return nil
-	end
-	local row = mp.winrow - (wi.winbar or 0)
-	if row < 1 then
-		-- The source-selector winbar itself; it has its own %@…@ click regions.
-		return nil
-	end
-	local line = wi.topline + row - 1
-	if line > vim.api.nvim_buf_line_count(wi.bufnr) then
-		return nil
-	end
-	return line
-end
-
 --- Open the clicked node. `open` already routes a directory to `toggle_node`
 --- (neo-tree/sources/common/commands.lua), so one call covers files and folders;
 --- resolving through `state.commands` keeps any per-source override.
+---
+--- `core.mouse.clicked_line` is the missed-row guard: `getmousepos().line`
+--- CLAMPS to the last buffer line, so without it a click on the empty space
+--- below the tree would open the last file. (The tree's winbar carries the
+--- Files/Buffers/Git selector, so the helper's winbar offset is always in play
+--- here.) diffview's file panels share the same guard.
 local function open_clicked(state)
-	if not clicked_line(state.winid) then
+	if not require("core.mouse").clicked_line(state.winid) then
 		return
 	end
 	local cmd = state.commands and state.commands.open

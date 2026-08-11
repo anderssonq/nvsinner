@@ -16,6 +16,9 @@
 --
 -- Diffview's own `gf` does the same jump *without* closing the tab, if you want
 -- to keep the view around; it stays bound inside every diff buffer and panel.
+--
+-- And, in the file panels, one click previews a file's diff — the same gesture
+-- and the same `tree_click` setting neo-tree uses (see the mouse section below).
 local api = vim.api
 
 -- A jump requested by <leader>gi that can't be served synchronously: opening a
@@ -282,6 +285,66 @@ local function into_diff()
 	vim.cmd("DiffviewOpen --selected-file=" .. vim.fn.fnameescape(path))
 end
 
+-- ─── Mouse: click-to-preview in the file panels ──────────────────────────────
+-- diffview's ONLY stock mouse binding is `{ "n", "<2-LeftMouse>", select_entry }`
+-- (diffview/config.lua), so seeing a file's diff cost two clicks while neo-tree
+-- opens on one. The maps below add the single-click path behind the SAME
+-- persisted `tree_click` setting (:NvSinnerMenu → "Explorer click"), so both
+-- explorers agree on what a click costs.
+
+local function single_click()
+	return require("core.settings").get("tree_click") == "single"
+end
+
+--- Preview the entry under the pointer. `select_entry` is `view:set_file(item,
+--- false)` — the diff panes update and focus STAYS in the list, so you can walk
+--- the changed files by clicking; descending into the diff stays <leader>gi's
+--- job. On a directory row it toggles the fold. Silent no-op when the click
+--- missed a row (core.mouse guards getmousepos' clamp to the last line) or
+--- before the plugin has loaded.
+local function select_clicked()
+	if not require("core.mouse").clicked_line(api.nvim_get_current_win()) then
+		return
+	end
+	local ok, dv = pcall(require, "diffview.actions")
+	if ok then
+		dv.select_entry()
+	end
+end
+
+-- Shared by both panels. They MERGE with the stock bindings: `config.setup`
+-- rebuilds its keymap tables from pristine defaults and then extends them keyed
+-- by "<mode> <lhs>", so these two override the stock <2-LeftMouse> and every
+-- other default survives. `keymaps.disable_defaults` must never be set.
+local CLICK_MAPS = {
+	-- <LeftRelease>, not <LeftMouse>: the press still positions the cursor
+	-- first, and the handler acts on the row that press selected.
+	{
+		"n",
+		"<LeftRelease>",
+		function()
+			if single_click() then
+				select_clicked()
+			end
+		end,
+		{ desc = "Open the diff for the entry under the pointer" },
+	},
+	-- While single-click is active, swallow the second click of a reflexive
+	-- double-click: on a directory row it would re-collapse the folder the
+	-- first click just expanded. In "double" mode this is the stock binding
+	-- (plus the missed-row guard).
+	{
+		"n",
+		"<2-LeftMouse>",
+		function()
+			if not single_click() then
+				select_clicked()
+			end
+		end,
+		{ desc = "Open the diff for the entry under the pointer" },
+	},
+}
+
 ---<leader>go — out of the diff, editing.
 local function out_of_diff()
 	local ok, lib = pcall(require, "diffview.lib")
@@ -313,6 +376,10 @@ return {
 	opts = {
 		-- Brighter, word-level diff highlights so changes stand out clearly.
 		enhanced_diff_hl = true,
+		keymaps = {
+			file_panel = CLICK_MAPS, -- <leader>gd / <leader>gi — the changed-files list
+			file_history_panel = CLICK_MAPS, -- <leader>gh / <leader>gH — the history list
+		},
 		hooks = {
 			-- Fired once per diff window as it opens. `symbol` is the layout slot:
 			-- "a" is the index/old side, "b" the working-tree/new side.
