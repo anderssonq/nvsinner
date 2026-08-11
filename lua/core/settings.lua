@@ -17,7 +17,8 @@
 --   * theme / transparent / accent / folder / notif / variables /
 --     strings / functions → carbon flags (theme.lua, colors/carbon.lua)
 --   * tree_side → neo-tree position (lua/plugins/navigation/neo-tree.lua)
---   * tree_click → neo-tree single- vs double-click to open (same file)
+--   * tree_click → single- vs double-click to open a row in EVERY explorer:
+--     neo-tree (same file) and diffview's file panels (lua/plugins/git/diffview.lua)
 --   * ai_side   → AI/vertical terminal column side (lua/plugins/terminal/toggleterm.lua)
 --   * ai_complete → inline AI completion on/off (lua/core/ai-complete.lua)
 --   * ai_model   → inline-completion model (lua/core/ai-complete.lua; :NvSinnerIA)
@@ -38,7 +39,7 @@ M.defaults = {
 	strings = "default", -- syntax strings accent (same choices)
 	functions = "default", -- syntax functions/methods accent (same choices)
 	tree_side = "left", -- neo-tree column: "left" | "right"
-	tree_click = "single", -- neo-tree mouse: "single" (one click opens) | "double" (stock)
+	tree_click = "single", -- explorer mouse (neo-tree + diffview panels): "single" (one click opens) | "double" (stock)
 	ai_side = "right", -- AI / vertical terminal columns: "left" | "right"
 	ai_complete = true, -- inline AI completion (ghost text) on/off; no-ops without $OPENCODE_API_KEY
 	ai_model = "minimax-m2.5", -- inline-completion model (:NvSinnerIA picker; fastest verified OpenCode Zen id); $OPENCODE_MODEL still overrides

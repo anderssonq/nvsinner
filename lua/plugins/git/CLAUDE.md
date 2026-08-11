@@ -77,3 +77,38 @@
     isn't on disk.
   - Diffview's built-in `gf` remains the *keep the tab open* variant; that's
     why `<leader>go` closes and no setting was added.
+
+  **Click-to-preview in the file panels** — diffview's ONLY stock mouse
+  binding is `{ "n", "<2-LeftMouse>", actions.select_entry }`
+  (`diffview/config.lua`), so seeing a file's diff cost two clicks while
+  neo-tree opened on one. `CLICK_MAPS` adds `<LeftRelease>` behind the **same
+  persisted `tree_click` setting** neo-tree uses (`:NvSinnerMenu` →
+  "Explorer click", default `single`), wired into both
+  `opts.keymaps.file_panel` (`<leader>gd`/`<leader>gi`) and
+  `file_history_panel` (`<leader>gh`/`<leader>gH`). Rules:
+
+  - **`select_entry`, never `focus_entry`.** `select_entry` is
+    `view:set_file(item, false)` — the diff panes update and focus **stays in
+    the list**, so you can walk the changed files by clicking. Descending into
+    the diff is `<leader>gi`'s job; swapping the action would take the file
+    list away on every click. On a directory row it toggles the fold.
+  - **The maps merge; `keymaps.disable_defaults` must never be set.**
+    `config.setup` rebuilds its keymap tables from pristine defaults
+    (`utils.tbl_clone(M.defaults.keymaps)`) and then runs
+    `extend_keymaps(defaults, user)`, which keys entries by `"<mode> <lhs>"` —
+    so these two override the stock `<2-LeftMouse>` and every other default
+    survives. An earlier `vim.tbl_deep_extend` in the same function *does*
+    produce an index-wise hybrid of the two lists; that value is discarded.
+    Don't "fix" it by pre-merging the lists yourself.
+  - Same three guards as the tree, for the same reasons: `<LeftRelease>` (not
+    `<LeftMouse>`) so the press still positions the cursor;
+    `core.mouse.clicked_line` because `getmousepos().line` clamps to the last
+    buffer line (a click below the list would otherwise preview the last
+    file — the panels run `wrap = false` + `foldenable = false`, so the
+    topline row math is exact); and in `single` mode `<2-LeftMouse>` is a
+    deliberate **no-op** so a reflexive double-click can't re-collapse the
+    folder the first click just expanded.
+  - Each map carries a `desc` — diffview's `g?` help panel renders it.
+  - The handlers `require` lazily inside their bodies, so the spec table stays
+    loadable with no plugins on the runtimepath (what
+    `tests/plugins/diffview_spec.lua` asserts).

@@ -358,7 +358,7 @@ hovering moves the selection and a click cycles the row's value.
 | Strings | same choices — recolors syntax strings |
 | Functions | same choices — paints the whole function/method family in one accent |
 | Neo-tree side | `left` / `right` |
-| Neo-tree click | `single` (default — one click opens a file / expands a folder) / `double` (the stock neo-tree behavior) |
+| Explorer click | `single` (default — one click opens a file / expands a folder) / `double` (the stock behavior). Applies to **both** explorers: the Neo-tree sidebar and the diff file list (`<leader>gd` / `<leader>gh`), where one click previews that file's diff |
 | AI column side | `left` / `right` |
 | AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
 | Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
@@ -543,7 +543,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>sr` / `<leader>sh` | n | Telescope resume last search / help tags |
 | `<leader>ss` / `<leader>sR` | n | Telescope document symbols / LSP references |
 | `<leader>e` | n | Toggle Neo-tree (reveals the current file; side set in `:NvSinnerMenu`) |
-| Click a tree row | mouse | Open the file / expand the folder — **one click**, not two (switch to stock double-click in `:NvSinnerMenu` → "Neo-tree click") |
+| Click a tree row | mouse | Open the file / expand the folder — **one click**, not two (switch to stock double-click in `:NvSinnerMenu` → "Explorer click") |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
 | `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down |
 
@@ -630,6 +630,7 @@ Ask-AI modal.
 | `<leader>gq` | n | Diffview: close |
 | `<leader>gi` | n | Diffview: **into** the diff — open on the current file (or the one selected in the tree) at the current line, focus the working-tree pane; inside the view, toggle diff ⇄ file list |
 | `<leader>go` | n | Diffview: **out** of the diff — back to the editable file at the cursor line, closing the diff tab (built-in `gf` does the same but keeps the tab) |
+| Click a diff file row | mouse | Preview that file's diff — **one click**, not two; focus stays in the list so you can walk the changes (same `:NvSinnerMenu` → "Explorer click" setting as the tree) |
 
 ### Sessions, folds, windows & misc
 

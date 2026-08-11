@@ -39,10 +39,11 @@ describe("neo-tree spec", function()
 		end)
 
 		-- getmousepos().line CLAMPS to the last buffer line, so without a guard a
-		-- click on the empty space below the tree opens the last file.
+		-- click on the empty space below the tree opens the last file. The guard
+		-- itself lives in core/mouse.lua (shared with diffview's file panels) and
+		-- is covered behaviourally by tests/core/mouse_spec.lua.
 		it("guards against clicks past the last node", function()
-			assert.matches("getmousepos", code)
-			assert.matches("nvim_buf_line_count", code)
+			assert.matches('require%("core%.mouse"%)%.clicked_line', code)
 		end)
 	end)
 
