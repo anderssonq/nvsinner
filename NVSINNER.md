@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.5.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.6.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.5.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.6.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.5.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.6.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -102,7 +102,12 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     `<leader>gi`/`<leader>go` round trip stopped destroying the file tree on
     exit, honours the file selected in neo-tree, keeps `gi` inside the view as
     a diff ⇄ file-list toggle, and no longer lets a `<leader>gh` history tab
-    hijack the jump.
+    hijack the jump. **v1.6.0** carried the single click into the *other*
+    explorer: one click on a row of diffview's file panel previews that file's
+    diff (focus stays in the list, so you can walk the changes), on the same
+    persisted setting — relabelled **"Explorer click"** because it now governs
+    both. The missed-row guard behind it moved to
+    [lua/core/mouse.lua](lua/core/mouse.lua), shared by the tree and the panels.
 
 ## Status
 
