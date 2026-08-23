@@ -45,6 +45,7 @@ lua/core/ai-activity.lua     Agent/terminal activity spinner in the terminal win
 lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
 lua/core/ai-ask.lua          :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection (native)
 lua/core/ai-complete.lua     Inline AI completion (ghost text), manual insert <C-l> / :NvSinnerComplete trigger; curl→OpenCode Zen ONLY (default minimax-m2.5), $OPENCODE_API_KEY from env (native)
+lua/core/agents.lua          :NvSinnerAgents / <leader>xa — agent cockpit: every AI column with its status (ai-activity + per-CLI screen signatures), a live chat preview, focus + close (native)
 lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, model picker over the verified-safe Go models, Ask-AI, prompts); listed as the single AI row in :NvSinnerHelp (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
@@ -164,6 +165,8 @@ with `@`-mentions of every file buffer visible in a window (not the
 merely-listed ones). Toggling hides without killing;
 `<leader>jc` / `:NvSinnerAIClear` clears a session for good (kills the CLI,
 forgets the chosen agent) so the next open re-runs the CLI picker.
+`:NvSinnerAgents` / `<leader>xa` is the cockpit over all of it: every column
+with its status, a live preview of its chat, and focus/close from the list.
 
 ## Keymaps
 
@@ -176,7 +179,7 @@ reference** — check it before adding a map. Leader namespaces (leader = Space)
   (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
   primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
-  NvSinner shortcuts (normal) / Ask-AI modal (visual)
+  NvSinner shortcuts (normal; `xa` = the agent cockpit) / Ask-AI modal (visual)
 - `<leader>t`, `<leader>j`, and `<leader>jx` are prefixes of their numbered
   variants, and `<leader>f` is a prefix of `<leader>fb`, so a bare press waits
   one `timeoutlen` before falling back. That wait is **300 ms** (set in

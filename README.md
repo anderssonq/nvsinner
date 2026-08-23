@@ -69,6 +69,14 @@ any existing `~/.config/nvim` without touching it.
   opportunistic `◆ needs input` state when the program signals a prompt via
   OSC sequences (shell integration / notifying CLIs). `<leader>ja` opens a
   picker that jumps to any session.
+- **Agent cockpit** — `:NvSinnerAgents` (`<leader>xa`) lists every AI column
+  with its status and a **live preview of that agent's chat**, so you can see
+  at a glance which one is working, which one is blocked on a permission
+  prompt, and what each was asked. `<CR>` focuses it (opening a hidden column
+  first), `d` closes it for good. Status combines the output spinner with
+  per-CLI screen signatures for `claude` / `kiro-cli` / `opencode` — that
+  second layer is what catches a permission prompt, which emits no output and
+  would otherwise read as idle.
 - **Disk-wins auto-reload** — when the agent edits a file, the open buffer
   reloads automatically and a `🤖 AI · edited <file>` toast names it.
 - **Prompt library** — `<leader>p` opens a modal of eleven reusable AI
@@ -186,6 +194,16 @@ session. `<leader>jc` (or `:NvSinnerAIClear`) **clears** a session for good:
 it kills the CLI and forgets the chosen agent, so the next `<leader>j` open
 shows the CLI picker again — the counterpart to toggling, which only hides
 the column and keeps the process alive.
+
+**The cockpit for all of it** is `:NvSinnerAgents` (`<leader>xa`): a two-pane
+modal listing every column — the CLI it runs, whether the column is open,
+hidden or the CLI exited, and a status chip — beside a live preview of the
+selected agent's chat, so a session you hid an hour ago tells you what it was
+working on. `<CR>` focuses it (opening it when hidden), `d` clears it, `r`
+refreshes, `<C-d>`/`<C-u>` scroll the preview. Status is read from the output
+spinner *plus* each CLI's own on-screen prompts; the per-CLI patterns live in
+`M.SIGNS` at the top of `lua/core/agents.lua`, so teaching it a new CLI — or
+correcting one that reworded its prompt — is a one-line edit.
 
 **Send context without the clipboard:** select code and hit `<leader>as` to
 drop it into the AI column's input, `<leader>ab` to send an `@path` mention
@@ -446,6 +464,7 @@ lua/core/filebadge.lua         Per-window winbar file badge: focus dot + filenam
 lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal winbar
 lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja, <leader>jc clear)
 lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
+lua/core/agents.lua            Agent cockpit: every AI column + status + chat preview (:NvSinnerAgents, <leader>xa)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run missing-tools toast
@@ -609,6 +628,7 @@ Ask-AI modal.
 |------|------|--------|
 | `<leader>xm` | n | `:NvSinnerMenu` — settings modal |
 | `<leader>xi` | n | `:NvSinnerIA` — AI hub (completion on/off, model picker, Ask-AI, prompts) |
+| `<leader>xa` | n | `:NvSinnerAgents` — agent cockpit: every AI column with its status, a live chat preview, focus (`⏎`) + close (`d`) |
 | `<leader>xh` | n | `:NvSinnerHelp` — command palette |
 | `<leader>xp` | n | `:NvSinnerPrompts` — prompt library (same as `<leader>p`) |
 | `<leader>xo` | n | `:NvSinnerSymbols` — document symbols modal (same as `<leader>cs`; `xo` = outline, Trouble owns `xs`) |

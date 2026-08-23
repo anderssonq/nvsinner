@@ -63,6 +63,7 @@ local nvsinner_maps = {
 	{ "<leader>xp", "NvSinnerPrompts", "Prompt library → clipboard" },
 	{ "<leader>xo", "NvSinnerSymbols", "Document symbols modal" },
 	{ "<leader>xi", "NvSinnerIA", "AI hub (completion, model, Ask-AI, prompts)" },
+	{ "<leader>xa", "NvSinnerAgents", "Agent cockpit (status, chat preview, focus, close)" },
 	{ "<leader>xu", "NvSinnerUpdate", "NvSinner update (pinned restore)" },
 	{ "<leader>xS", "NvSinnerSync", "NvSinner sync — floats plugins, rewrites lockfile" },
 	{ "<leader>xc", "checkhealth nvsinner", "NvSinner health check" },

@@ -56,6 +56,7 @@ local DESCS = {
 -- Commands NOT listed here: they live inside the :NvSinnerIA hub modal, so the
 -- palette shows a single "NvSinnerIA" AI entry instead of scattered rows.
 local EXCLUDE = {
+	NvSinnerAgents = true,
 	NvSinnerAIClear = true,
 	NvSinnerAskAI = true,
 	NvSinnerComplete = true,

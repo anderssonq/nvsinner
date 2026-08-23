@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.6.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.7.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.6.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.7.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.6.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.7.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -107,7 +107,16 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     diff (focus stays in the list, so you can walk the changes), on the same
     persisted setting — relabelled **"Explorer click"** because it now governs
     both. The missed-row guard behind it moved to
-    [lua/core/mouse.lua](lua/core/mouse.lua), shared by the tree and the panels.
+    [lua/core/mouse.lua](lua/core/mouse.lua), shared by the tree and the
+    panels. **v1.7.0** answered "what are my agents doing?": `:NvSinnerAgents`
+    (`<leader>xa`) lists every AI column with its status beside a **live preview
+    of that agent's chat**, and lets you focus one (opening it when hidden) or
+    close it for good — including a column whose CLI already exited, which the
+    `<leader>ja` picker could not see. Status combines
+    [ai-activity](lua/core/ai-activity.lua)'s output signal with per-CLI screen
+    signatures for `claude` / `kiro-cli` / `opencode`, which is what catches a
+    permission prompt: it emits no output, so the output signal alone reads it
+    as idle while the agent is really blocked on you.
 
 ## Status
 

@@ -38,6 +38,14 @@ edits files on disk (see *Auto-reload* below).
   skipped**, so a telescope preview or hover float can't leak a mention.
   `opts.bufs` takes an explicit buffer list (bypassing window discovery),
   `opts.wins` an explicit window list.
+- **Two public accessors the cockpits share** — `M.open_session(n)` wraps the
+  injected `opener` (WARN + `false` when toggleterm never injected one), and
+  `M.panel_numbers()` exposes `clearer.list()`: every session number toggleterm
+  still has a panel for, **including ones whose CLI already exited** (`on_exit`
+  drops those from the registry while the memoised Terminal survives — exactly
+  the ones worth clearing). `<leader>ja`'s reopen branch and `M.clear` were
+  refactored through them, so the picker, `:NvSinnerAgents` and the clear flow
+  all read one path.
 - Targeting: the terminal you are inside > the most-recently-used session with
   an open column > MRU with a live (hidden) job; with none, it calls the
   injected opener to open session 1 and warns you to resend once the CLI is up
@@ -89,6 +97,82 @@ edits files on disk (see *Auto-reload* below).
   callbacks are async), cleared after dispatch/cancel. `M.build(key, ctx,
   question)` / `M._reset()` / `M._ctx()` are the test seams; NvMenu* styling
   re-declared locally like the other modals.
+
+## Agent cockpit — `agents.lua` (required from `init.lua`)
+
+- **`:NvSinnerAgents`** / `<leader>xa` — the modal `<leader>ja` never was: one
+  list of every AI column with its live status, a **chat preview** of the
+  selected agent, and the two actions the `vim.ui.select` picker could not
+  carry — focus it (`<CR>`/`<Space>`/`l`, opening a hidden column first) or
+  close it for good (`d` → `ai-sessions.clear`, which kills the CLI and forgets
+  the chosen agent). Toggling an AI column hides it without killing the CLI, so
+  the problem this solves is real: several agents alive, none visible, and no
+  memory of what each was asked. `r` refreshes, `<C-d>`/`<C-u>` scroll the
+  preview, `1`-`9` jump, hover moves the selection, click focuses, `q`/`<Esc>`
+  close. EXCLUDEd from `:NvSinnerHelp` and surfaced as an action row in the
+  `:NvSinnerIA` hub, like the other AI commands.
+- **Status detection is two layers, because no CLI ships a mechanism that maps
+  to a *specific column*.** claude's JSONL transcripts
+  (`~/.claude/projects/<slug>/<uuid>.jsonl`), kiro's session dir and opencode's
+  128 MB sqlite are all keyed by session, and several columns can run the same
+  CLI in the same cwd — nothing in any of them names the PTY. What *does* map
+  exactly is the column's own terminal buffer, and each CLI's TUI **is** its
+  status protocol. So: (1) `ai-activity.status(bufnr)` is the base signal
+  (output heuristic + OSC-133 marks, CLI-agnostic); (2) **`M.SIGNS`** holds
+  per-CLI Lua patterns matched against the last `M.SCAN_LINES` (40) of the
+  terminal tail. Layer 2 exists for one case layer 1 structurally cannot see: a
+  **permission prompt emits no output**, so ai-activity flips it to `idle` after
+  `IDLE_MS` while the CLI is blocked on the user. Precedence in
+  `M.status_of(row)`: screen `awaiting` > activity `working` > screen `working`
+  > activity value > `idle`; an unknown CLI falls through to layer 1, so a
+  plain-terminal session never misreports. Adding a CLI is one `M.SIGNS` entry.
+- **Honest limit**: the `M.SIGNS` *strings* are field-verified, not
+  test-verified — running the real CLIs in CI would burn API credit. The
+  matcher `M._scan(cmd, lines)` is fully specced against synthetic screens, so
+  a CLI rewording its prompt is a one-line data fix, never a logic bug. Confirm
+  them by driving each CLI to a permission prompt.
+- **Previewing a HIDDEN column works only because `ai-activity` attaches to
+  every terminal buffer on `TermOpen`** — Neovim does not materialise a terminal
+  buffer's lines unless something is attached or it is rendered (the same fact
+  that rules out changedtick polling; see *Agent activity* below). Verified
+  empirically: a buffer shown in no window still returned text written after it
+  was hidden. Remove that attachment and hidden previews go blank.
+- **Two floats, a first for this repo's modals**: the list (`LIST_WIDTH` 34,
+  two lines per row — CLI + status chip, then `AI · N · column open|hidden|CLI
+  exited`) and the preview beside it. `nvim_open_win`'s `width` is the INNER
+  width and the rounded border adds a column each side, so the pair spans
+  `list + preview + 5`; the preview is **dropped, not squeezed**, when
+  `prev_w < MIN_PREVIEW_WIDTH` (24). **Height is a share of the screen**
+  (`M.HEIGHT_RATIO` 0.8, floored at `MIN_HEIGHT` 10, capped at `lines - 4`) and
+  deliberately NOT sized to the row count: the list is at most nine sessions, so
+  a content-sized box left the preview — the pane you actually read — two or
+  three lines tall. The spare height is preview room, which is the point of the
+  second pane. Width caps at `MAX_WIDTH` (120), a readable measure for prose. The preview is **`focusable = false`** on
+  purpose: the backdrop's `WinEnter` trap exempts floats, so a focusable pane
+  could hold focus while the list closed — `M.scroll()` drives it through
+  `nvim_win_call` instead. `backdrop.attach` takes only the list window, so the
+  preview is torn down explicitly in `M.close()` **and** by a `WinClosed`
+  autocmd on the list window (a `:q` by any route must not orphan it).
+- **The status chips REUSE `NvAiBusy` / `NvAiAwait`** from `ai-activity` (the
+  same pink/magenta chips the terminal winbar draws), so a row here and the
+  winbar read as one component; only the idle chip (`NvAgentIdle`) is new. Rows
+  are built in segments with byte-exact extmark spans (the `▸` and the chip
+  glyphs are multi-byte).
+- **Its own `vim.uv` timer** (`M.POLL_MS` 700, handle anchored on `M._timer`,
+  started in `open()` / stopped in `close()`, skipped while `mode() == "c"`).
+  It cannot piggyback on `ai-activity`: that timer is **busy-gated** (zero ticks
+  while every agent is idle) and its `on_lines` is a **fast event context**. For
+  the same reason this module sweeps invalid buffers itself — ai-activity only
+  does so inside `tick()`. The preview buffer is rewritten only when a cheap
+  content signature changes, and `ui.follow` goes false after a manual scroll,
+  so the poll never yanks a reader back to the tail.
+- **Actions close the modal FIRST** (`M.focus`) — mandatory, not cosmetic: the
+  backdrop focus trap would bounce us straight back, and toggleterm's opener
+  runs `restore_layout()`, which shuffles focus across windows. `M.kill()` is
+  the exception and stays open so you can clear several in a row, closing itself
+  once nothing is left. Seams: `M._scan`, `M.status_of`, `M._items`,
+  `M._set_items`, `M._preview_lines`, `M._ticking`, `M._reset`. Spec:
+  `tests/core/agents_spec.lua`.
 
 ## Inline AI completion — `ai-complete.lua` (required from `init.lua`)
 
