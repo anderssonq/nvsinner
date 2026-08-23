@@ -30,6 +30,8 @@ describe("core.keymaps", function()
 			xh = "NvSinnerHelp",
 			xp = "NvSinnerPrompts",
 			xo = "NvSinnerSymbols",
+			xi = "NvSinnerIA",
+			xa = "NvSinnerAgents",
 			xu = "NvSinnerUpdate",
 			xS = "NvSinnerSync",
 			xc = "checkhealth nvsinner",

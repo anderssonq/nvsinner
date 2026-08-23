@@ -42,6 +42,27 @@ function M.set_clearer(c)
 	clearer = c
 end
 
+-- Open (or re-show) session n through the injected opener. Public because the
+-- cockpit surfaces — the <leader>ja picker and :NvSinnerAgents — both need
+-- "reopen a hidden column", and neither can reach toggleterm's closure.
+-- No-op with a warning when toggleterm never injected an opener.
+function M.open_session(n)
+	if not opener then
+		vim.notify("No AI session opener registered", vim.log.levels.WARN)
+		return false
+	end
+	opener(n or 1)
+	return true
+end
+
+-- Every session number toggleterm still has a panel for, INCLUDING ones whose
+-- CLI already exited (on_exit unregisters those from the registry above, but
+-- the memoised Terminal survives — and they are exactly the ones worth
+-- clearing). The registry alone cannot see them; only the injected clearer can.
+function M.panel_numbers()
+	return clearer and clearer.list() or {}
+end
+
 function M.register(n, term)
 	registry[n] = { n = n, term = term, last_used = stamp() }
 end
@@ -119,7 +140,7 @@ end
 -- With no explicit n: a single panel clears directly, several ask via
 -- vim.ui.select. Returns true when a panel was cleared.
 function M.clear(n)
-	local panels = clearer and clearer.list() or {}
+	local panels = M.panel_numbers()
 	if #panels == 0 then
 		vim.notify("No AI session to clear — open one with <leader>j", vim.log.levels.WARN)
 		return false
@@ -370,8 +391,8 @@ vim.keymap.set("n", "<leader>ja", function()
 		if s.open and s.term.window and vim.api.nvim_win_is_valid(s.term.window) then
 			vim.api.nvim_set_current_win(s.term.window)
 			vim.cmd("startinsert!")
-		elseif opener then
-			opener(s.n)
+		else
+			M.open_session(s.n)
 		end
 	end)
 end, { desc = "Jump to AI session" })

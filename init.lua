@@ -34,6 +34,7 @@ require("core.ai-activity") -- start polling so the terminal winbar shows agent 
 require("core.ai-sessions") -- AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja)
 require("core.ai-ask") -- :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection
 require("core.ai-complete") -- inline AI completion (ghost text), manual insert <C-l> / :NvSinnerComplete trigger; reads $OPENCODE_API_KEY at request time
+require("core.agents") -- :NvSinnerAgents — agent cockpit: every AI column, its status, a chat preview, focus + close
 require("core.ia") -- :NvSinnerIA — AI hub modal (completion on/off, model picker, Ask-AI, prompts)
 require("core.update") -- defines :NvSinnerUpdate (git pull + restore plugins + checkhealth)
 require("core.sync") -- defines :NvSinnerSync (opt-in :Lazy sync + Mason package updates)

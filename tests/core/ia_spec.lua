@@ -35,6 +35,7 @@ describe("core.ia", function()
 			"Ask AI (selection)",
 			"Complete at cursor",
 			"Prompt library",
+			"Agent sessions",
 			"Clear AI session",
 		}) do
 			assert.matches(row, text, nil, true)
