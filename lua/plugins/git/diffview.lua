@@ -3,19 +3,25 @@
 -- left, the two versions of the selected file side by side), `<leader>gh` shows
 -- the git history of the current file, and `<leader>gq` closes the tab.
 --
--- On top of that, a two-key round trip for reviewing your own work:
+-- The review loop is: one way in, one way out, and never more than one tab.
 --
+--   <leader>gd  the diff, in AT MOST ONE tab. `DiffviewOpen` does not dedupe —
+--               every call is a fresh `tab split` — so this adopts the view
+--               that is already open (refreshing its file list) instead of
+--               stacking a second copy of the same diff in the tabline.
+--   <leader>gH  the whole-repo history, under the same one-tab guard.
+--               `<leader>gh` (one file's history) deliberately keeps stacking:
+--               two files are two legitimate histories.
 --   <leader>gi  "into" the diff — from the file you are editing (or the one
 --               selected in neo-tree), land straight in the right-hand
 --               (working-tree) pane of *that* file, on *that* line. Pressed
 --               again it toggles between the diff and the file list on the
 --               left, so you can walk the changed files without leaving the
---               view. It never drops you back on the buffer — that is <leader>go.
---   <leader>go  "out" of the diff — back to the real, editable buffer at the
---               line you were reading, and the Diffview tab is closed.
---
--- Diffview's own `gf` does the same jump *without* closing the tab, if you want
--- to keep the view around; it stays bound inside every diff buffer and panel.
+--               view. It never drops you back on the buffer — that is `gf`.
+--   gf          "out" of the diff — diffview's own binding, back to the real,
+--               editable buffer, leaving the tab standing (`<leader>gd` comes
+--               back to it, `<leader>gq` closes it). Wrapped here so the file
+--               lands in a code pane and not in neo-tree or the AI column.
 --
 -- And, in the file panels, one click previews a file's diff — the same gesture
 -- and the same `tree_click` setting neo-tree uses (see the mouse section below).
@@ -93,23 +99,63 @@ local function target()
 	return nil, 1
 end
 
----An already-open view worth jumping into. A `<leader>gh` file-history tab is a
----FileHistoryView: no `files:iter()`, no `set_file_by_path` — adopting it would
----swallow the jump into a bogus "no changes" toast. Prefer a real DiffView and
----only fall back to whatever else is open.
+---A real DiffView living in a valid tabpage. A `<leader>gh` file-history tab is
+---a FileHistoryView: no `files:iter()`, no `set_file_by_path` — adopting it
+---would swallow a jump into a bogus "no changes" toast, and it is not what
+---`<leader>gd` means either. `lib.views` is the plugin's own registry; it holds
+---every view ever opened, including ones whose tabpage the user has since
+---closed, hence the validity check.
 ---@param lib table
 ---@return table|nil
-local function open_view(lib)
-	local fallback
+local function diff_view(lib)
 	for _, view in ipairs(lib.views) do
 		if view.tabpage and api.nvim_tabpage_is_valid(view.tabpage) then
 			if view.files and view.set_file then
 				return view
 			end
-			fallback = fallback or view
 		end
 	end
-	return fallback
+end
+
+---A whole-repo file-history view: a FileHistoryView (the exact complement of
+---`diff_view`'s test — only two view types exist) opened with NO path args.
+---
+---`<leader>gh` passes the current file and `<leader>gH` passes nothing, so the
+---path args are what tells the two commands' tabs apart — and scoping the
+---adoption to the empty ones is why `<leader>gh` keeps stacking, correctly: two
+---files are two legitimate histories. They are read from the view's OWN adapter
+---because `vcs.get_adapter` builds a fresh instance per call ("Create a new
+---adapter instance"), so `ctx.path_args` is per-view state and not a shared
+---last-call-wins field.
+---@param lib table
+---@return table|nil
+local function repo_history_view(lib)
+	for _, view in ipairs(lib.views) do
+		if view.tabpage and api.nvim_tabpage_is_valid(view.tabpage) then
+			if not (view.files and view.set_file) then
+				local ctx = view.adapter and view.adapter.ctx
+				if ctx and #(ctx.path_args or {}) == 0 then
+					return view
+				end
+			end
+		end
+	end
+end
+
+---An already-open view worth jumping into: a real DiffView first, else whatever
+---else is open — a file-history tab still beats opening a second one.
+---@param lib table
+---@return table|nil
+local function open_view(lib)
+	local view = diff_view(lib)
+	if view then
+		return view
+	end
+	for _, other in ipairs(lib.views) do
+		if other.tabpage and api.nvim_tabpage_is_valid(other.tabpage) then
+			return other
+		end
+	end
 end
 
 ---Focus the layout's main window — `.b`, the right/working-tree side for the
@@ -199,16 +245,20 @@ local function focus_panel(view)
 	return ok and panel:is_focused()
 end
 
----Leave the view for the real, editable file, closing the Diffview tab.
----@param lib table
----@param view table the current view (caller has already resolved it)
-local function leave_diff(lib, view)
-	local tabpage = view.tabpage
+---`gf` — out of the view, onto the real editable file, leaving the Diffview tab
+---standing (`<leader>gd` comes back to it, `<leader>gq` closes it).
+---
+---This wraps diffview's stock `gf` rather than replacing it, for one reason:
+---`goto_file_edit` opens the file in the target tab's LAST ACCESSED window,
+---which is just as likely to be neo-tree or the AI terminal column as a code
+---pane — landing the file there wipes the panel. Point the tab at a real editor
+---window first; diffview then edits into it.
+local function goto_file()
+	local ok, lib = pcall(require, "diffview.lib")
+	if not ok then
+		return
+	end
 
-	-- `goto_file_edit` opens the file in the target tab's LAST ACCESSED window,
-	-- which is just as likely to be neo-tree or the AI terminal column as a code
-	-- pane — landing the file there wipes the panel. Point the tab at a real
-	-- editor window first; diffview then edits into it.
 	local target_tab = lib.get_prev_non_view_tabpage()
 	if target_tab and api.nvim_tabpage_set_win then
 		local ok_wp, picker = pcall(require, "core.window-picker")
@@ -221,22 +271,69 @@ local function leave_diff(lib, view)
 	-- Resolves the file from the diff pane *or* the file panel, carries the
 	-- cursor across, and restores the window options (diff/scrollbind/foldmethod)
 	-- before editing — so the buffer arrives as a plain, editable file.
-	require("diffview.actions").goto_file_edit()
+	local ok_actions, actions = pcall(require, "diffview.actions")
+	if ok_actions then
+		actions.goto_file_edit()
+	end
+end
 
-	vim.schedule(function()
-		-- Only tear the view down if we actually left it (goto_file_edit bails
-		-- when the file isn't on disk).
-		if api.nvim_get_current_tabpage() == tabpage then
-			return
-		end
-		local stale = lib.tabpage_to_view(tabpage)
-		if stale then
-			pcall(function()
-				stale:close()
-			end)
-			lib.dispose_view(stale)
-		end
-	end)
+---<leader>gd — the working-tree diff, in AT MOST ONE tab.
+---
+---`DiffviewOpen` does not dedupe: `lib.diffview_open` never inspects
+---`lib.views`, and `View:open()` always runs `tab split`. So every press used
+---to add a tabline entry carrying its own copy of the same diff — and the
+---`gf`-then-`<leader>gd` loop hit it every time, because `gf` leaves you in the
+---previous tabpage with the diff tab still open.
+local function open_diff()
+	local ok, lib = pcall(require, "diffview.lib")
+	if not ok then
+		return
+	end
+
+	local view = diff_view(lib)
+	if not view then
+		vim.cmd("DiffviewOpen")
+		return
+	end
+
+	if api.nvim_get_current_tabpage() == view.tabpage then
+		-- Already inside it: re-list what changed. `focus_panel` also reopens a
+		-- panel that was toggled away with <leader>b, so this is never a no-op.
+		focus_panel(view)
+	else
+		-- Focus lands wherever that tab left it, so this is a true "back to where
+		-- I was reading" rather than a reset.
+		api.nvim_set_current_tabpage(view.tabpage)
+	end
+
+	-- An adopted tab must never show a stale file list.
+	pcall(vim.cmd, "DiffviewRefresh")
+end
+
+---<leader>gH — the whole-repo history, in AT MOST ONE tab. Same defect as
+---`open_diff` guards: `lib.file_history` never inspects `lib.views` either, so
+---every press was another `tab split` over the same log.
+local function open_repo_history()
+	local ok, lib = pcall(require, "diffview.lib")
+	if not ok then
+		return
+	end
+
+	local view = repo_history_view(lib)
+	if not view then
+		vim.cmd("DiffviewFileHistory")
+		return
+	end
+
+	if api.nvim_get_current_tabpage() == view.tabpage then
+		focus_panel(view)
+	else
+		api.nvim_set_current_tabpage(view.tabpage)
+	end
+
+	-- Both view types listen for `refresh_files`, and `emit` dispatches to the
+	-- view of the CURRENT tabpage — so this refreshes the one we just adopted.
+	pcall(vim.cmd, "DiffviewRefresh")
 end
 
 ---<leader>gi — into the diff, and back to the file list.
@@ -255,7 +352,7 @@ local function into_diff()
 			focus_main(view)
 		else
 			-- In the diff: back up to the file list, so you can walk the changes.
-			-- Never out to the buffer — that is <leader>go's job.
+			-- Never out to the buffer — that is `gf`'s job.
 			focus_panel(view)
 		end
 		return
@@ -345,20 +442,20 @@ local CLICK_MAPS = {
 	},
 }
 
----<leader>go — out of the diff, editing.
-local function out_of_diff()
-	local ok, lib = pcall(require, "diffview.lib")
-	if not ok then
-		return
-	end
+-- Our `gf` (see `goto_file`) overrides the stock `actions.goto_file_edit` in the
+-- three groups diffview binds it in: the diff windows and both panels.
+local GOTO_FILE_MAPS = {
+	{ "n", "gf", goto_file, { desc = "Open the file in the previous tabpage (keeps the diff tab)" } },
+}
 
-	local view = lib.get_current_view()
-	if not view then
-		vim.notify("Diff: not inside a Diffview tab", vim.log.levels.WARN)
-		return
-	end
-
-	leave_diff(lib, view)
+---The panel keymaps: the two mouse gestures plus `gf`. Built per call so the two
+---panels never share one mutable table.
+---@return table
+local function panel_maps()
+	local maps = {}
+	vim.list_extend(maps, CLICK_MAPS)
+	vim.list_extend(maps, GOTO_FILE_MAPS)
+	return maps
 end
 
 return {
@@ -366,19 +463,19 @@ return {
 	-- Lazy: only pulled in when one of its commands or keymaps is used.
 	cmd = { "DiffviewOpen", "DiffviewClose", "DiffviewFileHistory", "DiffviewToggleFiles" },
 	keys = {
-		{ "<leader>gd", "<cmd>DiffviewOpen<cr>", desc = "Diff: working tree vs index" },
+		{ "<leader>gd", open_diff, desc = "Diff: working tree vs index" },
 		{ "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", desc = "Diff: history of current file" },
-		{ "<leader>gH", "<cmd>DiffviewFileHistory<cr>", desc = "Diff: history of whole repo" },
+		{ "<leader>gH", open_repo_history, desc = "Diff: history of whole repo" },
 		{ "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diff: close view" },
 		{ "<leader>gi", into_diff, desc = "Diff: into the diff (toggle diff/file list)" },
-		{ "<leader>go", out_of_diff, desc = "Diff: out to the editable file" },
 	},
 	opts = {
 		-- Brighter, word-level diff highlights so changes stand out clearly.
 		enhanced_diff_hl = true,
 		keymaps = {
-			file_panel = CLICK_MAPS, -- <leader>gd / <leader>gi — the changed-files list
-			file_history_panel = CLICK_MAPS, -- <leader>gh / <leader>gH — the history list
+			view = GOTO_FILE_MAPS, -- the diff windows themselves
+			file_panel = panel_maps(), -- <leader>gd / <leader>gi — the changed-files list
+			file_history_panel = panel_maps(), -- <leader>gh / <leader>gH — the history list
 		},
 		hooks = {
 			-- Fired once per diff window as it opens. `symbol` is the layout slot:
