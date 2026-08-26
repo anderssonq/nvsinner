@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.7.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.8.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.7.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.8.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.7.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.8.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -116,7 +116,17 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     [ai-activity](lua/core/ai-activity.lua)'s output signal with per-CLI screen
     signatures for `claude` / `kiro-cli` / `opencode`, which is what catches a
     permission prompt: it emits no output, so the output signal alone reads it
-    as idle while the agent is really blocked on you.
+    as idle while the agent is really blocked on you. **v1.8.0** gave the git
+    diff one tab and one way out: `<leader>gd` and `<leader>gH` now adopt the
+    view already open instead of stacking a tabline entry per press (`:Diffview*`
+    does not dedupe at all — every call is a fresh `tab split`), `<leader>go` was
+    retired in favour of diffview's own `gf` — wrapped so it still lands the file
+    in a code pane rather than wiping neo-tree or the AI column — and
+    `<leader>gu` added the **unified inline diff**: the old version of each hunk
+    as virtual lines above the new one, in the real editable buffer. That last
+    one is gitsigns' rather than diffview's because diffview structurally cannot
+    render a unified view: it draws through Neovim's native window `'diff'` mode,
+    which needs two diffed windows.
 
 ## Status
 
