@@ -251,7 +251,10 @@ over the file — move the cursor in it or start editing. For a persistent,
 reviewable diff use `<leader>gd` (Diffview) as usual — or `<leader>gi` to jump
 straight into the diff of the file you're reading (or the one selected in the
 tree), at the line you're on, pressing it again to hop between the diff and the
-file list, and `<leader>go` to drop back out onto the editable buffer.
+file list, and `gf` to drop back out onto the editable buffer. `<leader>gd` is
+idempotent: press it as often as you like, you get the one diff tab back, never
+a second copy. And `<leader>gu` reads the same changes **unified** — the old
+lines inline above the new ones, right in the file you're editing.
 
 ### Inline AI completion (ghost text)
 
@@ -541,7 +544,7 @@ spec; new files in an existing category are picked up automatically.
 | `persistence.lua` | persistence.nvim | **Disabled** — native sessions in `lua/core/sessions.lua` keep `<leader>SQ` / `<leader>Sc` / `<leader>Sl` |
 | `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua` (`:NvSinnerBlameToggle`) |
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
-| `diffview.lua` | diffview.nvim | `<leader>gd` diff · `<leader>gh`/`<leader>gH` file/repo history · `<leader>gq` close · `<leader>gi`/`<leader>go` into/out of the diff |
+| `diffview.lua` | diffview.nvim | `<leader>gd` diff (one tab, always the same one) · `<leader>gh`/`<leader>gH` file/repo history (`gH` one tab too) · `<leader>gq` close · `<leader>gi` into the diff, `gf` out |
 | `todocomment.lua` | todo-comments.nvim | **Disabled** — replaced by the native keyword chips (`lua/core/todo.lua`) |
 | `which-key.lua` | which-key.nvim | `<leader>?` shows buffer keymaps · group labels for the leader namespaces |
 | `lsp/neoconf.lua` | neoconf.nvim | `:Neoconf` project-local settings |
@@ -645,11 +648,12 @@ Ask-AI modal.
 | `<leader>hs` / `<leader>hr` | n | Stage / reset hunk |
 | `<leader>hS` / `<leader>hR` | n | Stage / reset whole buffer |
 | `<leader>hb` | n | Blame current line (full popup) |
-| `<leader>gd` | n | Diffview: working tree vs index |
-| `<leader>gh` / `<leader>gH` | n | Diffview: current-file / whole-repo history |
+| `<leader>gd` | n | Diffview: working tree vs index — **at most one tab**: pressed again it returns to the view already open (refreshing its file list) instead of stacking a second one |
+| `<leader>gh` / `<leader>gH` | n | Diffview: current-file / whole-repo history. `<leader>gH` is **one tab** like `<leader>gd`; `<leader>gh` opens one per file, since two files are two histories |
 | `<leader>gq` | n | Diffview: close |
 | `<leader>gi` | n | Diffview: **into** the diff — open on the current file (or the one selected in the tree) at the current line, focus the working-tree pane; inside the view, toggle diff ⇄ file list |
-| `<leader>go` | n | Diffview: **out** of the diff — back to the editable file at the cursor line, closing the diff tab (built-in `gf` does the same but keeps the tab) |
+| `gf` | n | Diffview (inside the view): **out** to the editable file, leaving the tab open — `<leader>gd` comes back to it, `<leader>gq` closes it |
+| `<leader>gu` | n | Git: **unified inline diff** toggle — the old version of each hunk as virtual lines above the new one, changed lines washed, word-level changes tinted, in the real editable buffer |
 | Click a diff file row | mouse | Preview that file's diff — **one click**, not two; focus stays in the list so you can walk the changes (same `:NvSinnerMenu` → "Explorer click" setting as the tree) |
 
 ### Sessions, folds, windows & misc

@@ -133,6 +133,13 @@ line to `init.lua`** or its files will silently never load.
   changes are discarded (intended viewer-style workflow).
 - **Don't enable gitsigns `current_line_blame`** — inline blame is
   git-blame.nvim's job; gitsigns owns the popup.
+- **`<leader>gd` / `<leader>gH` must never be bare `Diffview*` commands** —
+  neither dedupes, so every press stacked another tab; they go through
+  `open_diff()` / `open_repo_history()`, which reuse the view already open.
+  `<leader>gh` stays unguarded on purpose: two files are two histories.
+- **`gf` is the only way out of a diff view** — `<leader>go` was retired, and its
+  one load-bearing behaviour (pre-positioning the target tab's editable window)
+  moved onto `gf`. Don't add a second exit key.
 - **mini.animate scroll stays off** — smooth scrolling is neoscroll's job;
   never enable both.
 
@@ -173,9 +180,11 @@ with its status, a live preview of its chat, and focus/close from the list.
 The full keybindings reference lives in **README.md §Full keybindings
 reference** — check it before adding a map. Leader namespaces (leader = Space):
 
-- `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview; `gi`/`go` = into /
-  out of the diff for the current file at the current line, `gi` inside the
-  view toggling diff ⇄ file list) · `h` hunks
+- `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview; `gd` = the diff, in
+  **at most one tab** — pressed again it returns to the view already open;
+  `gi` = into the diff for the current file at the current line, and inside the
+  view a diff ⇄ file-list toggle; diffview's own `gf` is the exit, leaving the
+  tab standing; plus gitsigns' `gu` = the unified inline diff) · `h` hunks
   (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
   primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +

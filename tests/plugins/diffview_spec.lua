@@ -1,5 +1,6 @@
--- The diffview spec carries behaviour, not just options: the <leader>gi /
--- <leader>go round trip is wired through `keys` callbacks and `opts.hooks`.
+-- The diffview spec carries behaviour, not just options: <leader>gd's
+-- one-tab-only open, <leader>gi and the `gf` exit are wired through `keys`
+-- callbacks, `opts.keymaps` and `opts.hooks`.
 -- tests/minimal_init.lua loads no plugins, so diffview's runtime can't be
 -- exercised here — this pins the spec SHAPE, which is what regresses silently
 -- (a dropped hook or a desc-less key breaks the feature with no error anywhere).
@@ -32,7 +33,7 @@ describe("diffview spec", function()
 	end)
 
 	-- which-key renders the <leader>g group from each mapping's own desc.
-	for _, lhs in ipairs({ "<leader>gd", "<leader>gh", "<leader>gH", "<leader>gq", "<leader>gi", "<leader>go" }) do
+	for _, lhs in ipairs({ "<leader>gd", "<leader>gh", "<leader>gH", "<leader>gq", "<leader>gi" }) do
 		it("maps " .. lhs .. " with a desc", function()
 			local key = by_lhs[lhs]
 			assert.is_not_nil(key, lhs .. " must be mapped")
@@ -41,8 +42,15 @@ describe("diffview spec", function()
 	end
 
 	it("drives the round trip from Lua callbacks, not <cmd> strings", function()
+		assert.are.equal("function", type(by_lhs["<leader>gd"][2]))
+		assert.are.equal("function", type(by_lhs["<leader>gH"][2]))
 		assert.are.equal("function", type(by_lhs["<leader>gi"][2]))
-		assert.are.equal("function", type(by_lhs["<leader>go"][2]))
+	end)
+
+	-- <leader>go was retired: `gf` is the exit (it keeps the tab, which
+	-- <leader>gd now returns to instead of opening a second one).
+	it("no longer maps <leader>go", function()
+		assert.is_nil(by_lhs["<leader>go"], "the exit is diffview's own gf")
 	end)
 
 	-- The cursor lands asynchronously, from diffview's own events.
@@ -60,7 +68,7 @@ describe("diffview spec", function()
 	it("is a silent no-op while diffview is not on the runtimepath", function()
 		assert.is_nil(package.loaded["diffview.lib"], "the plugin must not be loadable here")
 		local cursor = vim.api.nvim_win_get_cursor(0)
-		for _, lhs in ipairs({ "<leader>gi", "<leader>go" }) do
+		for _, lhs in ipairs({ "<leader>gd", "<leader>gH", "<leader>gi" }) do
 			local ok, err = pcall(by_lhs[lhs][2])
 			assert.is_true(ok, lhs .. " must not error without diffview: " .. tostring(err))
 		end
@@ -87,6 +95,12 @@ describe("diffview spec", function()
 				assert.is_not_nil(by_lhs_map["<2-LeftMouse>"], "the stock gesture must stay bound")
 			end)
 		end
+
+		-- The two panels must not share one mutable map table, or an edit to one
+		-- silently rewrites the other.
+		it("gives each panel its own map list", function()
+			assert.is_not.equal(spec.opts.keymaps.file_panel, spec.opts.keymaps.file_history_panel)
+		end)
 
 		-- diffview rebuilds its keymap tables from pristine defaults and then
 		-- extends them keyed by "<mode> <lhs>", so ours merge with the ~50 stock
@@ -119,6 +133,38 @@ describe("diffview spec", function()
 		end)
 	end)
 
+	-- `gf` is the exit now that <leader>go is gone, and it must carry the
+	-- editable-window pre-positioning <leader>go used to. diffview binds the stock
+	-- `goto_file_edit` in all three groups, so ours must override all three.
+	describe("gf exit", function()
+		for _, group in ipairs({ "view", "file_panel", "file_history_panel" }) do
+			it("overrides gf on " .. group, function()
+				local maps = spec.opts.keymaps and spec.opts.keymaps[group]
+				assert.is_not_nil(maps, group .. " must carry the gf map")
+				local gf
+				for _, m in ipairs(maps) do
+					if m[2] == "gf" then
+						gf = m
+					end
+				end
+				assert.is_not_nil(gf, "gf must be bound in " .. group)
+				assert.are.equal("n", gf[1])
+				assert.are.equal("function", type(gf[3]), "the handler must be a Lua callback")
+				assert.is_true(type(gf[4].desc) == "string" and #gf[4].desc > 0, "g? renders the desc")
+			end)
+		end
+
+		it("is a silent no-op while diffview is not on the runtimepath", function()
+			assert.is_nil(package.loaded["diffview.lib"], "the plugin must not be loadable here")
+			local cursor = vim.api.nvim_win_get_cursor(0)
+			for _, m in ipairs(spec.opts.keymaps.view) do
+				local ok, err = pcall(m[3])
+				assert.is_true(ok, m[2] .. " must not error: " .. tostring(err))
+			end
+			assert.are.same(cursor, vim.api.nvim_win_get_cursor(0), "no window may move")
+		end)
+	end)
+
 	-- Behaviours that live inside the `keys` callbacks, which never run headless
 	-- (no diffview runtime). Same source-level guard as
 	-- tests/plugins/terminal_keymaps_spec.lua: cheap, and it catches the silent
@@ -126,17 +172,51 @@ describe("diffview spec", function()
 	describe("round-trip source guards", function()
 		local src = table.concat(vim.fn.readfile(repo_root() .. "/lua/plugins/git/diffview.lua"), "\n")
 
-		-- The two keys own different halves of the trip. <leader>gi staying
-		-- INSIDE the view is the whole point of having both: conflating them
-		-- costs you the file list mid-review.
-		it("keeps <leader>gi inside the view — only <leader>go leaves it", function()
+		-- The keys own different halves of the trip. <leader>gi staying INSIDE
+		-- the view is the whole point: conflating them costs you the file list
+		-- mid-review.
+		it("keeps <leader>gi inside the view — only gf leaves it", function()
 			local body = src:match("local function into_diff%(%).-\nend\n")
 			assert.is_truthy(body, "into_diff must still be a local function")
 			assert.is_truthy(body:match("focus_panel"), "the in-view toggle focuses the file list")
-			assert.is_nil(body:match("leave_diff"), "<leader>gi must never exit to the buffer")
+			assert.is_nil(body:match("goto_file"), "<leader>gi must never exit to the buffer")
 
-			local exit = src:match("local function out_of_diff%(%).-\nend\n")
-			assert.is_truthy(exit and exit:match("leave_diff"), "<leader>go is the exit")
+			local exit = src:match("local function goto_file%(%).-\nend\n")
+			assert.is_truthy(exit and exit:match("goto_file_edit"), "gf is the exit")
+		end)
+
+		-- The bug this whole change exists for: `DiffviewOpen` never dedupes, so
+		-- a raw `<cmd>DiffviewOpen<cr>` stacked one tabline entry per press.
+		it("reuses the open tab instead of stacking a second one", function()
+			local body = src:match("local function open_diff%(%).-\nend\n")
+			assert.is_truthy(body, "open_diff must still be a local function")
+			assert.is_truthy(
+				body:match("nvim_set_current_tabpage"),
+				"<leader>gd must adopt the DiffView that is already open"
+			)
+			assert.is_truthy(body:match("diff_view"), "and it must find it, not guess")
+		end)
+
+		-- Same defect, same guard — but scoped to views opened with NO path args,
+		-- so <leader>gh (one file's history) still opens a tab per file.
+		it("reuses the whole-repo history tab, and only that one", function()
+			local body = src:match("local function open_repo_history%(%).-\nend\n")
+			assert.is_truthy(body, "open_repo_history must still be a local function")
+			assert.is_truthy(
+				body:match("nvim_set_current_tabpage"),
+				"<leader>gH must adopt the history view that is already open"
+			)
+
+			local scan = src:match("local function repo_history_view%b().-\nend\n")
+			assert.is_truthy(scan, "the scanner must still be a local function")
+			assert.is_truthy(
+				scan:match("path_args"),
+				"the path args are what tell a <leader>gH tab from a <leader>gh one"
+			)
+		end)
+
+		it("leaves <leader>gh unguarded — two files are two histories", function()
+			assert.are.equal("string", type(by_lhs["<leader>gh"][2]))
 		end)
 
 		it("routes the exit through core.window-picker's editable_win", function()

@@ -200,6 +200,15 @@ local hl = {
 	GitSignsChange = { fg = c.base09 },
 	GitSignsDelete = { fg = c.base10 },
 	GitSignsCurrentLineBlame = { link = "Comment" },
+	-- The word-level regions of gitsigns' unified inline diff (<leader>gu).
+	-- gitsigns derives its line washes from DiffAdd/DiffChange/DiffDelete above,
+	-- but falls these three back to `TermCursor`, which reads as a cursor
+	-- artefact — so they are pinned here (the *Ln/*VirtLn inline groups chain off
+	-- them). Change is exactly Vim's DiffChange/DiffText pair; add and delete
+	-- tint the changed run in the same accents the sign column already uses.
+	GitSignsAddInline = { fg = c.base07, bg = c.diff_add, bold = true },
+	GitSignsChangeInline = { bg = c.diff_text },
+	GitSignsDeleteInline = { fg = c.base10, bg = c.diff_delete, bold = true },
 
 	-- ── Markdown / prose (§5.6): headings are the loudest element ────────────
 	markdownH1 = { fg = c.base10, bold = true },
