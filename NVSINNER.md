@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.8.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v1.9.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.8.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "1.9.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.8.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v1.9.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -126,7 +126,14 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     as virtual lines above the new one, in the real editable buffer. That last
     one is gitsigns' rather than diffview's because diffview structurally cannot
     render a unified view: it draws through Neovim's native window `'diff'` mode,
-    which needs two diffed windows.
+    which needs two diffed windows. **v1.9.0** widened the look and finished the
+    TODO chips: three more background themes — `briar` (Rosé Pine), `grove`
+    (Everforest) and `neon` (cyberdream) — bring `:NvSinnerMenu`'s "Background
+    theme" row to ten, each an original palette mapped onto carbon's fixed role
+    semantics rather than a vendored colorscheme; and every TODO keyword now
+    drops its Nerd Font glyph in the sign column beside the line number, the
+    half of todo-comments.nvim the native
+    [lua/core/todo.lua](lua/core/todo.lua) had not carried over.
 
 ## Status
 
