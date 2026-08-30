@@ -115,6 +115,15 @@ describe("core.carbon", function()
 		vim.g.nvsinner_theme = "kyoto"
 		vim.cmd.colorscheme("carbon")
 		assert.are.equal(0x1a1b26, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
+		vim.g.nvsinner_theme = "briar"
+		vim.cmd.colorscheme("carbon")
+		assert.are.equal(0x191724, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
+		vim.g.nvsinner_theme = "grove"
+		vim.cmd.colorscheme("carbon")
+		assert.are.equal(0x2d353b, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
+		vim.g.nvsinner_theme = "neon"
+		vim.cmd.colorscheme("carbon")
+		assert.are.equal(0x16181a, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
 		vim.g.nvsinner_theme = nil
 		vim.cmd.colorscheme("carbon")
 	end)

@@ -340,11 +340,12 @@ editing.
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
   colorscheme reloads and lazy-loaded plugins.
 - **Background themes** — `M.themes` / `M.theme_names` in `carbon.lua` name
-  seven full role tables selectable from `:NvSinnerMenu` "Background theme":
+  ten full role tables selectable from `:NvSinnerMenu` "Background theme":
   `carbon` (the reference dark, `M.dark`), `moon` (the light variant,
-  `M.light`), and five ORIGINAL palettes inspired by well-known schemes —
+  `M.light`), and eight ORIGINAL palettes inspired by well-known schemes —
   `onedusk` (One Dark Pro), `mocha` (Catppuccin Mocha), `kyoto` (Tokyo
-  Night), `fjord` (Nord), `monolith` (Monokai). Each registry entry maps the
+  Night), `fjord` (Nord), `monolith` (Monokai), `briar` (Rosé Pine),
+  `grove` (Everforest), `neon` (cyberdream). Each registry entry maps the
   name to its role table (`palette`) and its `vim.o.background` `variant`
   (only `moon` is light); each palette fills the EXACT role set of `M.dark`
   (pinned by `tests/core/carbon_spec.lua`) with carbon's role semantics —
@@ -358,7 +359,9 @@ editing.
   `settings.set("theme", …)` → flag + `:colorscheme carbon` → every
   ColorScheme consumer retints. Accent packs overlay by the theme's
   dark/light variant, so `blue` (the empty pack) shows each theme's own
-  signature accent and the other packs apply their generic overrides.
+  signature accent and the other packs apply their generic overrides. New
+  themes are **appended** to `M.theme_names` — `tests/core/menu_spec.lua`
+  pins `carbon`/`moon` as the first two entries of the cycle.
 - **Feature flags** (resolved by `carbon.lua`; `vim.g` wins over env, which
   wins over the persisted `:NvSinnerMenu` value seeded by `settings.lua`):
   `vim.g.nvsinner_theme` / `$NVSINNER_THEME` (background theme, above;
@@ -1089,6 +1092,23 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `base00` text, bold) scanned over the **visible range**. The colon is
   required (plugin-default parity) so prose mentions never light up; an
   optional `(author)` tag joins the chip.
+- **Sign-column glyph too** — the same extmark carries `sign_text` +
+  `sign_hl_group`, so each keyword also shows its Nerd Font icon left of the
+  line number (todo-comments' default glyphs; `M.ICONS` is the public
+  keyword→glyph map, mirroring `M.KEYWORDS`). The sign groups are
+  `<chip group> .. "Sign"` (`M.sign_group`), defined **fg-only** in the
+  family's role — a solid chip in the gutter reads as a block. `HACK` and
+  `WARN` share `NvTodoWarn` but not the glyph, which is why the warn family
+  is two `FAMILIES` rows with the same group/role (defining a group twice in
+  `apply_hl` is harmless).
+- **No `priority` on the extmark, and `signcolumn` stays untouched.**
+  `priority` is shared by the inline highlight and the sign, so setting it
+  would also drop the chip below treesitter; the extmark default (4096)
+  already outranks gitsigns' `sign_priority` 6, so on a line that is both a
+  TODO and a git hunk the TODO icon takes the single `auto` gutter cell —
+  todo-comments' own default behavior. Showing both would mean
+  `signcolumn = "auto:2"` in `core/options.lua`, at the cost of a gutter that
+  widens by a cell; deliberately not done.
 - Families → carbon roles, semantic: TODO `base13` (carbon's Todo green),
   FIX/FIXME/BUG/FIXIT/ISSUE `base10` (attention magenta), HACK/WARN/
   WARNING/XXX `base14` (the DiagnosticWarn purple), PERF/OPTIM/… `base15`,

@@ -99,7 +99,7 @@ M.light = {
 -- ─── Background themes ───────────────────────────────────────────────────────
 -- Named, user-selectable palettes (:NvSinnerMenu "Background theme"). The two
 -- historic variants get names — "carbon" (M.dark) and "moon" (M.light) — and
--- five ORIGINAL palettes inspired by well-known schemes join them. Each fills
+-- eight ORIGINAL palettes inspired by well-known schemes join them. Each fills
 -- the exact same role slots as M.dark, so every consumer works unchanged; the
 -- role SEMANTICS (base09 identity, base10 attention, base12 busy, …) are
 -- carbon's, only the hues change. Hexes are hand-derived from each
@@ -251,6 +251,99 @@ M.monolith = {
 	diff_delete = "#452430",
 }
 
+-- "briar" — inspired by Rosé Pine (its darkest "main" variant). Rose, iris and
+-- gold over a deep plum base; base05/base06, the pale iris companion and the
+-- diff washes are derived, the rest are upstream roles.
+M.briar = {
+	base00 = "#191724", -- base
+	base01 = "#1f1d2e", -- surface
+	base02 = "#403d52", -- highlight_med: Visual, borders
+	base03 = "#6e6a86", -- muted: comments
+	base04 = "#e0def4", -- text
+	base05 = "#eceafa",
+	base06 = "#f7f5ff",
+	base07 = "#9ccfd8", -- foam: teal
+	base08 = "#ebbcba", -- rose: functions/punctuation
+	base09 = "#c4a7e7", -- iris — the identity accent
+	base10 = "#eb6f92", -- love: errors/attention
+	base11 = "#3e8fb0", -- brightened pine: terminal-mode
+	base12 = "#ea9a97", -- warm rose: insert-mode block, busy chip
+	base13 = "#95b1ac", -- leaf: Todo/success
+	base14 = "#f6c177", -- gold: strings, DiagnosticWarn
+	base15 = "#d7c4f0", -- pale iris: companion of base09
+	blend = "#16141f", -- rose-pine's own inactive-window bg
+	shade = "#12101a",
+	backdrop = "#000000",
+	lift = "#1c1a29",
+	none = "NONE",
+	diff_add = "#22302c",
+	diff_change = "#262b3d",
+	diff_text = "#343c58",
+	diff_delete = "#3a2330",
+}
+
+-- "grove" — inspired by Everforest (dark, medium contrast). Upstream ships its
+-- own bg_green/bg_blue/bg_red washes, so three of the four diff slots are
+-- verbatim; base05/base06, base11, base13 and base15 are derived.
+M.grove = {
+	base00 = "#2d353b", -- bg0
+	base01 = "#343f44", -- bg1: CursorLine, Pmenu
+	base02 = "#475258", -- bg3: Visual, borders
+	base03 = "#7a8478", -- grey0: comments
+	base04 = "#d3c6aa", -- fg
+	base05 = "#e3d9c3",
+	base06 = "#f2ead6",
+	base07 = "#83c092", -- aqua: teal
+	base08 = "#7fbbb3", -- blue: functions/punctuation
+	base09 = "#a7c080", -- green — the identity accent
+	base10 = "#e67e80", -- red: errors/attention
+	base11 = "#9acdc6", -- pale blue: terminal-mode
+	base12 = "#e69875", -- orange: insert-mode block, busy chip
+	base13 = "#b6d18c", -- brighter green (base09 owns the signature one)
+	base14 = "#d699b6", -- purple: strings, DiagnosticWarn
+	base15 = "#c3d9a4", -- pale green: companion of base09
+	blend = "#232a2e", -- bg_dim
+	shade = "#1e2326", -- the hard variant's bg_dim
+	backdrop = "#000000",
+	lift = "#313940",
+	none = "NONE",
+	diff_add = "#3c4841", -- bg_green
+	diff_change = "#3a515d", -- bg_blue
+	diff_text = "#45606d",
+	diff_delete = "#514045", -- bg_red
+}
+
+-- "neon" — inspired by cyberdream. Electric accents on near-black; body text is
+-- pulled off pure white (base06's job per the role contract) and base07/base11/
+-- base15 are derived inside the palette's own hue family.
+M.neon = {
+	base00 = "#16181a", -- bg
+	base01 = "#1e2124", -- bg_alt
+	base02 = "#3c4048", -- bg_highlight: Visual, borders
+	base03 = "#7b8496", -- grey: comments
+	base04 = "#f0f2f4", -- body text (upstream fg is pure white; base06 keeps that)
+	base05 = "#f8f9fa",
+	base06 = "#ffffff",
+	base07 = "#5effc0", -- spring teal
+	base08 = "#5ef1ff", -- cyan: functions/punctuation
+	base09 = "#5ea1ff", -- blue — the identity accent
+	base10 = "#ff6e5e", -- red: errors/attention
+	base11 = "#5ecdff", -- light blue: terminal-mode
+	base12 = "#ff5ea0", -- pink: insert-mode block, busy chip
+	base13 = "#5eff6c", -- green: Todo/success
+	base14 = "#bd5eff", -- purple: strings, DiagnosticWarn
+	base15 = "#9fc6ff", -- pale blue: companion of base09
+	blend = "#121415",
+	shade = "#0d0f10",
+	backdrop = "#000000",
+	lift = "#1a1c1f",
+	none = "NONE",
+	diff_add = "#133024",
+	diff_change = "#12283f",
+	diff_text = "#1a3a5c",
+	diff_delete = "#3a1a18",
+}
+
 -- Registry: theme name → which role table it uses and which vim.o.background
 -- variant it belongs to (the variant also picks the accent-pack overrides).
 M.themes = {
@@ -261,10 +354,13 @@ M.themes = {
 	kyoto = { palette = "kyoto", variant = "dark" },
 	fjord = { palette = "fjord", variant = "dark" },
 	monolith = { palette = "monolith", variant = "dark" },
+	briar = { palette = "briar", variant = "dark" },
+	grove = { palette = "grove", variant = "dark" },
+	neon = { palette = "neon", variant = "dark" },
 }
 
 -- Menu/cycle order (:NvSinnerMenu reads this — pairs() order would jitter).
-M.theme_names = { "carbon", "moon", "onedusk", "mocha", "kyoto", "fjord", "monolith" }
+M.theme_names = { "carbon", "moon", "onedusk", "mocha", "kyoto", "fjord", "monolith", "briar", "grove", "neon" }
 
 -- Which background theme is active: "carbon" (default) or a key of M.themes.
 -- Same flag convention as accent()/transparent(): vim.g.nvsinner_theme wins
