@@ -1,7 +1,8 @@
 -- Tests for the native TODO-comment keyword chips (lua/core/todo.lua): the
 -- carbon accent chip groups, keyword+colon matching (optional author tag,
--- colon required, boundary strict), rescans replacing marks, and the
--- special-buffer skip.
+-- colon required, boundary strict), the sign-column glyphs (fg-only NvTodo*Sign
+-- groups, per-keyword icons), rescans replacing marks, and the special-buffer
+-- skip.
 
 local todo = require("core.todo")
 
@@ -32,6 +33,44 @@ describe("core.todo", function()
 		assert.are.equal(tonumber(c.base10:sub(2), 16), f.bg, "FIX wears the attention magenta")
 		assert.are.equal(tonumber(c.base00:sub(2), 16), t.fg)
 		assert.is_true(t.bold == true)
+	end)
+
+	it("styles the sign groups fg-only in the same role as the chip", function()
+		local c = require("core.carbon").colors()
+		local t = vim.api.nvim_get_hl(0, { name = "NvTodoTodoSign" })
+		local f = vim.api.nvim_get_hl(0, { name = "NvTodoFixSign" })
+		assert.are.equal(tonumber(c.base13:sub(2), 16), t.fg)
+		assert.are.equal(tonumber(c.base10:sub(2), 16), f.fg)
+		-- fg-only: a solid chip in the gutter would read as a block.
+		assert.is_nil(t.bg)
+		assert.is_nil(f.bg)
+	end)
+
+	it("gives every keyword a gutter glyph, HACK and WARN differing inside one group", function()
+		for kw in pairs(todo.KEYWORDS) do
+			assert.is_string(todo.ICONS[kw], kw .. " has no icon")
+			-- 'sign_text' rejects anything wider than two cells.
+			assert.is_true(vim.fn.strdisplaywidth(todo.ICONS[kw]) <= 2, kw .. " icon is too wide")
+		end
+		assert.are.equal(todo.KEYWORDS.HACK, todo.KEYWORDS.WARN, "same family, same color")
+		assert.are_not.equal(todo.ICONS.HACK, todo.ICONS.WARN, "but their own glyphs")
+	end)
+
+	it("puts the keyword's icon in the sign column", function()
+		open_lua_file({
+			"-- TODO: migrate this",
+			"-- HACK: temporary",
+		})
+		todo.refresh(buf)
+
+		local got = marks()
+		assert.are.equal(2, #got)
+		assert.are.equal("NvTodoTodoSign", got[1][4].sign_hl_group)
+		assert.are.equal("NvTodoWarnSign", got[2][4].sign_hl_group)
+		-- Neovim pads sign_text to two cells, so compare the glyph itself.
+		assert.are.equal(todo.ICONS.TODO, vim.trim(got[1][4].sign_text))
+		assert.are.equal(todo.ICONS.HACK, vim.trim(got[2][4].sign_text))
+		cleanup()
 	end)
 
 	it("chips KEYWORD: including an optional (author) tag", function()

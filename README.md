@@ -370,7 +370,7 @@ hovering moves the selection and a click cycles the row's value.
 
 | Row | Values |
 |-----|--------|
-| Background theme | `carbon` (dark, default) / `moon` (light) / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` — original palettes inspired by One Dark Pro, Catppuccin Mocha, Tokyo Night, Nord and Monokai |
+| Background theme | `carbon` (dark, default) / `moon` (light) / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` / `briar` / `grove` / `neon` — original palettes inspired by One Dark Pro, Catppuccin Mocha, Tokyo Night, Nord, Monokai, Rosé Pine, Everforest and cyberdream |
 | Transparency | `off` / `on` |
 | Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent, never the gray surfaces |
 | Folder color | `accent` / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` — recolors Neo-tree's folder names + icons |
@@ -394,7 +394,7 @@ value:
 
 | Flag | Values | Per launch | Persistent |
 |------|--------|-----------|------------|
-| Background theme | `carbon` (default) / `moon` / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` | `NVSINNER_THEME=fjord nvsinner` | `vim.g.nvsinner_theme = "fjord"` |
+| Background theme | `carbon` (default) / `moon` / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` / `briar` / `grove` / `neon` | `NVSINNER_THEME=fjord nvsinner` | `vim.g.nvsinner_theme = "fjord"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
 | Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
 | Folder color | `accent` (default) / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` | `NVSINNER_FOLDER=aqua nvsinner` | `vim.g.nvsinner_folder = "aqua"` |
@@ -545,7 +545,7 @@ spec; new files in an existing category are picked up automatically.
 | `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua` (`:NvSinnerBlameToggle`) |
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
 | `diffview.lua` | diffview.nvim | `<leader>gd` diff (one tab, always the same one) · `<leader>gh`/`<leader>gH` file/repo history (`gH` one tab too) · `<leader>gq` close · `<leader>gi` into the diff, `gf` out |
-| `todocomment.lua` | todo-comments.nvim | **Disabled** — replaced by the native keyword chips (`lua/core/todo.lua`) |
+| `todocomment.lua` | todo-comments.nvim | **Disabled** — replaced by the native keyword chips + gutter icons (`lua/core/todo.lua`) |
 | `which-key.lua` | which-key.nvim | `<leader>?` shows buffer keymaps · group labels for the leader namespaces |
 | `lsp/neoconf.lua` | neoconf.nvim | `:Neoconf` project-local settings |
 

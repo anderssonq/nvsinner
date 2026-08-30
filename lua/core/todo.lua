@@ -6,6 +6,10 @@
 -- pattern — so prose mentions of "todo" never light up; an optional
 -- `(author)` tag is included in the chip (`TODO(andersson):`).
 --
+-- Each keyword also drops a Nerd Font glyph in the SIGN COLUMN (left of the
+-- line number), fg-colored in the family's role — the gutter half of the
+-- plugin this replaces.
+--
 -- Search integration (`:TodoTelescope`) is intentionally NOT replicated:
 -- telescope live-grep covers it until the native NvSinnerFind picker exists
 -- (see docs/native-roadmap.md).
@@ -18,19 +22,32 @@ M._ns = ns -- test seam
 -- Keyword families → carbon roles, semantic like the rest of the chrome:
 -- green base13 is carbon's Todo tone, magenta base10 is attention/error,
 -- purple base14 is the DiagnosticWarn tone.
+-- The `icon` is the sign-column glyph (todo-comments' defaults). HACK and WARN
+-- share the warn group but not the glyph, so they are two rows with the same
+-- group/role — apply_hl() defining that group twice is harmless.
 local FAMILIES = {
-	{ group = "NvTodoTodo", role = "base13", kws = { "TODO" } },
-	{ group = "NvTodoFix", role = "base10", kws = { "FIX", "FIXME", "BUG", "FIXIT", "ISSUE" } },
-	{ group = "NvTodoWarn", role = "base14", kws = { "HACK", "WARN", "WARNING", "XXX" } },
-	{ group = "NvTodoPerf", role = "base15", kws = { "PERF", "OPTIM", "PERFORMANCE", "OPTIMIZE" } },
-	{ group = "NvTodoNote", role = "base08", kws = { "NOTE", "INFO" } },
-	{ group = "NvTodoTest", role = "base07", kws = { "TEST", "TESTING", "PASSED", "FAILED" } },
+	{ group = "NvTodoTodo", role = "base13", icon = "", kws = { "TODO" } },
+	{ group = "NvTodoFix", role = "base10", icon = "", kws = { "FIX", "FIXME", "BUG", "FIXIT", "ISSUE" } },
+	{ group = "NvTodoWarn", role = "base14", icon = "", kws = { "HACK" } },
+	{ group = "NvTodoWarn", role = "base14", icon = "", kws = { "WARN", "WARNING", "XXX" } },
+	{ group = "NvTodoPerf", role = "base15", icon = "", kws = { "PERF", "OPTIM", "PERFORMANCE", "OPTIMIZE" } },
+	{ group = "NvTodoNote", role = "base08", icon = "", kws = { "NOTE", "INFO" } },
+	{ group = "NvTodoTest", role = "base07", icon = "⏲", kws = { "TEST", "TESTING", "PASSED", "FAILED" } },
 }
 
+-- The sign group is the chip group + "Sign": same role, fg-only, so the gutter
+-- shows a colored glyph instead of a solid block.
+local function sign_group(group)
+	return group .. "Sign"
+end
+M.sign_group = sign_group
+
 M.KEYWORDS = {} -- keyword -> hl group (public: the recognized set)
+M.ICONS = {} -- keyword -> sign glyph (public, mirrors KEYWORDS)
 for _, fam in ipairs(FAMILIES) do
 	for _, kw in ipairs(fam.kws) do
 		M.KEYWORDS[kw] = fam.group
+		M.ICONS[kw] = fam.icon
 	end
 end
 
@@ -38,6 +55,7 @@ local function apply_hl()
 	local c = require("core.carbon").colors()
 	for _, fam in ipairs(FAMILIES) do
 		vim.api.nvim_set_hl(0, fam.group, { fg = c.base00, bg = c[fam.role], bold = true })
+		vim.api.nvim_set_hl(0, sign_group(fam.group), { fg = c[fam.role] })
 	end
 end
 apply_hl()
@@ -66,9 +84,14 @@ function M.refresh(buf, win)
 				local rest = line:sub(s + #word)
 				local tail = rest:match("^%s*:") or rest:match("^%([^)]*%)%s*:")
 				if tail then
+					-- No `priority`: it is shared by the inline highlight and the
+					-- sign, and the extmark default (4096) already outranks
+					-- gitsigns' sign_priority 6 for the single "auto" gutter cell.
 					vim.api.nvim_buf_set_extmark(buf, ns, first + i - 1, s - 1, {
 						end_col = s - 1 + #word + #tail,
 						hl_group = group,
+						sign_text = M.ICONS[word],
+						sign_hl_group = sign_group(group),
 					})
 				end
 			end
