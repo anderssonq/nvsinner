@@ -68,7 +68,7 @@ each with its rationale.
 
 ## Done (see NVSINNER.md for detail)
 
-- [x] **Versioned releases + update check (v1.0.0).** The semver lives in
+- [x] **Versioned releases + update check (mechanism landed in v1.0.0).** The semver lives in
       `lua/nvsinner/init.lua` (single source of truth); `lua/core/version.lua`
       checks it against raw `main` once per session (dashboard footer +
       `:NvSinnerHelp` title). Release runbook:
