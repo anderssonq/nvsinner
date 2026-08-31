@@ -135,8 +135,8 @@ also what makes it testable headlessly.
 Every color in the distro resolves through this module. No module hardcodes a
 hex.
 
-Seven full palettes (`dark`, `light`, `onedusk`, `mocha`, `kyoto`, `fjord`,
-`monolith`) each fill an identical role-key set: a `base00`–`base05` grayscale
+Ten full palettes (`dark`, `light`, `onedusk`, `mocha`, `kyoto`, `fjord`,
+`monolith`, `briar`, `grove`, `neon`) each fill an identical role-key set: a `base00`–`base05` grayscale
 ramp, `base06` white, `base07`–`base15` accents, plus `blend`, `lift`, `shade`,
 `backdrop` and the diff roles.
 
