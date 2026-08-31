@@ -11,7 +11,7 @@
 ![Managed by lazy.nvim](https://img.shields.io/badge/plugins-lazy.nvim-78a9ff)
 ![License: MIT](https://img.shields.io/badge/License-MIT-78a9ff)
 
-[Features](#-features) • [Getting started](#-getting-started) • [The AI workflow](#-the-ai-workflow) • [Settings](#-settings--theming) • [Keybindings](#-full-keybindings-reference) • [Updating](#-updating)
+[Features](#-features) • [Getting started](#-getting-started) • [The AI workflow](#-the-ai-workflow) • [Settings](#-settings--theming) • [Keybindings](#-full-keybindings-reference) • [Troubleshooting](#-troubleshooting) • [Architecture](docs/ARCHITECTURE.md) • [Contributing](docs/CONTRIBUTING.md)
 
 </div>
 
@@ -151,6 +151,32 @@ Clones NvSinner into `~/.config/nvsinner`, installs a `nvsinner` launcher into
 ```bash
 nvsinner
 ```
+
+### The first 60 seconds
+
+Once `nvsinner` opens, this is the whole loop the distro exists for:
+
+| Press | What happens |
+|-------|--------------|
+| `<leader>e` | File tree. Single click opens a file (`:NvSinnerMenu` → "Explorer click" restores stock double-click) |
+| `<leader>f` | Find files · `<leader>sf` greps the project |
+| `<leader>j` | Opens the AI column on the right. **First open asks which CLI to run** — `claude`, `kiro-cli`, `opencode`, or a plain shell. Only CLIs found on your `PATH` are offered |
+| select some code, `<leader>x` | Ask AI about it — Fix / Refactor / Explain / your own question |
+| `<leader>ab` | Drops an `@path` mention of the current file into that column |
+
+The payload always lands **in the CLI's input line, unsubmitted** — you read it
+and press Enter yourself. Nothing is ever sent on your behalf.
+
+When the agent edits a file on disk, the buffer reloads under you and the
+changed lines are briefly washed in the accent color so you can see what moved.
+`<leader>jc` kills a session and forgets the CLI choice, so the next `<leader>j`
+asks again.
+
+> [!WARNING]
+> Auto-reload means **disk wins**. If you have unsaved changes to a file the
+> agent rewrites, your in-buffer edits are discarded. This is deliberate — the
+> editor is a viewer for agent-authored work — but it is worth knowing before
+> you hand a file you were mid-edit on to an agent.
 
 ### Manual
 
@@ -385,6 +411,57 @@ hovering moves the selection and a click cycles the row's value.
 | Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
 
+#### Where it is stored, and what overrides it
+
+Every row above is one key in a single JSON file:
+
+```
+~/.config/nvsinner/settings/nvsinner-settings.json
+```
+
+That file is **gitignored** — it is your machine's state, not part of the
+distro. (`settings/prompts.json`, the prompt library, *is* committed.) Deleting
+it resets everything to the defaults below; there is no other config file to
+edit, and nothing here requires editing Lua.
+
+| JSON key | Menu row | Default |
+|----------|----------|---------|
+| `theme` | Background theme | `"carbon"` |
+| `transparent` | Transparency | `false` |
+| `accent` | Accent | `"blue"` |
+| `folder` | Folder color | `"accent"` |
+| `notif` | Notif color | `"default"` |
+| `variables` | Variables | `"default"` |
+| `strings` | Strings | `"default"` |
+| `functions` | Functions | `"default"` |
+| `tree_side` | Neo-tree side | `"left"` |
+| `tree_click` | Explorer click | `"single"` |
+| `ai_side` | AI column side | `"right"` |
+| `ai_complete` | AI completion | `true` |
+| `key_timeout` | Key timeout | `300` |
+| `quiet` | Notifications | `false` |
+| `ai_model` | *(not in this menu — picked in `:NvSinnerIA`)* | `"minimax-m2.5"` |
+
+Environment variables override the stored value at startup, which is what makes
+a one-off launch possible without touching your saved settings:
+
+```bash
+NVSINNER_THEME=moon nvsinner          # boot the light palette once
+NVSINNER_ACCENT=purple nvsinner       # try an accent without saving it
+```
+
+Precedence is **`vim.g.nvsinner_*` → `$NVSINNER_*` → the JSON file → the
+built-in default**. The supported variables are `NVSINNER_THEME`,
+`NVSINNER_ACCENT`, `NVSINNER_TRANSPARENT`, `NVSINNER_FOLDER`, `NVSINNER_NOTIF`,
+`NVSINNER_VARIABLES`, `NVSINNER_STRINGS` and `NVSINNER_FUNCTIONS`.
+`NVSINNER_BACKGROUND=light` still works as a legacy alias for
+`NVSINNER_THEME=moon`.
+
+The inline-completion feature reads four more, none of which are ever stored by
+the config: `OPENCODE_API_KEY` (required — the feature is a quiet no-op without
+it), `OPENCODE_MODEL` (outranks the saved `ai_model`), `OPENCODE_FALLBACK_MODEL`
+(retried once when the primary model returns 429) and `OPENCODE_ENDPOINT`.
+
 ### Theme options (carbon)
 
 The theme flags can also be set per launch via an environment variable, or
@@ -505,6 +582,7 @@ spec; new files in an existing category are picked up automatically.
 | `illuminate.lua` | vim-illuminate | **Disabled** — replaced by the native occurrence highlight (`lua/core/illuminate.lua`) |
 | `scrollbar.lua` | satellite.nvim | Slim right-edge scrollbar with hunk/diagnostic/search marks |
 | `mini-animate.lua` | mini.animate | Window open/close/resize easing + cursor trail |
+| `cursorline.lua` | nvim-cursorline | **Disabled** — the cursor-word highlight it provided is covered by the native occurrence highlight (`lua/core/illuminate.lua`) |
 
 ### Navigation & search
 
@@ -578,7 +656,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>lf` | n | Format buffer |
 | `<leader>ca` | n | Code action |
 | `<leader>rn` | n | Rename symbol |
-| `grn` / `grr` / `gri` / `gO` | n | Neovim builtins: rename / references / implementation / document symbols |
+| `grn` / `gra` / `grr` / `gri` / `grt` / `gO` | n | Neovim's stock LSP maps: rename / code action / references / implementation / type definition / document symbols. Left as-is, never remapped — `<leader>rn` and `<leader>ca` are the mnemonic aliases. (`grx` runs a codelens where your Neovim provides it.) |
 | `]d` / `[d` | n | Neovim builtins: next / previous diagnostic |
 | `<leader>xx` / `<leader>xX` | n | Trouble: workspace / buffer diagnostics |
 | `<leader>xs` / `<leader>xl` / `<leader>xq` | n | Trouble: symbols / location list / quickfix list |
@@ -612,7 +690,6 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>ad` | n | Send the current line's diagnostics to the AI column |
 | `<C-l>` | i | Request an inline AI completion (ghost text) at the cursor (`:NvSinnerComplete`) |
 | `<Tab>` | i | Accept the AI ghost text (falls through to a literal Tab when none is pending or cmp's menu is open) |
-| `<C-l>` | i | Accept the AI ghost text (unconditional) |
 | `<C-]>` | i | Dismiss the AI ghost text |
 | `<leader>p` | n | Prompt library (`:NvSinnerPrompts`) — copy a reusable AI prompt to the clipboard |
 | `<M-J>` | n, i, t | Toggle the AI session you're inside, else session 1 (sent by iTerm2's `⌘⌥J`) |
@@ -774,20 +851,175 @@ fixes it.
 
 ### Installing the hook
 
-If you cloned manually, enable it once:
+The hook is **opt-in** — nothing enables it for you, including
+`install.sh`. Turn it on once per clone:
 
 ```bash
 git config core.hooksPath .githooks
 chmod +x .githooks/pre-push
 ```
 
-The `install.sh` path already wires `core.hooksPath` for you on a fresh
-install.
+Until you do, nothing checks formatting or runs the suite before a push: CI
+catches failing tests on the PR, but **CI does not check formatting at all**, so
+an unformatted commit can reach `main` with every gate green.
 
 ### Skipping the hook
 
 - **One push:** `git push --no-verify` — bypasses the hook entirely.
 - **This repo:** `git config --unset core.hooksPath` — disables it for good.
+
+## 🔧 Troubleshooting
+
+Symptoms users actually hit, with the check that tells you which cause you have.
+Anything not listed here is usually answered by `:checkhealth nvsinner` (below)
+or `:Lazy`.
+
+### Icons render as boxes or question marks
+
+Your terminal is not using a Nerd Font. NvSinner bundles one in `fonts/` —
+install it and select it in your terminal's profile:
+
+```bash
+# macOS
+cp fonts/*.ttf ~/Library/Fonts/
+# Linux
+cp fonts/*.ttf ~/.local/share/fonts/ && fc-cache -f
+```
+
+A font cannot be probed from inside Neovim, so `:checkhealth nvsinner` reports
+it as informational only — it will never flag this for you.
+
+### `<leader>t`, `<leader>j`, `<leader>jx` or `<leader>f` pauses before acting
+
+**Working as intended.** Each is a prefix of a longer map (`<leader>t2`…`t9`,
+`<leader>fb`, and so on), so Neovim waits `timeoutlen` for a possible
+continuation. Type the digit immediately after the prefix and there is no wait
+at all.
+
+The wait defaults to **300 ms**, not Neovim's 1000 ms. Check the live value:
+
+```vim
+:set timeoutlen?
+```
+
+It should match `:NvSinnerMenu` → "Key timeout", which is where you tune it —
+your saved `key_timeout` is written through to `'timeoutlen'` at startup, so a
+customised value is expected to differ from 300. If it reports `1000`, the
+setting genuinely regressed.
+
+### A buffer didn't reload after the agent edited the file
+
+Auto-reload only touches files that are **open in a buffer**. If the agent
+created or edited a file you never opened, there is nothing to reload — that is
+by design, not a failure.
+
+If the file *is* open and still stale, the reload chain has broken:
+
+```vim
+:lua print("autoread=" .. tostring(vim.o.autoread) .. " timer=" .. tostring(require("core.autoreload")._timer ~= nil))
+```
+
+Both must report true: `autoread` off, or a dead poll timer, breaks the chain.
+
+Remember that **disk wins**: unsaved in-buffer edits to a file the agent
+rewrites are discarded rather than prompting for a merge.
+
+### The agent activity spinner in the terminal winbar is frozen or empty
+
+Frozen usually means the redraw path regressed. `lua/core/ai-activity.lua` must
+repaint with `nvim__redraw{ winbar = true, flush = true }` — `:redrawstatus`
+does **not** repaint a winbar while focus is inside a terminal, so a switch to
+it looks correct and silently stops updating.
+
+Empty usually means the winbar expression lost its baked-in buffer number.
+Check that it names a buffer rather than relying on `vim.g.statusline_winid`,
+which is never populated during winbar evaluation:
+
+```vim
+:lua print(vim.wo.winbar)
+```
+
+### Syntax colors flatten or shift about a second after opening a file
+
+An LSP server is repainting Treesitter's colors with semantic tokens. This
+config disables them on attach, so seeing this means the guard was bypassed:
+
+```vim
+:lua =vim.tbl_map(function(c) return { c.name, c.server_capabilities.semanticTokensProvider } end, vim.lsp.get_clients())
+```
+
+Every entry must report `vim.NIL`. Treesitter is the single source of syntax
+color here by design.
+
+### Inline AI completion does nothing
+
+It is a deliberate quiet no-op until configured. In order, check:
+
+1. `$OPENCODE_API_KEY` is exported in the shell that launched Neovim. Without
+   it you get one warning and silence thereafter.
+2. `curl` is on `PATH` — the request is a plain `curl` call, not a plugin.
+3. Completion is on: `:NvSinnerIA` → "AI completion", or `:NvSinnerCompleteToggle`.
+
+Remember it is **manual**: `<C-l>` requests a suggestion, `<Tab>` accepts one,
+`<C-]>` dismisses. Nothing appears as you type.
+
+### `<leader>t` opens the AI column instead of a horizontal terminal
+
+A terminal id collision. The `<leader>t` terminals own ids 1–9 and the AI
+columns are deliberately parked at 100+ (session *N* is id `99 + N`), so they
+can never collide. If they do, something claimed a low id:
+
+```vim
+:lua =vim.tbl_map(function(t) return t.id end, require("toggleterm.terminal").get_all(true))
+```
+
+### A plugin never loads
+
+Two causes, in order of likelihood:
+
+1. **Its category folder has no import line.** `lazy.nvim`'s `import` does not
+   recurse into subfolders, so every folder under `lua/plugins/` needs its own
+   `{ import = "plugins.<category>" }` line in `init.lua`. A new folder without
+   one loads nothing, silently and with no error.
+2. **Its lazy trigger never fires.** Confirm it is even in the spec list with
+   `:Lazy`, then check its `event` / `cmd` / `keys` / `ft`.
+
+Note that eleven specs are intentionally `enabled = false` — they are retired
+plugins kept as one-line reverts, replaced by native modules. `:Lazy` will not
+show them.
+
+### Neovim crashes opening a markdown file
+
+Seen on 0.12.x as `attempt to call method 'range'`, from a markdown-treesitter
+interaction. Three guards in this config keep that path cold — noice's LSP
+`hover` and `signature` are off, and the hover float is not given
+`filetype=markdown`. If you re-enable any of them on 0.12.x, expect the crash
+back.
+
+### The test suite fails immediately
+
+Usually plenary is missing rather than a real regression — the suite borrows it
+from Telescope's dependencies, so plugins must be installed first:
+
+```bash
+nvim --headless "+Lazy! restore" +qa
+make test
+```
+
+Isolate a single spec with `make test-file FILE=tests/core/options_spec.lua`.
+
+### Nothing boots at all
+
+```bash
+nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
+```
+
+That prints the startup errors. To syntax-check one file without loading
+anything:
+
+```bash
+nvim --headless -c "lua assert(loadfile('lua/core/options.lua'))" -c "qa"
+```
 
 ## 🩺 Health check
 

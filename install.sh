@@ -84,5 +84,5 @@ ok "Plugins installed"
 
 printf '\n'
 ok "NvSinner is ready — launch it with:  nvsinner"
-info "First launch also auto-installs LSP servers (lua_ls, ts_ls, html) and formatters (stylua, prettier, eslint_d) via Mason."
+info "First launch also auto-installs 8 LSP servers (lua_ls, ts_ls, html, pyright, bashls, jsonls, yamlls, cssls) and 4 formatters/linters (stylua, prettier, eslint_d, shfmt) via Mason."
 info "Update later with  :NvSinnerUpdate  (or re-run this installer)."
