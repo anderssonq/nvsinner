@@ -70,13 +70,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v1.9.1).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v2.0.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
     (`version = "1.9.1"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v1.9.1` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v2.0.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -139,7 +139,22 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     from the code — most seriously, `CLAUDE.md` and `docs/installation.md` both
     instructed `Lazy! sync`, contradicting the restore-not-sync non-negotiable
     stated in the same file, and both README and `CLAUDE.md` claimed
-    `install.sh` wires `core.hooksPath`, which it never has.
+    `install.sh` wires `core.hooksPath`, which it never has. **v2.0.0** is the
+    first breaking release: the Neovim floor moves from 0.11 to **0.12**, and
+    `install.sh` now enforces it instead of only claiming to. The floor bought
+    the bundled `nvim.undotree` (`<leader>u`) and three native 0.12 LSP
+    capabilities — linked editing, `:NvSinnerDiagnosticsWorkspace`, and an
+    opt-in per-window LSP folding toggle (`<leader>zl`). It also settled the
+    distro's longest-running defect: the "Neovim 0.12.x markdown treesitter
+    crash" was never a Neovim bug, it was the frozen `nvim-treesitter` `master`
+    reading 0.12's list-valued `match[id]` as a single node, which had silently
+    broken HTML and bash injections too. `lua/core/ts-compat.lua` fixes it at
+    the source and **six** suppression sites came out. Snippet placeholders were
+    unreachable and now are not. Four claims that had been carried in the docs
+    for months did not survive being measured — the startup number's
+    methodology, the "dead" lockfile entries (they are the tombstone revert
+    path), the "stale" pins (most were at their latest tag), and the crash
+    narrative itself.
 
 ## Status
 
