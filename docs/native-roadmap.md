@@ -287,6 +287,60 @@ distro ships, not whether it ships one. It only becomes interesting if nvim-cmp
 stops being maintained; it is a hobby project whose author has said fixes are not
 guaranteed. Watch, do not chase.
 
+## Pin age is not pin staleness (measured 2026-09-01)
+
+An audit flagged "six stale pins", oldest `barbecue` at 3 years 4 months. Checked
+against upstream with `git ls-remote`, **most of them are not stale at all** — the
+projects simply stopped changing, and a pin to a finished plugin is current by
+definition.
+
+| Plugin | Pin | Verdict |
+|---|---|---|
+| `barbecue` | cd7e7da (2023-04-28) | **at v1.2.0, the latest tag** |
+| `toggleterm.nvim` | 50ea089 (2024-12-30) | **at v2.13.1, the latest tag** |
+| `nvim-surround` | 2e93e15 | **at v4.0.5, the latest tag** |
+| `telescope-ui-select` | 6e51d7d (2023-12-04) | **at upstream HEAD** |
+| `diffview.nvim` | 4516612 (2024-06-13) | **at upstream HEAD** |
+| `cmp_luasnip` | 98d9cb5 (2024-11-04) | **at upstream HEAD** |
+| `mason.nvim` | 2a6940a | **at upstream HEAD** |
+| `telescope.nvim` | tag 0.1.8 | **behind — v0.2.2 exists** |
+| `mason-lspconfig.nvim` | 47059d7 | **behind — ~2 months of default-branch drift** |
+
+Two lessons, both cheap to re-run:
+
+1. **Compare against the right reference.** A `version = "*"` / `tag =` pin must be
+   compared to the latest *tag*; comparing it to `HEAD` reports every tag-pinned
+   plugin as behind, which is how `barbecue` and `toggleterm` landed on the "stale"
+   list. `diffview` and `cmp_luasnip` were specifically called "the uncovered gaps"
+   and are at HEAD.
+2. **Neither of the two real gaps is a drive-by bump.** telescope 0.1.8 → 0.2.2 is a
+   minor jump on the most-used UI in the editor, drags `telescope-ui-select`, and
+   telescope is a Wave 3 replacement target. mason-lspconfig is two months of branch
+   drift with no reported problem. Each deserves its own change and its own testing.
+
+Re-run the audit with:
+
+```bash
+cd ~/.local/share/nvsinner/lazy && for p in */; do p=${p%/}
+  url=$(git -C "$p" remote get-url origin 2>/dev/null) || continue
+  pin=$(git -C "$p" rev-parse HEAD | cut -c1-7)
+  head=$(git ls-remote "$url" HEAD | cut -f1 | cut -c1-7)
+  tag=$(git ls-remote --tags --refs "$url" | awk -F/ '{print $NF}' | sort -V | tail -1)
+  echo "$p pin=$pin head=$head latest_tag=$tag"
+done
+```
+
+## `williamboman/` → `mason-org/` — evaluated and declined (2026-09-01)
+
+mason moved orgs; the specs still name `williamboman/`, which GitHub redirects
+(verified — the installed clones use the old URL and work). Renaming looks free.
+It is not: lazy's `git.origin` task, on a changed URL, runs
+`fs.clean` **and then re-clones** (`lazy/manage/task/git.lua:212-235`). So the
+rename forces a wipe-and-re-clone of mason and mason-lspconfig on every existing
+install at the next update, to replace a working redirect with its target.
+
+Do it when there is another reason to touch those specs — not on its own.
+
 ## Scoreboard
 
 37 plugin specs at the start of Wave 1 → 4 disabled in Wave 1 (comment,
