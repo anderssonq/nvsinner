@@ -1,7 +1,7 @@
 -- ─── Mouse: click-to-open ────────────────────────────────────────────────────
 -- neo-tree's ONLY stock mouse binding is `["<2-LeftMouse>"] = "open"`
 -- (neo-tree/defaults.lua). The maps below add a single-click path behind the
--- persisted `tree_click` setting (:NvSinnerMenu → "Neo-tree click"). They MERGE
+-- persisted `tree_click` setting (:NvSinnerMenu → "Explorer click"). They MERGE
 -- with the stock mapping table — neo-tree discards the defaults only when
 -- `use_default_mappings = false` — so all ~40 built-in bindings survive.
 

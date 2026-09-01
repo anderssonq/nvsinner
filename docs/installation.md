@@ -44,10 +44,13 @@ are already running inside the cloned repo, skip the clone.)
 ## 3. Install plugins (lazy.nvim bootstraps itself)
 
 ```bash
-nvim --headless "+Lazy! sync" +qa
+nvim --headless "+Lazy! restore" +qa
 ```
 
-Clones lazy.nvim and every plugin pinned in `lazy-lock.json`.
+Clones lazy.nvim and installs every plugin at the commit pinned in
+`lazy-lock.json`. Use `restore`, not `sync`: `sync` floats every plugin to its
+latest commit and rewrites the lockfile. Floating to latest is the deliberate,
+opt-in `:NvSinnerSync` path — never an install step.
 
 ## 4. LSP servers via Mason (automatic)
 

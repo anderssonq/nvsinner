@@ -206,8 +206,9 @@ reference** — check it before adding a map. Leader namespaces (leader = Space)
 # Syntax-check a single file (no network):
 nvim --headless -c "lua assert(loadfile('lua/plugins/<category>/<file>.lua'))" -c "qa"
 
-# Install/build plugins:
-nvim --headless "+Lazy! sync" +qa
+# Install/build plugins (restore = the pinned set; never `sync` here, which
+# floats to latest and rewrites lazy-lock.json):
+nvim --headless "+Lazy! restore" +qa
 
 # Boot config and surface startup errors:
 nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
@@ -218,10 +219,13 @@ Also useful interactively: `:Lazy`, `:checkhealth`, `:Mason`.
 **What runs automatically.** `.github/workflows/ci.yml` re-runs the boot check
 and `make test` on every pull request and every push to `main`, on a clean
 machine against the pinned `lazy-lock.json`. Before that, `.githooks/pre-push`
-(wired by `install.sh`) runs `stylua --check` + `make test` locally. Two gaps
-worth knowing: **CI does not check formatting** — only the hook does, and it is
-skippable with `--no-verify` — and CI is one `ubuntu-latest` × `stable` job, so
-nothing automatically exercises macOS or 0.12.x.
+runs `stylua --check` + `make test` locally — but **only once you opt in with
+`git config core.hooksPath .githooks`**; nothing wires it for you, so a fresh
+clone has no local gate at all. Three gaps worth knowing: **CI does not check
+formatting** — only the hook does, and it is skippable with `--no-verify`; CI is
+one `ubuntu-latest` × `stable` job, so nothing automatically exercises macOS or
+0.12.x; and CI symlinks the checkout to `~/.config/nvim`, so the
+`NVIM_APPNAME=nvsinner` path itself is never exercised.
 
 ## Tests
 
