@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/lsp/` — language intelligence for a personal Neovim **0.11+**
+You own `lua/plugins/lsp/` — language intelligence for a personal Neovim **0.12+**
 config that uses the **native `vim.lsp` API** (not the deprecated lspconfig setup).
 
 **Before editing, read `lua/plugins/lsp/CLAUDE.md`** — it carries the full

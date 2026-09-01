@@ -17,7 +17,7 @@ description: >
 
 # NvSinner architecture contract
 
-NvSinner is a personal Neovim 0.11+ config (lazy.nvim) grown into a
+NvSinner is a personal Neovim 0.12+ config (lazy.nvim) grown into a
 distributable "AI-terminal IDE": AI means a CLI agent (e.g. `claude`) running in
 a toggleterm column, not an in-editor plugin. The owner's stated ambitions, in
 priority order: (a) the deepest AI-agent/terminal integration of any distro,
@@ -273,12 +273,13 @@ Rules-as-gates form of these (what a reviewer should block) lives in
   terminals and 9 AI sessions on two prefixes means the bare press can never be
   instant, only fast. The residual trade-off is now the user's to set: too low
   and `<leader>t3` opens terminal 1. See FA-25.
-- **0.12.x compatibility is reactive.** The config targets 0.11+; CI exercises
-  `stable` on ubuntu every PR, and the dev machine runs 0.12.3 — but nothing
-  exercises 0.12.x/nightly automatically, which is exactly where the crash
-  class lives. The markdown-treesitter crash was patched around in three files
-  after it bit; there is no version matrix, so a 0.12.x-specific regression
-  still reaches a user before it reaches a check.
+- **Nightly compatibility is reactive.** The floor moved to 0.12 after v1.9.1,
+  and CI now runs a `{v0.12.0, stable}` matrix on ubuntu every PR, so the
+  declared floor is finally a tested claim rather than a declared one. What is
+  still unexercised is **nightly and macOS** — and nightly is exactly where the
+  crash class lives. The markdown-treesitter crash was patched around in three
+  files after it bit; nothing pre-empts the next one, so a nightly-specific
+  regression still reaches a user before it reaches a check.
 - **CI covers correctness, not formatting or platform spread.**
   `.github/workflows/ci.yml` (added 2026-07-04) runs on every push to `main`
   and every pull request: `Lazy! restore` against the pinned lockfile, a
@@ -286,8 +287,9 @@ Rules-as-gates form of these (what a reviewer should block) lives in
   does NOT do: run `stylua --check` — formatting is caught earlier, by the
   `.githooks/pre-push` hook (`install.sh` wires `core.hooksPath`), which is
   local and skippable with `--no-verify`, so drift can still reach `main`.
-  And it runs a single `ubuntu-latest` × `stable` Neovim — see the 0.12.x
-  bullet above for why that matters.
+  And it runs `ubuntu-latest` × `{v0.12.0, stable}` — the declared floor and
+  current stable, but one platform and no nightly; see the nightly bullet above
+  for why that matters.
 - **Layout determinism depends on a repair function.** `restore_layout()` in
   `toggleterm.lua` re-asserts the bottom/right split geometry after every panel
   open because toggleterm's own split placement is order-dependent — a

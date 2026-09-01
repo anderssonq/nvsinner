@@ -136,18 +136,20 @@ falsifiable milestone. All are **open**; none is promised.
   to `main` and every PR) and versioned releases exist (semver in
   `lua/nvsinner/init.lua` + the once-per-session remote update check; see
   `docs/releasing.md`). Both were listed here as gaps; both are done.
-- **Gap that remains:** CI is a single `ubuntu-latest` × `stable` job. No
-  macOS — the dev platform, and where `image-open.lua`'s `qlmanage`/`sips`
-  path lives — and no 0.12.x, which is precisely where the
-  markdown-treesitter crash class lives, so the one version that bites is the
-  one CI never exercises. `stylua --check` is not a step either. And
+- **Gap that remains:** CI is `ubuntu-latest` × `{v0.12.0, stable}` — the
+  0.12 baseline move made the declared floor a tested one, but it is still one
+  platform. No macOS — the dev platform, and where `image-open.lua`'s
+  `qlmanage`/`sips` path lives — and no nightly, which is precisely where the
+  markdown-treesitter crash class lives, so the build that bites is the one CI
+  never exercises. `stylua --check` is not a step either. And
   `install.sh` / `uninstall.sh` still have zero automated coverage
   (`nvsinner-testing-and-qa` known gaps).
 - **Asset:** the suite is already headless-runnable (`make test`) and now
   wired into Actions, so widening it is editing a matrix, not building a
   pipeline; scripts are POSIX bash.
-- **First steps:** (1) widen the existing workflow to a matrix {macOS,
-  ubuntu} × {0.11.x, 0.12.x, nightly} and add a `stylua --check` step;
+- **First steps:** (1) the ubuntu × {v0.12.0, stable} matrix landed with the
+  0.12 baseline move; widen it to {macOS, ubuntu} × {v0.12.0, stable, nightly}
+  and add a `stylua --check` step;
   (2) bats or bash-based tests for install.sh/uninstall.sh against a
   sandboxed `$HOME`/`$XDG_*`.
 - **Result when:** the matrix + a `stylua` step are on the existing workflow,

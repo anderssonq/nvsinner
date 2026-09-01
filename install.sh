@@ -21,7 +21,13 @@ ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
 warn() { printf '\033[33m! %s\033[0m\n' "$1"; }
 
 command -v git  >/dev/null || { warn "git is required"; exit 1; }
-command -v nvim >/dev/null || { warn "neovim (>= 0.11) is required"; exit 1; }
+command -v nvim >/dev/null || { warn "neovim (>= 0.12) is required"; exit 1; }
+# Real version gate, not just a presence check: NvSinner's floor is Neovim 0.12
+# (bundled nvim.undotree, the nvim-treesitter `main` path), and a 0.11 install
+# must fail HERE rather than at first boot. Ask the interpreter instead of
+# parsing `nvim --version` in shell.
+nvim --headless -c 'if has("nvim-0.12") | qa | else | cq | endif' >/dev/null 2>&1 \
+  || { warn "neovim >= 0.12 is required; found: $(nvim --version | head -1)"; exit 1; }
 
 # 1. Config dir ---------------------------------------------------------------
 # Re-running the one-liner UPDATES an existing NvSinner clone (git pull) instead

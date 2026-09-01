@@ -153,6 +153,66 @@ House rule reminder: a migrated plugin's spec is **kept with
 | `nvim-web-devicons` | shared icon data for many keepers; drops out only when its dependents do. |
 | `telescope`, `toggleterm`, `lualine`, `noice`, `alpha`, `notify`, `barbecue`, `satellite` | staying **for now** — they are the Wave 2/3 targets above. |
 
+## Bundled 0.12 packages — evaluated (2026-08-31)
+
+The 0.12 baseline move unlocked `$VIMRUNTIME/pack/dist/opt/`. Two of its
+packages were assessed; one landed, one was declined. Both `packadd`-only, so
+neither costs anything until used.
+
+| Package | Verdict |
+|---------|---------|
+| `nvim.undotree` | **Adopted.** `<leader>u` + a `:NvSinnerHelp` palette row. Fills a real gap — nothing here browsed undo history. `packadd` is idempotent (guarded by `g:loaded_undotree_plugin`; the rtp entry is never duplicated), so the keymap re-runs it on every press with no bookkeeping, and `:Undotree` toggles. Its buffer is `buftype = nofile`, which every visible-range decorator (`illuminate`, `indent`, `colorizer`, `todo`) and `ui-touch.eligible()` already skip — no denylist edits. Two upstream limits worth knowing, both left unpatched: (1) its augroup is created with `clear = true`, so opening a tree for a second buffer silently desyncs the first — one tree at a time is the supported model; (2) `undotree.lua:271` reads `vim.b[outbuf]` from a `vim.schedule` without re-validating the buffer, and the tree buffer is `bufhidden = wipe`, so opening and closing it **within one event-loop tick** prints a non-fatal `Invalid buffer id` to `:messages`. Probed: every realistic sequence is clean — open/close/reopen with a tick in between, and quitting with the tree open — because a real key press always yields to the loop. Not worth carrying a debounce for. |
+| `nvim.difftool` | **Declined.** It does cover something diffview cannot — arbitrary **non-git** file/directory diffing — but `lua/difftool.lua:64` calls `:only`, tearing down the AI terminal column and neo-tree in the current tab. Diffview already owns `<leader>g*` under non-negotiables that route `<leader>gd`/`<leader>gH` through `open_diff()` in at most one tab, precisely to stop the tab-stacking this would reintroduce. It also registers a load-time `VimEnter` autocmd with **no augroup** that hijacks `nvim -d`. The non-git file case is already `nvim -d a b` in a terminal. |
+
+## `'winborder'` — measured and rejected (2026-08-31)
+
+Neovim 0.12 adds a global default border for floats that pass no `border` key.
+It looked like a free win. It is not, and the reasoning is recorded here so it
+reads as measured rather than overlooked.
+
+**Precedence, probed on 0.12.3:** no `border` key → global applies; `border =
+nil` in the table → identical to absent, global applies; any explicit value
+(`"none"` included) wins. So the blast radius is exactly "floats that pass no
+border key".
+
+**For NvSinner's own UI it is a no-op.** All 12 `nvim_open_win` sites already
+pass a border — 9 × `"rounded"` (prompts, symbols, agents ×2, menu, ia, help,
+ai-ask, ui-touch) and 2 × `"none"` (backdrop, ai-complete) — with one
+exception: `lua/core/window-picker.lua:103`, whose 7×3 letter overlay is
+centred by arithmetic assuming no border and whose `winhighlight` maps
+`Normal`/`NormalFloat` but not `FloatBorder`. That one would **regress**.
+
+**The rest of the effect is on third-party floats, and three of them are bad:**
+lazy.nvim's backdrop (`view/float.lua:145`) and none-ls's (`info.lua:54`) are
+`columns × lines` floats with no border key — probed, a full-screen float plus a
+border clamps its content (78×21 on an 80×24 screen) and draws a rounded frame
+around the whole display, on every `:Lazy`. Both are hardcoded upstream and
+**cannot be overridden from config**. noice's `popupmenu` view (via nui's
+`get_default_winborder()`) would gain a frame on every `:` completion, drawn in
+`NoicePopupmenuBorder` where `bg == fg` — invisible but space-consuming.
+which-key gains one too (its `border = "none"` default is **commented out** at
+`config.lua:67`). nvim-cmp's `window.bordered()` reads the option directly, so
+the completion and documentation windows change as well.
+
+Unaffected: telescope (plenary hardcodes `"none"` on both the content window
+and its separate border wrapper — the double-border worry is unfounded),
+neo-tree (`popup_border_style = "NC"`), trouble, toggleterm, nvim-notify,
+satellite, mini.animate, image, neoconf.
+
+**Net:** four suppression sites plus two unfixable artifacts, to gain borders on
+`:Mason`, gitsigns popups and native `K` hover. Not worth it. The explicit
+per-site borders stay — cheap, self-documenting, and immune to a future
+upstream default change.
+
+*Revert recipe if this is ever revisited:* `vim.opt.winborder = "rounded"` in
+`core/options.lua`, `border = "none"` at `window-picker.lua:103`, plus
+`views.popupmenu.border.style` in the noice spec and a which-key `win.border`
+decision.
+
+**`'pumborder'`** was evaluated separately and also left unset: it styles the
+*builtin* popup menu, not nvim-cmp's floats, and `core/options.lua`'s
+`pumblend = 10` is a deliberate borderless "glass" look.
+
 ## Scoreboard
 
 37 plugin specs at the start of Wave 1 → 4 disabled in Wave 1 (comment,

@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/terminal/` — terminals and sessions for a personal Neovim 0.11+
+You own `lua/plugins/terminal/` — terminals and sessions for a personal Neovim 0.12+
 config. The AI workflow is **a CLI agent running in a terminal column** (there are no
 in-editor AI plugins). Each file returns a lazy.nvim spec.
 

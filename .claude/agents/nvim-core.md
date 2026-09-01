@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own the **core (non-plugin) layer** of a personal Neovim 0.11+ config:
+You own the **core (non-plugin) layer** of a personal Neovim 0.12+ config:
 `lua/core/`. These modules are `require`d directly from `init.lua` (before
 lazy.nvim) — they are NOT lazy.nvim specs.
 

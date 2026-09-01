@@ -531,8 +531,11 @@ the **statusline** (a lualine component in `lua/plugins/ui/lualine.lua`).
   — for Lua commands the returned `definition` field carries the registered
   `desc` (verified empirically), which becomes the description; a `DESCS`
   table overrides it where a keymap hint helps, and `EXTRAS` appends
-  non-command entry points (`:checkhealth nvsinner`). A future `:NvSinnerFoo`
-  shows up automatically with its `desc`.
+  non-command entry points (`:checkhealth nvsinner`, and `:Undotree` — Neovim
+  0.12's bundled undo browser, whose `cmd` is `"packadd nvim.undotree |
+  Undotree"` because `run()` feeds it to a bare `vim.cmd`; `packadd` is
+  idempotent, so the chained form is safe on every pick). A future
+  `:NvSinnerFoo` shows up automatically with its `desc`.
 - **`EXCLUDE` hides the AI commands** — `NvSinnerAskAI` / `NvSinnerComplete` /
   `NvSinnerCompleteToggle` / `NvSinnerPrompts` live inside the `:NvSinnerIA` hub
   (below), so the palette's "ai" section shows a single `NvSinnerIA` row instead

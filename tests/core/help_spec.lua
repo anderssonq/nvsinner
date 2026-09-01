@@ -30,7 +30,13 @@ describe("core.help", function()
 
 	it("discovers NvSinner commands (not itself, not the AI ones) plus checkhealth", function()
 		local t = titles()
-		for _, want in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
+		for _, want in ipairs({
+			":NvSinnerIA",
+			":NvSinnerMenu",
+			":NvSinnerUpdate",
+			":checkhealth nvsinner",
+			":Undotree",
+		}) do
 			assert.is_true(vim.tbl_contains(t, want), want .. " missing from " .. vim.inspect(t))
 		end
 		assert.is_false(vim.tbl_contains(t, ":NvSinnerHelp"), "the palette must not list itself")
@@ -74,7 +80,7 @@ describe("core.help", function()
 		title = type(title) == "table" and title[1][1] or tostring(title)
 		assert.matches("NvSinner commands · " .. require("core.version").display(), title, nil, true)
 		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-		for _, row in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner" }) do
+		for _, row in ipairs({ ":NvSinnerIA", ":NvSinnerMenu", ":NvSinnerUpdate", ":checkhealth nvsinner", ":Undotree" }) do
 			assert.matches(row, text, nil, true)
 		end
 		assert.matches("q close", text, nil, true) -- the keyboard hint line

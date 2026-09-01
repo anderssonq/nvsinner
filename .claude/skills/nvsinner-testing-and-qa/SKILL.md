@@ -377,7 +377,7 @@ See §6 for what CI still misses.
    index, missing plenary).
 3. **Check the harness before the code**: is plenary at
    `stdpath("data")/lazy/plenary.nvim`? Did you run tests from the repo root?
-   Are you on Neovim 0.11+?
+   Are you on Neovim 0.12+?
 4. **Never "fix" a failure by deleting or loosening the assertion** without
    reading the inventory row in section 2 — most assertions pin an incident.
 5. Still stuck → `nvsinner-debugging-playbook`.
@@ -394,10 +394,12 @@ See §6 for what CI still misses.
   - **`stylua --check` is not a CI step.** Formatting is enforced only by
     whoever remembers to run it before committing. Run it yourself; nothing
     downstream will catch you.
-  - **One platform, one Neovim.** `ubuntu-latest` × `version: stable`. No
-    macOS (the dev platform, and where `image-open.lua`'s `qlmanage`/`sips`
-    path lives) and no 0.12.x, which is exactly where the markdown-treesitter
-    crash class lives. A green CI does not mean "works on the dev machine".
+  - **One platform, two Neovims.** `ubuntu-latest` × `{v0.12.0, stable}` — the
+    declared floor and current stable, so "Neovim 0.12+" is a tested claim
+    (added with the 0.12 baseline move). Still no macOS (the dev platform, and
+    where `image-open.lua`'s `qlmanage`/`sips` path lives) and no nightly,
+    which is where the markdown-treesitter crash class lives. A green CI does
+    not mean "works on the dev machine".
 - **Not covered by the suite:**
   - **Visual rendering** — highlights are asserted as *defined* (group exists,
     fg ≠ bg), never as *looking right* on screen. Theme regressions that keep

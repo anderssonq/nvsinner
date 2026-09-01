@@ -184,16 +184,18 @@ describing what your spec pins.
 ## What CI covers, and what it does not
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`:
-it checks out, installs Neovim `stable`, restores the pinned plugins, runs the
-boot check, then `make test`.
+it checks out, installs Neovim `v0.12.0` **and** `stable` (a two-entry matrix,
+so the declared 0.12 floor is actually exercised, not merely claimed), restores
+the pinned plugins, runs the boot check, then `make test`.
 
 Three gaps worth knowing before you rely on a green check:
 
 1. **CI does not check formatting.** Only the local pre-push hook does, and that
    hook is opt-in and skippable. An unformatted commit can reach `main` green.
-2. **One job: `ubuntu-latest` × Neovim `stable`.** Nothing exercises macOS —
-   where the config is primarily developed and where the Quick Look image
-   preview only works — and nothing exercises 0.12.x.
+2. **One platform: `ubuntu-latest` × Neovim `{v0.12.0, stable}`.** The floor
+   and current stable both run, but nothing exercises macOS — where the config
+   is primarily developed and where the Quick Look image preview only works —
+   and nothing exercises nightly.
 3. **CI symlinks the checkout to `~/.config/nvim`**, not `~/.config/nvsinner`,
    so the `NVIM_APPNAME` isolation the distro is built around is never itself
    tested.

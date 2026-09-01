@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/ui/` — the visual identity of a personal Neovim 0.11+ config:
+You own `lua/plugins/ui/` — the visual identity of a personal Neovim 0.12+ config:
 the **carbon** theme, a native oxocarbon / IBM Carbon port (design doctrine
 documented in `lua/core/carbon.lua`) —
 industrial grayscale core, blue-forward accents, color only where it carries

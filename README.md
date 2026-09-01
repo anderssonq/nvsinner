@@ -6,7 +6,7 @@
 
 **A Neovim distribution that turns the terminal into a Cursor-like AI IDE — no in-editor AI plugin, just your favorite CLI agent in a live, activity-aware column.**
 
-![Neovim 0.11+](https://img.shields.io/badge/Neovim-0.11%2B-57A143?logo=neovim&logoColor=white)
+![Neovim 0.12+](https://img.shields.io/badge/Neovim-0.12%2B-57A143?logo=neovim&logoColor=white)
 ![Made with Lua](https://img.shields.io/badge/Made%20with-Lua-2C2D72?logo=lua&logoColor=white)
 ![Managed by lazy.nvim](https://img.shields.io/badge/plugins-lazy.nvim-78a9ff)
 ![License: MIT](https://img.shields.io/badge/License-MIT-78a9ff)
@@ -113,7 +113,7 @@ any existing `~/.config/nvim` without touching it.
 
 | Tool | Used by |
 |------|---------|
-| Neovim **0.11+** | native `vim.lsp` API, `vim.uv` |
+| Neovim **0.12+** | bundled `nvim.undotree`, the nvim-treesitter `main` path |
 | `git` | lazy.nvim plugin fetch |
 | `ripgrep` | Telescope live grep |
 | `node` | `prettier` / `eslint_d` |
@@ -122,9 +122,10 @@ any existing `~/.config/nvim` without touching it.
 | an AI CLI, e.g. `claude` | AI terminal column (optional) |
 
 > [!IMPORTANT]
-> Neovim **0.11+** is a hard requirement — the config uses `vim.uv` and the
-> native `vim.lsp.config` / `vim.lsp.enable` API and will not load on older
-> versions. Verify with `nvim --version | head -1`.
+> Neovim **0.12+** is a hard requirement and will not load on older versions.
+> (It was 0.11+ through v1.9.1; the floor moved so the config can use 0.12's
+> bundled packages and take the nvim-treesitter `main` migration path, which
+> hard-requires 0.12.) Verify with `nvim --version | head -1`.
 
 The AI workflow is just a CLI agent run in the terminal column — install one
 (e.g. `npm i -g @anthropic-ai/claude-code`) and run it once to log in. No
@@ -744,6 +745,7 @@ Ask-AI modal.
 | `<leader>zf` | v | Fold selected lines |
 | `<C-Y>` | n | Save file (with notification) |
 | `<C-U>` / `<C-R>` | n | Undo / redo (with notification) |
+| `<leader>u` | n | Undo-history browser (`:Undotree`, Neovim 0.12 builtin) — press again to close |
 | `<C-Up>` | n | Grow window height (+2) |
 | `<C-,>` / `<C-.>` | n, t | Grow / shrink window width (±20 columns) — also from inside a terminal (resize the AI column) |
 | `<C-;>` / `<C-'>` | n, t | Grow / shrink window height (±5 rows) — also from inside a terminal |

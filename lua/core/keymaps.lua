@@ -21,6 +21,19 @@ end, { desc = "Save file (with toast)" })
 vim.keymap.set("v", "<leader>zf", ":'<,'>fold<CR>", { desc = "Fold Selected Lines" })
 vim.keymap.set("n", "<leader>za", "za", { desc = "Toggle Fold" })
 
+-- Undo-history browser. Neovim 0.12 bundles nvim.undotree as an OPT package, so
+-- it costs nothing until first use; `packadd` is idempotent (the plugin file is
+-- guarded by g:loaded_undotree_plugin and the runtimepath entry is never
+-- duplicated), so there is no need to track whether it already ran. :Undotree
+-- itself toggles, which is why one key is the whole interaction.
+-- `u` is a leaf, not a namespace: nothing else starts with it, so it needs no
+-- which-key group and costs no 'timeoutlen' wait. It deliberately avoids the
+-- <leader>x* namespace, where <leader>xu is already :NvSinnerUpdate.
+vim.keymap.set("n", "<leader>u", function()
+	vim.cmd("packadd nvim.undotree")
+	vim.cmd("Undotree")
+end, { silent = true, desc = "Undo history (Undotree)" })
+
 -- ─── Split resize ───────────────────────────────────────────────────────────
 -- One local helper per direction, mapped in BOTH normal and terminal mode
 -- (a Lua callback runs in place, so you can widen/narrow the AI chat column

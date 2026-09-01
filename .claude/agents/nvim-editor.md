@@ -6,7 +6,7 @@ tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
 You own `lua/plugins/editor/` — text-editing and syntax plugins for a personal
-Neovim 0.11+ config. Each file returns a lazy.nvim spec (one plugin per file).
+Neovim 0.12+ config. Each file returns a lazy.nvim spec (one plugin per file).
 
 **Before editing, read `lua/plugins/editor/CLAUDE.md`** — it carries the full
 per-file contracts, including the nvim-treesitter `branch = "master"` pin.

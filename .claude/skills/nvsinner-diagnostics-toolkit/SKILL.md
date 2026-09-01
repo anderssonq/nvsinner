@@ -88,7 +88,7 @@ ignore.
 
 - `:checkhealth nvsinner` (interactive) — provider `lua/nvsinner/health.lua`
   delegates to `lua/core/health.lua:report()`. Sections: Neovim version
-  (error if < 0.11), each external tool as ok-with-version or warn-with-install-
+  (error if < 0.12), each external tool as ok-with-version or warn-with-install-
   hint (ripgrep, node, stylua, prettier, eslint_d), Nerd Font as info-only.
 - Headless capture of everything:
   `nvim --headless "+checkhealth" "+w! /tmp/health.txt" +qa` then read the file.

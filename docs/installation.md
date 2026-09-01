@@ -14,7 +14,7 @@ the whole flow (clone → launcher → plugin bootstrap).
 
 ```bash
 # macOS (Homebrew). Linux: swap brew for apt/dnf/pacman + cargo/npm equivalents.
-brew install neovim ripgrep node   # neovim MUST be >= 0.11
+brew install neovim ripgrep node   # neovim MUST be >= 0.12
 ```
 
 The formatting/linting binaries (`stylua`, `prettier`, `eslint_d`, `shfmt`)
@@ -22,11 +22,11 @@ auto-install via Mason on first boot (`mason-tool-installer`, see the LSP
 category docs), so no manual `brew install stylua` / `npm i -g prettier eslint_d`
 is needed — those remain valid manual fallbacks if the Mason install fails.
 
-The config uses `vim.uv` and the native `vim.lsp` API, so it will NOT work below
-0.11 — verify:
+The config uses 0.12's bundled packages (`nvim.undotree`) and takes the
+nvim-treesitter `main` migration path, so it will NOT work below 0.12 — verify:
 
 ```bash
-nvim --version | head -1   # expect: NVIM v0.11.x or newer
+nvim --version | head -1   # expect: NVIM v0.12.0 or newer
 ```
 
 ## 2. Install this config
@@ -100,8 +100,9 @@ Then open `nvim` and run `:Lazy` / `:Mason` to confirm everything installed.
 
 ## External requirements
 
-Neovim **0.11+** (hard requirement — uses `vim.uv` and the native `vim.lsp`
-API), `git`, `ripgrep` (live grep), `node` (for `prettier` / `eslint_d`), a Nerd
+Neovim **0.12+** (hard requirement — bundled packages + the nvim-treesitter
+`main` path; `install.sh` gates on it and `:checkhealth nvsinner` re-checks it),
+`git`, `ripgrep` (live grep), `node` (for `prettier` / `eslint_d`), a Nerd
 Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`, `shfmt`
 (auto-installed via Mason on first boot — see
 `lua/plugins/lsp/mason-tools.lua`). For AI, install a CLI agent such as Claude

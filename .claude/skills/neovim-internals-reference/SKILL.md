@@ -17,7 +17,7 @@ description: >
 
 This is the platform-arcana reference: what Neovim actually guarantees (and
 doesn't), each fact anchored to the exact file in this repo that depends on it.
-Target: Neovim **0.11+** (the repo's hard floor); the dev machine runs 0.12.3
+Target: Neovim **0.12+** (the repo's hard floor since v1.9.1); the dev machine runs 0.12.3
 and every "verified" note below was checked on that build or verified
 empirically by this repo's own development (labeled as such).
 
@@ -487,7 +487,7 @@ claim on this page still carries the 2026-07-02 date.
 
 Re-verify with:
 
-- `nvim --version | head -1` — still 0.11+? Which 0.12.x?
+- `nvim --version | head -1` — still 0.12+? Which 0.12.x?
 - `:help lua-loop-callbacks`, `:help vim.in_fast_event()`, `:help api-buffer-updates-lua` — fast contexts (§1)
 - `nvim --headless -c 'lua local t=vim.uv.new_timer(); t:start(10,0,function() print(pcall(vim.api.nvim_get_current_buf)) end); vim.wait(200)' -c 'qa!'` — expect E5560 (§1)
 - `:help 'statusline'` (the `%{%…%}` item), `:help g:statusline_winid`, `:help 'winbar'` — §2
