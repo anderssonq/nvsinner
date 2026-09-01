@@ -202,7 +202,7 @@ inline justification).
 
 ## 7. Temporary / experimental flags
 
-All three sites of the **Neovim 0.12.x markdown-treesitter crash workaround**
+The **former** three sites of the "0.12.x markdown-treesitter crash workaround" (all removed — the cause was nvim-treesitter's frozen master, fixed in `lua/core/ts-compat.lua`; historically they were)
 (remove together once upstream fixes `runtime/treesitter.lua` nil-node crash):
 
 1. `lua/plugins/editor/nvim-treesitter.lua` — `highlight.disable = {markdown, markdown_inline}`

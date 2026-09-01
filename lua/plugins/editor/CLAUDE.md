@@ -7,6 +7,16 @@
   `nvsinner-failure-archaeology`). Do NOT remove the pin. `:NvSinnerSync`'s
   branch-jump guard (`lua/core/sync.lua`) exists because of this incident;
   rollback recipe: `git restore lazy-lock.json` + `Lazy! restore`.
+- **`lua/core/ts-compat.lua` is part of that pin.** The frozen `master` predates
+  Neovim 0.12's query API, where a directive's `match[capture_id]` is a **list**
+  of nodes; the plugin still reads it as one node, so `get_node_text(<list>)`
+  threw `treesitter.lua:197: attempt to call method 'range'` on every markdown
+  fence, HTML `<script type=…>` and bash heredoc. That was the real cause of the
+  long-running "Neovim 0.12.x markdown crash" (FA-09) — not a Neovim bug. The
+  shim re-registers the affected directives and is called from this spec's
+  `config()` **after** `configs.setup{}`; registering earlier lets the plugin's
+  own `add_directive` silently overwrite it. `highlight.enable` is therefore
+  plain again — no markdown exclusion.
 - Treesitter is the single source of syntax colour — LSP semantic tokens are
   disabled in `lua/plugins/lsp/lsp-config.lua` (see that folder's CLAUDE.md).
 - `comment.lua` — `Comment.nvim` is **disabled** (`enabled = false`):

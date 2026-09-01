@@ -112,7 +112,7 @@ House rule reminder: a migrated plugin's spec is **kept with
   async `fd`/`rg`, styled as the sixth Mason-style modal. This is the single
   biggest "distro, not config" statement — the picker is the most-touched UI
   in any editor. Risks: preview windows (needs scratch-buffer previews without
-  the 0.12.x markdown TS crash), sorter quality vs fzf-native, replacing
+  the markdown TS crash — since fixed, see FA-09), sorter quality vs fzf-native, replacing
   `telescope-ui-select` (`vim.ui.select` shim — the NvMenu modal can host it).
   Prerequisite: none technically, but land Waves 1.5–2 first to grow the
   modal/decoration muscle.

@@ -22,8 +22,8 @@ auto-install via Mason on first boot (`mason-tool-installer`, see the LSP
 category docs), so no manual `brew install stylua` / `npm i -g prettier eslint_d`
 is needed — those remain valid manual fallbacks if the Mason install fails.
 
-The config uses 0.12's bundled packages (`nvim.undotree`) and takes the
-nvim-treesitter `main` migration path, so it will NOT work below 0.12 — verify:
+The config uses 0.12's bundled packages (`nvim.undotree`), its bundled
+treesitter parsers and its query API, so it will NOT work below 0.12 — verify:
 
 ```bash
 nvim --version | head -1   # expect: NVIM v0.12.0 or newer
@@ -100,8 +100,9 @@ Then open `nvim` and run `:Lazy` / `:Mason` to confirm everything installed.
 
 ## External requirements
 
-Neovim **0.12+** (hard requirement — bundled packages + the nvim-treesitter
-`main` path; `install.sh` gates on it and `:checkhealth nvsinner` re-checks it),
+Neovim **0.12+** (hard requirement — bundled packages, bundled treesitter
+parsers and the 0.12 query API; `install.sh` gates on it and
+`:checkhealth nvsinner` re-checks it),
 `git`, `ripgrep` (live grep), `node` (for `prettier` / `eslint_d`), a Nerd
 Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`, `shfmt`
 (auto-installed via Mason on first boot — see

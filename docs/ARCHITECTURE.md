@@ -324,7 +324,11 @@ moment. The incident behind the `nvim-treesitter` `branch = "master"` pin is the
 worked example: upstream's `main` is a full rewrite with no
 `nvim-treesitter.configs` module, and an unpinned sync jumped onto it.
 
-*Cost:* upstream fixes need a deliberate sync.
+*Cost:* upstream fixes need a deliberate sync — **and a frozen plugin can fall
+behind the editor**. That bill came due when Neovim 0.12 changed treesitter's
+query API and the pinned `master` kept reading a directive's `match[id]` as a
+single node; it read as "Neovim 0.12 crashes on markdown" for months. The answer
+was a compensating control, not an unpin: `lua/core/ts-compat.lua` (FA-09).
 
 ### Retired plugins stay as tombstones
 

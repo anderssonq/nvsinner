@@ -113,7 +113,7 @@ any existing `~/.config/nvim` without touching it.
 
 | Tool | Used by |
 |------|---------|
-| Neovim **0.12+** | bundled `nvim.undotree`, the nvim-treesitter `main` path |
+| Neovim **0.12+** | bundled `nvim.undotree`, bundled treesitter parsers, built-in markdown highlighting |
 | `git` | lazy.nvim plugin fetch |
 | `ripgrep` | Telescope live grep |
 | `node` | `prettier` / `eslint_d` |
@@ -123,9 +123,9 @@ any existing `~/.config/nvim` without touching it.
 
 > [!IMPORTANT]
 > Neovim **0.12+** is a hard requirement and will not load on older versions.
-> (It was 0.11+ through v1.9.1; the floor moved so the config can use 0.12's
-> bundled packages and take the nvim-treesitter `main` migration path, which
-> hard-requires 0.12.) Verify with `nvim --version | head -1`.
+> (It was 0.11+ through v1.9.1; the floor moved for 0.12's bundled packages —
+> `nvim.undotree` behind `<leader>u` — its bundled treesitter parsers, and
+> built-in markdown highlighting.) Verify with `nvim --version | head -1`.
 
 The AI workflow is just a CLI agent run in the terminal column — install one
 (e.g. `npm i -g @anthropic-ai/claude-code`) and run it once to log in. No
@@ -992,11 +992,17 @@ show them.
 
 ### Neovim crashes opening a markdown file
 
-Seen on 0.12.x as `attempt to call method 'range'`, from a markdown-treesitter
-interaction. Three guards in this config keep that path cold — noice's LSP
-`hover` and `signature` are off, and the hover float is not given
-`filetype=markdown`. If you re-enable any of them on 0.12.x, expect the crash
-back.
+**Fixed.** This was never a Neovim bug. Neovim 0.12 changed treesitter's query
+API so a directive's `match[id]` is a *list* of nodes; nvim-treesitter's frozen
+`master` branch still read it as a single node, so every markdown code fence
+threw `attempt to call method 'range' (a nil value)`. The same defect silently
+broke HTML `<script type=…>` and bash heredoc injections, which nobody noticed
+because only markdown got reported.
+
+`lua/core/ts-compat.lua` re-registers the affected directives with 0.12
+semantics, and the guards that used to hide the crash are gone. If it ever
+comes back, run `make test-file FILE=tests/core/ts_compat_spec.lua` — that spec
+pins the API contract itself.
 
 ### The test suite fails immediately
 

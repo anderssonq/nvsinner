@@ -28,17 +28,23 @@ return {
 				"markdown",
 				"markdown_inline",
 			},
-			highlight = {
-				enable = true,
-				-- Neovim 0.12.x ships a treesitter runtime where the markdown
-				-- highlighter calls `node:range()` on a nil node and crashes
-				-- (runtime treesitter.lua:197, "attempt to call method 'range'").
-				-- Fall back to Vim's regex syntax for markdown until the upstream
-				-- fix lands. Mirrors the other 0.12.x markdown workarounds documented
-				-- in CLAUDE.md (noice LSP paths off, ui-touch plain-text hover).
-				disable = { "markdown", "markdown_inline" },
-			},
+			-- markdown/markdown_inline were disabled here for months against a
+			-- misdiagnosed "0.12.x runtime crash". The cause was this pin's own
+			-- query_predicates reading 0.12's list-valued `match[id]` as a single
+			-- node; core/ts-compat (applied below) fixes it, so markdown
+			-- highlights like every other language again.
+			highlight = { enable = true },
 			indent = { enable = true },
 		})
+
+		-- MUST run after configs.setup{} (which pulls in the plugin's
+		-- query_predicates). This pin predates Neovim 0.12's query API, where a
+		-- directive's `match[id]` is a LIST of nodes; the plugin still reads it
+		-- as one node and throws on every markdown fence, HTML <script type=…>
+		-- and bash heredoc. core/ts-compat re-registers the affected directives
+		-- with 0.12 semantics — it is the compensating control for the pin
+		-- above, so the two live and die together. Registering it earlier does
+		-- NOT work: the plugin's own add_directive would silently overwrite it.
+		require("core.ts-compat").apply()
 	end,
 }

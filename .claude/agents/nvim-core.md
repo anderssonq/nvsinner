@@ -33,7 +33,7 @@ per-subsystem contracts and load-bearing warnings for this directory.
   `lua/core/carbon.lua`** (the single palette source and design doc).
 
 ## Hard constraints
-- LSP hover/signature markdown floats crash on Neovim 0.12.x — that's why
+- LSP hover/signature markdown floats are off pending re-evaluation (the 0.12.x crash that justified it was nvim-treesitter's frozen master, fixed in core/ts-compat.lua) — that's why
   `ui-touch.lua` renders hover as plain text. Do not switch it to a markdown float.
 - Palette: carbon roles from `lua/core/carbon.lua` (bg `base00 #161616`, panels
   `base01`, body `base04 #d0d0d0`, muted `base03`; accents by meaning — `base09`

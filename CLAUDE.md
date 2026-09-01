@@ -60,6 +60,7 @@ lua/core/indent.lua          Current-scope indent guide: decoration-provider ove
 lua/core/colorizer.lua       #hex color chips on the visible range (native, replaces nvim-colorizer)
 lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
 lua/core/window-picker.lua   Letter-overlay window picker + `editable_win(tab)` (which window a file may be `:edit`ed into); serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
+lua/core/ts-compat.lua       Re-registers nvim-treesitter's query directives for Neovim 0.12's list-valued `match[id]` — the compensating control for the `branch = "master"` pin; called from that spec's config(), NOT init.lua (native)
 lua/core/mouse.lua           `clicked_line(winid, mp)` — the missed-row guard behind click-to-open in every explorer (neo-tree + diffview's file panels); pure library, required on demand, not from init.lua (native)
 lua/core/markdown.lua        Markdown reading view: heading bars, bullets, checkboxes, quote/fence/rule styling on the visible range (native, replaces render-markdown.nvim)
 lua/nvsinner/init.lua        Distro metadata — `require("nvsinner").version`, the single semver source of truth (surfaced by :NvSinnerHelp + the dashboard footer; fetched raw from `main` by core/version.lua — its one-line shape is load-bearing)
@@ -112,15 +113,19 @@ line to `init.lua`** or its files will silently never load.
 - **Updates use `Lazy restore`, never `sync`** — `lazy-lock.json` is the tested
   set; `:NvSinnerSync` is the only opt-in "float to latest" path and rewrites
   the lockfile (retest + commit it).
-- **nvim-treesitter pins `branch = "master"`** — upstream's `main` is a full
-  rewrite; do not remove the pin (incident FA-24; see
-  `lua/plugins/editor/CLAUDE.md`).
+- **nvim-treesitter pins `branch = "master"`, and `lua/core/ts-compat.lua` is
+  part of that pin** — `main` is a full rewrite needing the tree-sitter CLI
+  (incident FA-24). The pin freezes a plugin that predates Neovim 0.12's query
+  API, so the shim re-registers its query directives for 0.12's list-valued
+  `match[id]`. Remove one and you must remove the other.
 - **Never reintroduce `require("lspconfig").<server>.setup()`** — this config
   uses the Neovim 0.11 native `vim.lsp.config` / `vim.lsp.enable` API.
 - **LSP semantic tokens stay disabled** — treesitter is the single source of
   syntax colour (`on_attach` nils `semanticTokensProvider`).
-- **noice's LSP hover/signature stay off** — the markdown TS highlighter
-  crashes on 0.12.x transient floats; `K` keeps the native handler.
+- **noice's LSP hover/signature stay off** — pending their own evaluation, NOT
+  because of the old "0.12.x markdown TS crash" (that was nvim-treesitter's
+  frozen master, fixed in `lua/core/ts-compat.lua`). `K` keeps the native
+  handler until someone flips them with evidence.
 - **Never hardcode hex colors** — every color is a role from
   `lua/core/carbon.lua` (the single palette source of truth).
 - **No in-editor AI _plugin_** — the agentic AI is a CLI in the toggleterm

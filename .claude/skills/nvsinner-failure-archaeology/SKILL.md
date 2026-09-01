@@ -58,7 +58,7 @@ richest narrative source and are cited by filename.
 | FA-06 | `NvTermBarDim` fg==bg made the idle label invisible | ui-touch | settled |
 | FA-07 | First-open terminal styled as a code pane (scratch-buffer caveat) | ui-touch | settled |
 | FA-08 | Terminal id collision: AI panel claimed id 1 | toggleterm | settled |
-| FA-09 | Neovim 0.12.x markdown-treesitter crash (multi-surface) | treesitter / floats | workaround-pending-upstream |
+| FA-09 | "0.12.x markdown-treesitter crash" — **misdiagnosed**; really nvim-treesitter's frozen master vs 0.12's list-valued `match[id]` | treesitter / floats | settled (fixed by `core/ts-compat`) |
 | FA-10 | noice LSP hover/signature disabled | noice | workaround-pending-upstream |
 | FA-11 | In-editor AI plugins removed (copilot, CopilotChat, avante, codecompanion) | AI architecture | settled |
 | FA-12 | nvim-cursorline disabled (duplicated illuminate, fought ui-touch) | ui | disabled-not-deleted |
@@ -331,38 +331,59 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
 
 ---
 
-## The Neovim 0.12.x markdown crash cluster (FA-09, FA-10)
+## The "Neovim 0.12.x markdown crash" cluster (FA-09, FA-10) — **misdiagnosed, now fixed**
 
-### FA-09 — Markdown treesitter highlighter crashes on Neovim 0.12.x
+### FA-09 — Markdown treesitter crash: a frozen plugin, not a Neovim bug
 
-- **Symptom:** On Neovim 0.12.3, opening ANY markdown buffer crashed:
-  `attempt to call method 'range' (a nil value)` — the highlighter calls
-  `node:range()` on a nil node at `runtime/treesitter.lua:197`. Also
-  triggerable via telescope's file preview and via transient floats given
-  `filetype=markdown` (first hit during the tactile-UI work: the mouse-hover
-  float crashed the same way, commit `2f7ec6c`).
-- **Root cause:** upstream Neovim 0.12.x regression — markdown
-  parser/queries out of sync with the treesitter core. Not our bug.
-- **Evidence:** `.tmp/06-29-26_01_...md` §"Neovim 0.12.x markdown treesitter
-  crash"; commits `2f7ec6c` (hover float) and `8f90d92` (3-place workaround);
-  code comments in all four files below. Dev machine runs NVIM v0.12.3 today.
-- **Resolution — a coordinated multi-surface workaround; all pieces must stay
-  together:**
-
-  | Surface | File | What it does |
-  |---|---|---|
-  | Buffer open | `after/ftplugin/markdown.lua` | Runs after the runtime ftplugin that unconditionally calls `vim.treesitter.start()`; does `pcall(vim.treesitter.stop, 0)` + `vim.bo.syntax = "markdown"` (regex fallback) |
-  | Highlighting | `lua/plugins/editor/nvim-treesitter.lua` | `highlight.disable = { "markdown", "markdown_inline" }` — parsers stay **installed** (needed as a pair for injections) |
-  | Telescope preview | `lua/plugins/navigation/telescope.lua:19-25` | `preview.treesitter.disable = { "markdown", "markdown_inline" }` |
-  | Hover floats | `lua/core/ui-touch.lua` (mouse hover) | Renders hover as **plain text**, never `filetype=markdown` |
-
-- **Status:** workaround-pending-upstream — TEMPORARY, live on 0.12.3 as of
-  2026-07-02. Remove all pieces together once an upstream nil-guard lands in a
-  stable 0.12.x (the `after/ftplugin` file's comment names the crash site to
-  make that check easy). The crash does not occur on stable 0.11.x.
-- **Do not retry:** re-enabling markdown treesitter highlighting on 0.12.x,
-  removing only *some* of the pieces, or uninstalling the markdown parsers
-  (they're needed as an injection pair).
+- **Symptom:** on Neovim 0.12.3, opening ANY markdown buffer threw
+  `attempt to call method 'range' (a nil value)` from
+  `runtime/treesitter.lua:197`. Also via telescope's file preview and via
+  transient floats given `filetype=markdown` (first hit during the tactile-UI
+  work — the mouse-hover float, commit `2f7ec6c`).
+- **Root cause — CORRECTED 2026-08-31.** The original entry said "upstream
+  Neovim 0.12.x regression — markdown parser/queries out of sync. Not our bug."
+  **That was wrong.** Neovim 0.12 changed the treesitter handler contract to
+  `fun(match: table<integer, TSNode[]>, …)`: `match[capture_id]` is a **list**
+  of nodes. nvim-treesitter, pinned to the frozen `master` branch, still reads
+  it as a single node, and its `query_predicates.lua:19` passes
+  `{ force = true, all = false }` — on 0.12 `all` no longer exists and is
+  silently ignored. Its `queries/markdown/injections.scm` calls
+  `#set-lang-from-info-string!`, which then does `get_node_text(<list>)` and
+  throws. Neovim's *own* markdown injections query uses no directive at all,
+  which is why the crash vanished without the plugin on the runtimepath.
+- **Blast radius was wider than markdown.** The same defect broke HTML
+  `<script type=…>` (`#set-lang-from-mimetype!`) and bash heredoc
+  (`#downcase!`) injections. Those never crashed loudly, they just silently
+  stopped injecting — so nobody looked, and the label stayed on markdown.
+- **How it was misdiagnosed, because this is the reusable lesson:**
+  1. **The error string named a Neovim runtime file**
+     (`runtime/lua/vim/treesitter.lua:197`), so the blame landed there. It was
+     the *victim*, not the culprit — a plugin handed it a list.
+  2. **"Rendering claims need a real TUI" was over-applied.** The crash lives
+     inside `LanguageTree:parse(true)`, not in a repaint; it reproduces
+     headless in one command. Believing it needed an interactive repro is why
+     it went unprobed for months.
+  3. **This entry contained its own disproof.** It recorded *"the crash does
+     not occur on stable 0.11.x."* A Neovim runtime regression cannot be
+     sensitive to which plugin is loaded — but a plugin whose `all = false` was
+     still honoured on 0.11 can be. Nobody read the clue against the conclusion.
+- **Evidence:** probes and verbatim outputs in `nvsinner-empirical-verification`
+  Recipe 7 (2026-08-31, NVIM v0.12.3); `lua/core/ts-compat.lua`'s header;
+  specs `tests/core/ts_compat_spec.lua` + `tests/plugins/treesitter_predicates_spec.lua`
+  (the latter fails with the exact historical error when the shim is removed).
+- **Resolution:** `lua/core/ts-compat.lua` re-registers the three directives any
+  shipped query uses, with 0.12 semantics, called from nvim-treesitter's spec
+  `config()` **after** `configs.setup{}` (registering earlier lets the plugin
+  overwrite the shim — verified). All four workarounds were then removed:
+  `after/ftplugin/markdown.lua` (deleted), `highlight.disable`, telescope's
+  `preview.treesitter.disable`, and `core/markdown.lua`'s injection-query patch.
+- **Status: settled (fixed).** Markdown, HTML and bash injections work. The pin
+  stays: `branch = "master"` + the shim are now a pair — see the CLAUDE.md
+  non-negotiable.
+- **Do not retry:** re-adding any of the four workarounds; "fixing" this by
+  migrating to nvim-treesitter `main` (needs the tree-sitter CLI on PATH and
+  re-enters FA-24's parser-build surface — to fix a handful of lines); or
+  removing the shim while the `master` pin stands.
 
 ### FA-10 — noice LSP hover/signature OFF (same crash class)
 
@@ -375,9 +396,14 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
   mouse-hover docs stay in `ui-touch.lua` as plain text. Landed with the
   restructure (`b0cf66f`; narrative in
   `.tmp/06-28-26_01_nvim-config-restructure-PR-DESCRIPTION.md`).
-- **Status:** workaround-pending-upstream (rides FA-09's lifecycle).
-- **Do not retry:** turning on noice's lsp block "for prettier hover" while on
-  0.12.x. CLAUDE.md: "Do not enable noice's lsp markdown paths."
+- **Status: the stated reason is VOID** (FA-09 is fixed), but the flags are
+  still off. Re-enabling them is a UX change to a different subsystem —
+  bordered noice floats replacing the native handler, different scrolling,
+  `override` of the `vim.lsp` markdown helpers — and it deletes a CLAUDE.md
+  non-negotiable, so it needs its own evidence rather than a drive-by flip.
+- **Do not retry:** flipping them "because FA-09 is fixed" without actually
+  testing the noice float path. Same for giving `ui-touch`'s hover float
+  `filetype = "markdown"`."
 
 ---
 
@@ -633,7 +659,7 @@ Re-verification one-liners (run from the repo root):
 - FA-02/06/07 code intact: `grep -n 'term_bar\|BAR_DIM_FG\|TermOpen' lua/core/ui-touch.lua`
 - FA-04/14 dedup + timeout: `grep -n '250' lua/core/autoreload.lua lua/plugins/ui/notify.lua`
 - FA-08 reserved ids: `grep -n '99 + n\|id = n' lua/plugins/terminal/toggleterm.lua`
-- FA-09 workaround still needed: `nvim --version | head -1` (0.12.x → keep), then open a `.md` file; pieces: `ls after/ftplugin/markdown.lua && grep -rn 'markdown' lua/plugins/editor/nvim-treesitter.lua lua/plugins/navigation/telescope.lua`
+- FA-09 stays fixed (the shim is the guard): `make test-file FILE=tests/plugins/treesitter_predicates_spec.lua`; the shim is wired: `grep -n 'ts-compat' lua/plugins/editor/nvim-treesitter.lua`
 - FA-10/17: `grep -n 'enabled = false' lua/plugins/ui/noice.lua lua/plugins/ui/mini-animate.lua lua/plugins/ui/cursorline.lua`
 - FA-16 doctrine: `grep -n 'unshallow\|Lazy! restore' install.sh`
 - FA-21 guards: `grep -n 'semanticTokensProvider\|automatic_enable' lua/plugins/lsp/lsp-config.lua`

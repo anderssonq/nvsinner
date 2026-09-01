@@ -101,7 +101,7 @@ function M.report()
 		h.ok("Neovim " .. tostring(vim.version()))
 	else
 		h.error(
-			"Neovim 0.12+ required (bundled nvim.undotree package + the nvim-treesitter `main` path); found "
+			"Neovim 0.12+ required (bundled packages + the 0.12 treesitter query API); found "
 				.. tostring(vim.version())
 		)
 	end

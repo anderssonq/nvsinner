@@ -7,13 +7,13 @@
 -- _G.NvMdReader and <leader>m double-register (the ft-lazy config() below
 -- would overwrite the global while the core module's autocmds keep firing).
 --
--- Historical context kept for the revert: render-markdown drives the markdown
--- treesitter parser, which on Neovim 0.12.x crashes (node:range on a nil node
--- — see nvim-treesitter.lua) in the markdown *code-fence language-detection*
--- injection directive. Mitigation: the init() below overrides the markdown
--- `injections` query to keep ONLY the markdown_inline injection and drop the
--- crashing directive. That patch now lives at the top of lua/core/markdown.lua
--- (core loads pre-lazy, preserving the "before the first LanguageTree" timing).
+-- Historical note for the revert: this spec used to carry an init() that
+-- replaced the markdown `injections` query, because driving the markdown
+-- treesitter parser "crashed Neovim 0.12.x". That diagnosis was wrong — the
+-- crash came from nvim-treesitter's frozen master reading 0.12's list-valued
+-- `match[id]` as a single node, and lua/core/ts-compat.lua fixes it at the
+-- source. The patch is gone: it would now silently disable every fenced-code
+-- injection, which is exactly what this plugin exists to render.
 --
 -- markdown stays excluded from barbecue's breadcrumb winbar (see barbacue.lua)
 -- so core/filebadge.lua can own that winbar line.
@@ -25,20 +25,6 @@ return {
 		"nvim-treesitter/nvim-treesitter",
 		"nvim-tree/nvim-web-devicons",
 	},
-	-- Patch the markdown injections query at STARTUP (init runs before any buffer
-	-- opens): keep the inline injection, drop the code-fence language directive
-	-- that triggers the Neovim 0.12.x node:range nil-node crash. It must land
-	-- before the buffer's markdown LanguageTree is constructed — a tree caches its
-	-- injection query at construction, so setting this from config() (after the
-	-- first :edit builds the tree) is too late and still crashes. See the header.
-	init = function()
-		pcall(
-			vim.treesitter.query.set,
-			"markdown",
-			"injections",
-			'((inline) @injection.content (#set! injection.language "markdown_inline"))'
-		)
-	end,
 	config = function()
 		require("render-markdown").setup({
 			-- Start OFF; the "Open view" button / <leader>m opts in per session.

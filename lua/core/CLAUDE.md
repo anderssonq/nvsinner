@@ -1171,6 +1171,50 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   be synthesized headless, the same shape as `neotree-hover`'s `M.update(mp)`.
   Spec: `tests/core/mouse_spec.lua`.
 
+## Treesitter query compat — `ts-compat.lua` (NOT required from `init.lua`)
+
+- **What it fixes.** Neovim 0.12 changed the treesitter predicate/directive
+  contract to `fun(match: table<integer, TSNode[]>, …)` — `match[capture_id]`
+  is a **list** of nodes. nvim-treesitter is pinned to `branch = "master"`
+  (frozen `cf12346a`, archived upstream) and still reads it as one node; its
+  `query_predicates.lua:19` passes `{ force = true, all = false }`, and on 0.12
+  `all` no longer exists and is silently ignored. Every affected handler then
+  does `get_node_text(<list>)` and throws
+  `runtime/lua/vim/treesitter.lua:197: attempt to call method 'range' (a nil
+  value)`.
+- **This is the "0.12.x markdown treesitter crash" this repo carried for
+  months, and the diagnosis was wrong** — it is not a Neovim defect. It also
+  silently broke HTML (`<script type=…>`) and bash (heredoc) injections; only
+  markdown was ever reported, because only markdown had a label attached to it.
+  Evidence and probes: `nvsinner-empirical-verification` Recipe 7. The archive
+  contained its own disproof the whole time — FA-09 recorded "does not occur on
+  stable 0.11.x", which a *runtime* regression could not explain.
+- **Scope: three directives**, the only ones any shipped query uses —
+  `set-lang-from-mimetype!` (html), `set-lang-from-info-string!` (markdown,
+  hurl), `downcase!` (bash, hcl, php, ruby). The plugin also registers `nth?`,
+  `is?` and `kind-eq?` with the same defect, but **zero query files reference
+  them** in this pin; an unused handler cannot crash, and stubbing `is?` would
+  mean reimplementing the plugin's locals machinery, so they are left alone.
+  Re-check with `grep -rl '#nth?\|#is?\|#kind-eq?' <lazy>/nvim-treesitter/queries`.
+- **The lookup tables mirror the plugin's verbatim** (`html_script_type_languages`,
+  `non_filetype_match_injection_language_aliases` + `vim.filetype.match`). The
+  shim fixes HOW the node is read, never WHAT the directive decides — that is
+  what makes it a compat shim and not a fork.
+- **`first()` takes the strict list form**, not a `type()` dual-mode guard: the
+  floor is 0.12, and a guard would let a future API flip pass silently — exactly
+  the failure mode that produced this incident. `tests/core/ts_compat_spec.lua`
+  pins the contract so a flip fails pointing HERE, not three layers away as
+  "markdown crashes".
+- **Load order is load-bearing.** `apply()` must run AFTER nvim-treesitter has
+  registered its handlers, so it is called from that plugin's spec `config()`
+  right after `configs.setup{}` — **not** from `init.lua`. Verified: register
+  pre-lazy and the plugin's own `add_directive` silently overwrites it, the shim
+  never runs, and the crash returns. Do NOT reason from `markdown.lua`'s old
+  pre-lazy patch: that set a *query*, a different mechanism.
+- Idempotent (`M._applied`) and pcall-guarded — a failure warns and leaves the
+  plugin's handlers in place rather than aborting boot. Seam: `M._reset()`.
+  Specs: `tests/core/ts_compat_spec.lua`, `tests/plugins/treesitter_predicates_spec.lua`.
+
 ## Markdown reading view — `markdown.lua` (required from `init.lua`)
 
 - Replaces render-markdown.nvim (spec kept disabled — but reverting is NOT a

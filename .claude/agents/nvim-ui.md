@@ -41,7 +41,7 @@ per-file contracts and load-bearing warnings for this directory.
 - `lualine.lua` — statusline with the carbon mode→accent chip map (documented
   in `lua/core/carbon.lua`).
 - `noice.lua` — centered floating `:` cmdline (`command_palette`), msgs via notify.
-  **LSP hover/signature OFF on purpose** (markdown TS highlighter crashes on 0.12.x
+  **LSP hover/signature OFF pending re-evaluation** (the 0.12.x markdown crash that justified it is fixed in core/ts-compat.lua
   transient floats — `K` keeps the native handler). Do NOT enable noice's lsp
   markdown paths.
 - `notify.lua` — `nvim-notify` backend for messages.

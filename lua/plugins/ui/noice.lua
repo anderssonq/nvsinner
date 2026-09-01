@@ -5,9 +5,15 @@
 -- popup-menu a matching surface — so the whole bottom-left noise becomes a
 -- clean recessed panel that matches the carbon theme (borderless, on `blend`).
 --
--- NOTE: LSP hover/signature are deliberately LEFT OFF. The markdown treesitter
--- highlighter crashes on Neovim 0.12.x when parsing transient floats (same bug
--- documented in lua/ui-touch.lua), so we keep noice away from markdown floats.
+-- NOTE: LSP hover/signature are LEFT OFF — but the reason on the tin was wrong
+-- for months. It said "the markdown treesitter highlighter crashes on 0.12.x";
+-- that crash was nvim-treesitter's frozen master misreading 0.12's list-valued
+-- `match[id]`, and lua/core/ts-compat.lua fixes it. So the TS-crash rationale
+-- is VOID and these could probably be re-enabled. They stay off pending their
+-- own evaluation: turning them on is a UX change to a different subsystem
+-- (bordered noice floats replacing the native handler, different scrolling,
+-- `override` of the vim.lsp markdown helpers) and it deletes a CLAUDE.md
+-- non-negotiable — that deserves its own evidence, not a drive-by flip.
 -- `K` hover keeps the native handler; mouse-hover docs stay in ui-touch.lua.
 return {
 	"folke/noice.nvim",
@@ -33,8 +39,9 @@ return {
 				hover = { enabled = false },
 				signature = { enabled = false },
 				progress = { enabled = true },
-				-- Do NOT override vim.lsp markdown helpers (keeps the 0.12 markdown
-				-- treesitter crash out of cmp docs / hover paths).
+				-- Left empty with the rest of the lsp block — see the header: the
+				-- 0.12 "markdown crash" that justified this is fixed in
+				-- core/ts-compat, so this is pending re-evaluation, not required.
 				override = {},
 			},
 			presets = {

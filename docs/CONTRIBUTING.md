@@ -208,9 +208,12 @@ Three gaps worth knowing before you rely on a green check:
 - **`:NvSinnerSync` is the only float-to-latest path.** It rewrites the
   lockfile, so a sync means: retest, then commit the new lockfile as its own
   change.
-- **`nvim-treesitter` pins `branch = "master"` on purpose.** Upstream's `main`
-  is a full rewrite without the `nvim-treesitter.configs` module this config
-  calls. Do not remove the pin.
+- **`nvim-treesitter` pins `branch = "master"` on purpose, and
+  `lua/core/ts-compat.lua` is part of that pin.** Upstream's `main` is a full
+  rewrite without the `nvim-treesitter.configs` module this config calls, and it
+  needs the tree-sitter CLI on PATH. Because the pin freezes a plugin written
+  before Neovim 0.12's query API, the shim re-registers its query directives for
+  0.12's list-valued `match[id]`. Do not remove either without the other.
 
 ## Commits and pull requests
 
