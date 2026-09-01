@@ -25,7 +25,15 @@ Judging criteria, in order:
    that reuses those is cheap; one that needs new primitives is not.
 
 House rule reminder: a migrated plugin's spec is **kept with
-`enabled = false`** as a one-line revert (like `incline.lua`), never deleted.
+`enabled = false`** as a one-line revert (like `incline.lua`), never deleted —
+**and so is its `lazy-lock.json` entry**, which is the other half of that revert.
+Verified in lazy's source: `restore` is `update` with `lockfile = true`, and both
+the update and install pipelines run `git.checkout` against the lockfile
+(`lazy/manage/init.lua:85,117`). So re-enabling a tombstone and running the normal
+restore path checks it out at the **tested** commit; drop the entry and the same
+revert silently lands on upstream HEAD. The 11 tombstone entries look like cruft
+in a lockfile diff — `tests/plugins/tombstone_lock_spec.lua` exists so nobody
+tidies them away.
 
 ## Done (the precedent)
 

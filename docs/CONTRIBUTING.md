@@ -208,6 +208,11 @@ Three gaps worth knowing before you rely on a green check:
 - **`:NvSinnerSync` is the only float-to-latest path.** It rewrites the
   lockfile, so a sync means: retest, then commit the new lockfile as its own
   change.
+- **Never prune "unused" `lazy-lock.json` entries.** Eleven belong to
+  tombstoned plugins (`enabled = false` specs kept as one-line reverts). The
+  entry is what makes the revert land on the tested commit instead of upstream
+  HEAD — lazy's install and update pipelines both check out against the
+  lockfile. Guarded by `tests/plugins/tombstone_lock_spec.lua`.
 - **`nvim-treesitter` pins `branch = "master"` on purpose, and
   `lua/core/ts-compat.lua` is part of that pin.** Upstream's `main` is a full
   rewrite without the `nvim-treesitter.configs` module this config calls, and it
