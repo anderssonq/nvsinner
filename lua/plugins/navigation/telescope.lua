@@ -1,5 +1,11 @@
 return {
 	"nvim-telescope/telescope.nvim",
+	-- Pinned to the last tagged release (2024-05-23). Upstream ships tags
+	-- rarely and `main` moves under the extensions, so the tag is the stable
+	-- surface; every other pin in this repo documents its reason, and this one
+	-- had drifted undocumented. Telescope is a Wave 3 native-replacement target
+	-- (NvSinnerFind, see docs/native-roadmap.md), so the pin is also a hold, not
+	-- a commitment — revisit it there rather than bumping it casually.
 	tag = "0.1.8",
 	-- Lazy: loads on the :Telescope command or any of the keymaps below.
 	cmd = "Telescope",

@@ -1,5 +1,18 @@
 # lua/plugins/lsp/ — LSP / completion / formatting contracts
 
+- **Neovim 0.12 native capabilities** (all builtin, no plugin): an `LspAttach`
+  autocmd enables `vim.lsp.linked_editing_range` on clients advertising
+  `textDocument/linkedEditingRange` (rename an HTML/JSX tag, its pair follows);
+  `:NvSinnerDiagnosticsWorkspace` wraps `vim.lsp.buf.workspace_diagnostics()`,
+  which reaches files Trouble cannot (it only sees loaded buffers), and is named
+  `NvSinner*` so `:NvSinnerHelp` discovers it for free; `<leader>zl` toggles
+  `vim.lsp.foldexpr` folding **per window**. Folding is a toggle and not a
+  default because `'foldmethod'` is exclusive — `expr` makes `:fold` raise E350,
+  silently breaking `<leader>zf`. `vim.lsp.document_color` was evaluated and NOT
+  adopted: its default `style = "background"` is the same treatment
+  `lua/core/colorizer.lua` already applies to hex literals, so the two would
+  decorate the same range; its complementary value (CSS vars, `rgb()`, named
+  colors) needs a rendering decision first.
 - `lsp-config.lua` — `mason` + `mason-lspconfig`, then the **Neovim 0.11
   native API**: `vim.lsp.config("*", { capabilities })` +
   `vim.lsp.enable({...})`. Enabled servers: `ts_ls`, `solargraph`, `html`,

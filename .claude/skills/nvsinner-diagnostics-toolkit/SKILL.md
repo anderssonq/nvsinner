@@ -15,11 +15,15 @@ description: >
 # NvSinner diagnostics toolkit
 
 Instruments + interpretation guides. All scripts live in this skill's
-`scripts/` dir, are read-only, and run from the **repo root**:
+`scripts/` dir, are read-only, and run from the **repo root** — note there is
+NO `scripts/` directory at the repo root, so the path is not optional:
 
 ```bash
 .claude/skills/nvsinner-diagnostics-toolkit/scripts/<name>.sh
 ```
+
+Section headings below abbreviate that path to `scripts/<name>.sh` for
+readability; prefix it as above when you actually run one.
 
 All four were run successfully on 2026-07-02 (outputs below are real).
 
@@ -49,8 +53,12 @@ Bisect a bad plugin with `enabled = false` (see `nvsinner-config-catalog` §8e).
 Runs `nvim --startuptime`, prints the total and the 10 slowest entries.
 
 Real output (2026-07-02): `total startup: 112.697 ms` on one run, ~62 ms on
-another — **headless startuptime varies ±2× run-to-run** (cache warmth, machine
-load). Take 3 runs and use the median before believing a regression. The
+another — **headless startuptime varies wildly run-to-run** (cache warmth,
+machine load). Re-measured 2026-09-01 on a settled machine, 11 runs:
+min 35.2 / median 36.4 / max 38.3 ms. But on a machine busy running the test
+suite the same config measured 53-143 ms — a 3-4× spread that made an earlier
+reading look like a regression when nothing had changed. **A median of 3 is
+inside that noise. Use 11 runs, on an idle machine, and report the range.** The
 slowest entries were `sourcing init.lua` and `require('null-ls')` — at the
 time of that measurement `lua/plugins/lsp/none-ls.lua` had no lazy trigger
 and loaded at startup; since 2026-07-04 it is deferred to
@@ -60,8 +68,9 @@ re-measure before citing the old numbers.
 
 Interpretation: columns are `clock  self+sourced  self: event`. A plugin
 appearing here that should be lazy = its trigger is wrong or missing.
-Interactive deep-dive: `:Lazy profile`. The README's "cold start ≈ 60 ms"
-claim must be re-measured (median of 3) before repeating it publicly
+Interactive deep-dive: `:Lazy profile`. The README now claims **≈ 36 ms
+(median of 11, 2026-09-01)** and carries the one-liner that reproduces it —
+re-measure with the same method before changing that number
 (`nvsinner-frontier` owns claim discipline).
 
 ## 3. Keymap audit — `scripts/keymap-audit.sh`

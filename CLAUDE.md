@@ -195,6 +195,10 @@ reference** — check it before adding a map. Leader namespaces (leader = Space)
   primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
   NvSinner shortcuts (normal; `xa` = the agent cockpit) / Ask-AI modal (visual)
+- `<leader>zl` toggles **LSP structural folding** per window
+  (`vim.lsp.foldexpr`, 0.12). Deliberately NOT a default: `'foldmethod'` is
+  exclusive, so `expr` makes `:fold` raise E350 and silently breaks
+  `<leader>zf`. Pinned by `tests/plugins/lsp_capabilities_spec.lua`.
 - `u` is the one standalone leaf: `<leader>u` = `:Undotree`, Neovim 0.12's
   bundled undo-history browser (`packadd`-ed on first press, so startup is
   untouched). Keep it a leaf — nothing else may start with `u`, or the bare

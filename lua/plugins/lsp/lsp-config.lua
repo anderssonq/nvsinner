@@ -77,6 +77,65 @@ return {
 				"cssls",
 			})
 
+			-- ─── Neovim 0.12 native LSP capabilities ──────────────────────────
+			-- Opt-in per client, gated on the server actually advertising the
+			-- method. All of this is builtin — no plugin — which is the only
+			-- reason it belongs here rather than in a spec of its own.
+			vim.api.nvim_create_autocmd("LspAttach", {
+				group = vim.api.nvim_create_augroup("nvsinner_lsp_0_12", { clear = true }),
+				callback = function(ev)
+					local client = vim.lsp.get_client_by_id(ev.data.client_id)
+					if not client then
+						return
+					end
+					-- Rename an HTML/JSX tag and its pair follows as you type.
+					-- Free, and this config edits a lot of TS/Vue/HTML.
+					if client:supports_method("textDocument/linkedEditingRange") then
+						pcall(vim.lsp.linked_editing_range.enable, true, { client_id = client.id })
+					end
+				end,
+			})
+
+			-- Workspace-wide diagnostics: pulls problems from files that are NOT
+			-- open, which Trouble's <leader>xx cannot do — it only ever sees
+			-- loaded buffers. Ask for them, then the usual list is complete.
+			vim.api.nvim_create_user_command("NvSinnerDiagnosticsWorkspace", function()
+				local ok, err = pcall(vim.lsp.buf.workspace_diagnostics)
+				if not ok then
+					vim.notify("Workspace diagnostics unavailable: " .. tostring(err), vim.log.levels.WARN)
+					return
+				end
+				vim.notify("Requested workspace diagnostics — open :Trouble diagnostics to read them")
+			end, { desc = "Pull diagnostics for the whole workspace, not just open buffers" })
+
+			-- LSP folding is a per-WINDOW toggle, not a default, because
+			-- 'foldmethod' is exclusive: with "expr" set, `:fold` raises E350 and
+			-- <leader>zf (fold the visual selection) silently stops working.
+			-- Verified on 0.12.3. So structural folds are opt-in per window and
+			-- restore the manual method when toggled back off.
+			vim.keymap.set("n", "<leader>zl", function()
+				if vim.wo.foldmethod == "expr" then
+					vim.wo.foldmethod = "manual"
+					vim.wo.foldexpr = ""
+					vim.notify("LSP folding off — <leader>zf works again")
+					return
+				end
+				local supported = false
+				for _, c in ipairs(vim.lsp.get_clients({ bufnr = 0 })) do
+					if c:supports_method("textDocument/foldingRange") then
+						supported = true
+						break
+					end
+				end
+				if not supported then
+					vim.notify("No attached LSP client offers folding ranges here", vim.log.levels.WARN)
+					return
+				end
+				vim.wo.foldmethod = "expr"
+				vim.wo.foldexpr = "v:lua.vim.lsp.foldexpr()"
+				vim.notify("LSP folding on — note <leader>zf (manual fold) is unavailable while it is")
+			end, { desc = "Toggle LSP structural folding (this window)" })
+
 			-- Global on purpose (not LspAttach/buffer-local): these call safe
 			-- vim.lsp.buf functions that no-op without a client, and global maps
 			-- keep which-key listings stable. Neovim 0.11 builtins cover the

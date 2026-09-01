@@ -103,8 +103,12 @@ any existing `~/.config/nvim` without touching it.
   for diagnostics/keymaps/commands/resume (`<leader>s*`), which-key group
   labels, and LSP servers for TypeScript, Lua, HTML/CSS/JSON/YAML, Python and
   Bash out of the box (Go/Rust/Ruby light up when their toolchains exist).
-- **Fast** — almost everything is lazy-loaded; headless cold start ≈ 40 ms
-  (median of 3, measured 2026-07-03). Check yours with `:Lazy profile`.
+- **Fast** — almost everything is lazy-loaded; headless cold start **≈ 36 ms**
+  (median of 11: 35.2 / 36.4 / 38.3 min-median-max, macOS, 2026-09-01). Measure
+  yours the same way — a median of 3 is inside the noise, and a machine busy
+  with something else reads 3-4× higher:
+  `for i in $(seq 11); do nvim --headless --startuptime /tmp/s -c qa!; awk '/^[0-9]/{if($1+0>t)t=$1+0}END{print t}' /tmp/s; done | sort -n`
+  Per-plugin breakdown: `:Lazy profile`.
 - **Reproducible** — plugins are pinned in a committed `lazy-lock.json`;
   installs and updates `restore` to the tested set instead of floating to
   latest. A plenary test suite covers the core behavior (`make test`).
@@ -742,6 +746,7 @@ Ask-AI modal.
 | `<leader>Sc` | n | Restore last session for current dir |
 | `<leader>Sl` | n | Restore last session |
 | `<leader>za` | n | Toggle fold |
+| `<leader>zl` | n | Toggle **LSP structural folding** in this window (Neovim 0.12 `vim.lsp.foldexpr`). While it is on, `<leader>zf` cannot create manual folds — the two `'foldmethod'`s are exclusive, which is why this is a toggle and not a default |
 | `<leader>zf` | v | Fold selected lines |
 | `<C-Y>` | n | Save file (with notification) |
 | `<C-U>` / `<C-R>` | n | Undo / redo (with notification) |
@@ -763,8 +768,13 @@ Plugins are lazy-loaded via lazy.nvim triggers:
   which-key.
 - `cmd` / `keys` — Telescope, Neo-tree, toggleterm AI column, diffview.
 
-Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load
-eagerly. Check the breakdown anytime with `:Lazy profile`.
+Three plugins load eagerly: the colorscheme (`theme.lua`, `lazy = false` +
+`priority = 1000` — it must paint before anything else), the start screen
+(`dashboard.lua`, on `VimEnter`, which also pulls in `nvim-web-devicons`), and
+**toggleterm** (`lazy = false`, a documented exception: the `<leader>t*` /
+`<leader>j*` maps are closures over panel tables built inside its `config`, so
+the plugin must load for the maps to exist). Check the breakdown anytime with
+`:Lazy profile`.
 
 ### Neo-tree's Buffers and Git tabs
 
