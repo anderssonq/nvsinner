@@ -97,10 +97,13 @@ function M.report()
 	local h = vim.health
 
 	h.start("NvSinner · Neovim")
-	if vim.fn.has("nvim-0.11") == 1 then
+	if vim.fn.has("nvim-0.12") == 1 then
 		h.ok("Neovim " .. tostring(vim.version()))
 	else
-		h.error("Neovim 0.11+ required (uses vim.uv + the native vim.lsp API); found " .. tostring(vim.version()))
+		h.error(
+			"Neovim 0.12+ required (bundled packages + the 0.12 treesitter query API); found "
+				.. tostring(vim.version())
+		)
 	end
 
 	h.start("NvSinner · external tools")

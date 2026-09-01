@@ -17,7 +17,7 @@ description: >
 
 This is the platform-arcana reference: what Neovim actually guarantees (and
 doesn't), each fact anchored to the exact file in this repo that depends on it.
-Target: Neovim **0.11+** (the repo's hard floor); the dev machine runs 0.12.3
+Target: Neovim **0.12+** (the repo's hard floor since v1.9.1); the dev machine runs 0.12.3
 and every "verified" note below was checked on that build or verified
 empirically by this repo's own development (labeled as such).
 
@@ -53,7 +53,7 @@ empirically by this repo's own development (labeled as such).
 | New `lua/plugins/<dir>/` silently never loads | lazy.nvim `import` does NOT recurse — add `{ import = "plugins.<dir>" }` to `init.lua` | `init.lua` spec list |
 | Update floats plugins to untested versions | `Lazy restore` pins to `lazy-lock.json`; `sync` floats — the distro updates with restore | `lua/core/update.lua`, `install.sh` |
 | LSP repaints Treesitter colours ~1s after open | Nil `semanticTokensProvider` in a `"*"` `on_attach` BEFORE any server is enabled; keep `automatic_enable = false` | `lua/plugins/lsp/lsp-config.lua` |
-| Markdown buffer crashes Neovim 0.12.x | Upstream treesitter bug (`node:range()` on nil node) — highlighter disabled for markdown | `after/ftplugin/markdown.lua` |
+| Markdown/HTML/bash injections threw `node:range()` on a nil node | NOT an upstream bug: 0.12 made a directive's `match[id]` a LIST, and nvim-treesitter's frozen `master` reads it as one node | `lua/core/ts-compat.lua` |
 
 ---
 
@@ -450,7 +450,7 @@ or auto-enable path bypasses the semantic-token surgery.
   for the non-blocking `git pull --ff-only` with a `vim.schedule_wrap`ped
   completion callback (§1: the callback isn't main-loop code). Prefer it over
   `vim.fn.system` (blocking) and `jobstart` (legacy) for new code.
-- **The 0.12.x markdown treesitter crash**: on 0.12.3 the markdown highlighter
+- **The "0.12.x markdown treesitter crash" (misdiagnosed, now fixed)**: on 0.12.3 the markdown highlighter
   calls `node:range()` on a nil node (`runtime/treesitter.lua:197`) and crashes
   the buffer — a known upstream 0.12.x issue, hit and verified in this repo.
   Mitigations, all deliberate and all removable once upstream fixes land:
@@ -487,7 +487,7 @@ claim on this page still carries the 2026-07-02 date.
 
 Re-verify with:
 
-- `nvim --version | head -1` — still 0.11+? Which 0.12.x?
+- `nvim --version | head -1` — still 0.12+? Which 0.12.x?
 - `:help lua-loop-callbacks`, `:help vim.in_fast_event()`, `:help api-buffer-updates-lua` — fast contexts (§1)
 - `nvim --headless -c 'lua local t=vim.uv.new_timer(); t:start(10,0,function() print(pcall(vim.api.nvim_get_current_buf)) end); vim.wait(200)' -c 'qa!'` — expect E5560 (§1)
 - `:help 'statusline'` (the `%{%…%}` item), `:help g:statusline_winid`, `:help 'winbar'` — §2
@@ -495,4 +495,4 @@ Re-verify with:
 - `nvim --headless -c 'lua print(type(vim.api.nvim__redraw), type(vim.lsp.config), type(vim.lsp.enable), type(vim.system))' -c 'qa'` — API presence (§4/§9/§10)
 - `:help 'winhighlight'`, `:help 'mousemoveevent'`, `:help nvim_open_win()` (`relative="mouse"`), `:help 'timeoutlen'`, `:help health-dev`, `:help NVIM_APPNAME`, `:help vim.system()` — §7/§10
 - `make test` — the specs asserting these behaviors (`tests/core/ai_activity_spec.lua`, `tests/core/ui_touch_spec.lua`, `tests/core/autoreload_spec.lua`) still pass
-- 0.12.x markdown crash still present? Open a markdown file with `after/ftplugin/markdown.lua` temporarily neutralised (recipe: `nvsinner-empirical-verification`); remove the workarounds once upstream fixes land.
+- The treesitter query-API shim still holds: `make test-file FILE=tests/core/ts_compat_spec.lua` (it pins `match[id]` as a list — if Neovim flips it back, that test is the alarm).

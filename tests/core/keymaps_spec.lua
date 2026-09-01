@@ -18,6 +18,24 @@ describe("core.keymaps", function()
 		assert.is_true(map_exists("n", "<leader>fb"))
 	end)
 
+	-- <leader>u is a LEAF, not a namespace: nothing else may start with it, or
+	-- the bare press starts paying a 'timeoutlen' wait (FA-25's failure mode).
+	-- The prefix is derived from mapleader rather than assumed to be a space, so
+	-- the scan can never silently become vacuous.
+	it("maps the undo-history browser on a collision-free leader leaf", function()
+		assert.is_true(map_exists("n", "<leader>u"), "<leader>u should open Undotree")
+		local prefix = (vim.g.mapleader or "\\") .. "u"
+		local found = false
+		for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
+			if m.lhs == prefix then
+				found = true
+			elseif vim.startswith(m.lhs, prefix) then
+				assert(false, "<leader>u must stay a leaf, but " .. m.lhs .. " is also mapped")
+			end
+		end
+		assert.is_true(found, "the scan must actually see <leader>u (prefix: " .. vim.inspect(prefix) .. ")")
+	end)
+
 	it("defines split-resize maps in normal and terminal mode", function()
 		assert.is_true(map_exists("n", "<C-,>"))
 		assert.is_true(map_exists("t", "<C-,>"), "resize must also work from terminal mode")

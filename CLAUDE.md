@@ -5,10 +5,11 @@ Guidance for Claude Code (and other agents) working in this repository.
 ## What this is
 
 A personal Neovim configuration managed with **lazy.nvim**, extended into a
-Cursor-like AI terminal IDE. Target editor: **Neovim 0.11+** (hard requirement —
-uses `vim.uv` and the native `vim.lsp.config` / `vim.lsp.enable` API). There are
-no in-editor AI plugins — AI is used by running a CLI agent (e.g. `claude`) in a
-toggleterm terminal column.
+Cursor-like AI terminal IDE. Target editor: **Neovim 0.12+** (hard requirement —
+the floor moved up from 0.11 after v1.9.1, for 0.12's bundled packages and the
+nvim-treesitter `main` migration path; `lua/core/health.lua` is the one gate
+that enforces it). There are no in-editor AI plugins — AI is used by running a
+CLI agent (e.g. `claude`) in a toggleterm terminal column.
 
 It ships as the **NvSinner** distribution: it runs under its own
 `NVIM_APPNAME=nvsinner` (config `~/.config/nvsinner`, isolated
@@ -59,6 +60,7 @@ lua/core/indent.lua          Current-scope indent guide: decoration-provider ove
 lua/core/colorizer.lua       #hex color chips on the visible range (native, replaces nvim-colorizer)
 lua/core/todo.lua            TODO:/FIXME:… keyword chips on the visible range (native, replaces todo-comments.nvim)
 lua/core/window-picker.lua   Letter-overlay window picker + `editable_win(tab)` (which window a file may be `:edit`ed into); serves require("window-picker") for neo-tree (native, replaces nvim-window-picker)
+lua/core/ts-compat.lua       Re-registers nvim-treesitter's query directives for Neovim 0.12's list-valued `match[id]` — the compensating control for the `branch = "master"` pin; called from that spec's config(), NOT init.lua (native)
 lua/core/mouse.lua           `clicked_line(winid, mp)` — the missed-row guard behind click-to-open in every explorer (neo-tree + diffview's file panels); pure library, required on demand, not from init.lua (native)
 lua/core/markdown.lua        Markdown reading view: heading bars, bullets, checkboxes, quote/fence/rule styling on the visible range (native, replaces render-markdown.nvim)
 lua/nvsinner/init.lua        Distro metadata — `require("nvsinner").version`, the single semver source of truth (surfaced by :NvSinnerHelp + the dashboard footer; fetched raw from `main` by core/version.lua — its one-line shape is load-bearing)
@@ -111,15 +113,19 @@ line to `init.lua`** or its files will silently never load.
 - **Updates use `Lazy restore`, never `sync`** — `lazy-lock.json` is the tested
   set; `:NvSinnerSync` is the only opt-in "float to latest" path and rewrites
   the lockfile (retest + commit it).
-- **nvim-treesitter pins `branch = "master"`** — upstream's `main` is a full
-  rewrite; do not remove the pin (incident FA-24; see
-  `lua/plugins/editor/CLAUDE.md`).
+- **nvim-treesitter pins `branch = "master"`, and `lua/core/ts-compat.lua` is
+  part of that pin** — `main` is a full rewrite needing the tree-sitter CLI
+  (incident FA-24). The pin freezes a plugin that predates Neovim 0.12's query
+  API, so the shim re-registers its query directives for 0.12's list-valued
+  `match[id]`. Remove one and you must remove the other.
 - **Never reintroduce `require("lspconfig").<server>.setup()`** — this config
   uses the Neovim 0.11 native `vim.lsp.config` / `vim.lsp.enable` API.
 - **LSP semantic tokens stay disabled** — treesitter is the single source of
   syntax colour (`on_attach` nils `semanticTokensProvider`).
-- **noice's LSP hover/signature stay off** — the markdown TS highlighter
-  crashes on 0.12.x transient floats; `K` keeps the native handler.
+- **noice's LSP hover/signature stay off** — pending their own evaluation, NOT
+  because of the old "0.12.x markdown TS crash" (that was nvim-treesitter's
+  frozen master, fixed in `lua/core/ts-compat.lua`). `K` keeps the native
+  handler until someone flips them with evidence.
 - **Never hardcode hex colors** — every color is a role from
   `lua/core/carbon.lua` (the single palette source of truth).
 - **No in-editor AI _plugin_** — the agentic AI is a CLI in the toggleterm
@@ -189,6 +195,15 @@ reference** — check it before adding a map. Leader namespaces (leader = Space)
   primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
   (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
   NvSinner shortcuts (normal; `xa` = the agent cockpit) / Ask-AI modal (visual)
+- `<leader>zl` toggles **LSP structural folding** per window
+  (`vim.lsp.foldexpr`, 0.12). Deliberately NOT a default: `'foldmethod'` is
+  exclusive, so `expr` makes `:fold` raise E350 and silently breaks
+  `<leader>zf`. Pinned by `tests/plugins/lsp_capabilities_spec.lua`.
+- `u` is the one standalone leaf: `<leader>u` = `:Undotree`, Neovim 0.12's
+  bundled undo-history browser (`packadd`-ed on first press, so startup is
+  untouched). Keep it a leaf — nothing else may start with `u`, or the bare
+  press starts paying a `timeoutlen` wait. `<leader>xu` is `:NvSinnerUpdate`,
+  which is why undo history is deliberately NOT in the `x` namespace.
 - `<leader>t`, `<leader>j`, and `<leader>jx` are prefixes of their numbered
   variants, and `<leader>f` is a prefix of `<leader>fb`, so a bare press waits
   one `timeoutlen` before falling back. That wait is **300 ms** (set in
@@ -223,9 +238,10 @@ runs `stylua --check` + `make test` locally — but **only once you opt in with
 `git config core.hooksPath .githooks`**; nothing wires it for you, so a fresh
 clone has no local gate at all. Three gaps worth knowing: **CI does not check
 formatting** — only the hook does, and it is skippable with `--no-verify`; CI is
-one `ubuntu-latest` × `stable` job, so nothing automatically exercises macOS or
-0.12.x; and CI symlinks the checkout to `~/.config/nvim`, so the
-`NVIM_APPNAME=nvsinner` path itself is never exercised.
+`ubuntu-latest` × `{v0.12.0, stable}`, so the declared floor and current stable
+are both exercised but **macOS and nightly are not**; and CI symlinks the
+checkout to `~/.config/nvim`, so the `NVIM_APPNAME=nvsinner` path itself is never
+exercised.
 
 ## Tests
 

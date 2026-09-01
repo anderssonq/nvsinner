@@ -6,7 +6,7 @@
 
 **A Neovim distribution that turns the terminal into a Cursor-like AI IDE — no in-editor AI plugin, just your favorite CLI agent in a live, activity-aware column.**
 
-![Neovim 0.11+](https://img.shields.io/badge/Neovim-0.11%2B-57A143?logo=neovim&logoColor=white)
+![Neovim 0.12+](https://img.shields.io/badge/Neovim-0.12%2B-57A143?logo=neovim&logoColor=white)
 ![Made with Lua](https://img.shields.io/badge/Made%20with-Lua-2C2D72?logo=lua&logoColor=white)
 ![Managed by lazy.nvim](https://img.shields.io/badge/plugins-lazy.nvim-78a9ff)
 ![License: MIT](https://img.shields.io/badge/License-MIT-78a9ff)
@@ -103,8 +103,12 @@ any existing `~/.config/nvim` without touching it.
   for diagnostics/keymaps/commands/resume (`<leader>s*`), which-key group
   labels, and LSP servers for TypeScript, Lua, HTML/CSS/JSON/YAML, Python and
   Bash out of the box (Go/Rust/Ruby light up when their toolchains exist).
-- **Fast** — almost everything is lazy-loaded; headless cold start ≈ 40 ms
-  (median of 3, measured 2026-07-03). Check yours with `:Lazy profile`.
+- **Fast** — almost everything is lazy-loaded; headless cold start **≈ 36 ms**
+  (median of 11: 35.2 / 36.4 / 38.3 min-median-max, macOS, 2026-09-01). Measure
+  yours the same way — a median of 3 is inside the noise, and a machine busy
+  with something else reads 3-4× higher:
+  `for i in $(seq 11); do nvim --headless --startuptime /tmp/s -c qa!; awk '/^[0-9]/{if($1+0>t)t=$1+0}END{print t}' /tmp/s; done | sort -n`
+  Per-plugin breakdown: `:Lazy profile`.
 - **Reproducible** — plugins are pinned in a committed `lazy-lock.json`;
   installs and updates `restore` to the tested set instead of floating to
   latest. A plenary test suite covers the core behavior (`make test`).
@@ -113,7 +117,7 @@ any existing `~/.config/nvim` without touching it.
 
 | Tool | Used by |
 |------|---------|
-| Neovim **0.11+** | native `vim.lsp` API, `vim.uv` |
+| Neovim **0.12+** | bundled `nvim.undotree`, bundled treesitter parsers, built-in markdown highlighting |
 | `git` | lazy.nvim plugin fetch |
 | `ripgrep` | Telescope live grep |
 | `node` | `prettier` / `eslint_d` |
@@ -122,9 +126,10 @@ any existing `~/.config/nvim` without touching it.
 | an AI CLI, e.g. `claude` | AI terminal column (optional) |
 
 > [!IMPORTANT]
-> Neovim **0.11+** is a hard requirement — the config uses `vim.uv` and the
-> native `vim.lsp.config` / `vim.lsp.enable` API and will not load on older
-> versions. Verify with `nvim --version | head -1`.
+> Neovim **0.12+** is a hard requirement and will not load on older versions.
+> (It was 0.11+ through v1.9.1; the floor moved for 0.12's bundled packages —
+> `nvim.undotree` behind `<leader>u` — its bundled treesitter parsers, and
+> built-in markdown highlighting.) Verify with `nvim --version | head -1`.
 
 The AI workflow is just a CLI agent run in the terminal column — install one
 (e.g. `npm i -g @anthropic-ai/claude-code`) and run it once to log in. No
@@ -741,9 +746,12 @@ Ask-AI modal.
 | `<leader>Sc` | n | Restore last session for current dir |
 | `<leader>Sl` | n | Restore last session |
 | `<leader>za` | n | Toggle fold |
+| `<leader>zl` | n | Toggle **LSP structural folding** in this window (Neovim 0.12 `vim.lsp.foldexpr`). While it is on, `<leader>zf` cannot create manual folds — the two `'foldmethod'`s are exclusive, which is why this is a toggle and not a default |
 | `<leader>zf` | v | Fold selected lines |
 | `<C-Y>` | n | Save file (with notification) |
 | `<C-U>` / `<C-R>` | n | Undo / redo (with notification) |
+| `<leader>u` | n | Undo-history browser (`:Undotree`, Neovim 0.12 builtin) — press again to close |
+| `<Tab>` / `<S-Tab>` | i, s | Jump to the next / previous snippet placeholder. Insert-mode `<Tab>` is shared: an open completion popup wins, then a pending AI ghost, then the snippet jump, then a literal Tab |
 | `<C-Up>` | n | Grow window height (+2) |
 | `<C-,>` / `<C-.>` | n, t | Grow / shrink window width (±20 columns) — also from inside a terminal (resize the AI column) |
 | `<C-;>` / `<C-'>` | n, t | Grow / shrink window height (±5 rows) — also from inside a terminal |
@@ -761,8 +769,13 @@ Plugins are lazy-loaded via lazy.nvim triggers:
   which-key.
 - `cmd` / `keys` — Telescope, Neo-tree, toggleterm AI column, diffview.
 
-Only the colorscheme (`theme.lua`) and start screen (`dashboard.lua`) load
-eagerly. Check the breakdown anytime with `:Lazy profile`.
+Three plugins load eagerly: the colorscheme (`theme.lua`, `lazy = false` +
+`priority = 1000` — it must paint before anything else), the start screen
+(`dashboard.lua`, on `VimEnter`, which also pulls in `nvim-web-devicons`), and
+**toggleterm** (`lazy = false`, a documented exception: the `<leader>t*` /
+`<leader>j*` maps are closures over panel tables built inside its `config`, so
+the plugin must load for the maps to exist). Check the breakdown anytime with
+`:Lazy profile`.
 
 ### Neo-tree's Buffers and Git tabs
 
@@ -990,11 +1003,17 @@ show them.
 
 ### Neovim crashes opening a markdown file
 
-Seen on 0.12.x as `attempt to call method 'range'`, from a markdown-treesitter
-interaction. Three guards in this config keep that path cold — noice's LSP
-`hover` and `signature` are off, and the hover float is not given
-`filetype=markdown`. If you re-enable any of them on 0.12.x, expect the crash
-back.
+**Fixed.** This was never a Neovim bug. Neovim 0.12 changed treesitter's query
+API so a directive's `match[id]` is a *list* of nodes; nvim-treesitter's frozen
+`master` branch still read it as a single node, so every markdown code fence
+threw `attempt to call method 'range' (a nil value)`. The same defect silently
+broke HTML `<script type=…>` and bash heredoc injections, which nobody noticed
+because only markdown got reported.
+
+`lua/core/ts-compat.lua` re-registers the affected directives with 0.12
+semantics, and the guards that used to hide the crash are gone. If it ever
+comes back, run `make test-file FILE=tests/core/ts_compat_spec.lua` — that spec
+pins the API contract itself.
 
 ### The test suite fails immediately
 

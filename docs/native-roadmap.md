@@ -25,7 +25,15 @@ Judging criteria, in order:
    that reuses those is cheap; one that needs new primitives is not.
 
 House rule reminder: a migrated plugin's spec is **kept with
-`enabled = false`** as a one-line revert (like `incline.lua`), never deleted.
+`enabled = false`** as a one-line revert (like `incline.lua`), never deleted —
+**and so is its `lazy-lock.json` entry**, which is the other half of that revert.
+Verified in lazy's source: `restore` is `update` with `lockfile = true`, and both
+the update and install pipelines run `git.checkout` against the lockfile
+(`lazy/manage/init.lua:85,117`). So re-enabling a tombstone and running the normal
+restore path checks it out at the **tested** commit; drop the entry and the same
+revert silently lands on upstream HEAD. The 11 tombstone entries look like cruft
+in a lockfile diff — `tests/plugins/tombstone_lock_spec.lua` exists so nobody
+tidies them away.
 
 ## Done (the precedent)
 
@@ -112,7 +120,7 @@ House rule reminder: a migrated plugin's spec is **kept with
   async `fd`/`rg`, styled as the sixth Mason-style modal. This is the single
   biggest "distro, not config" statement — the picker is the most-touched UI
   in any editor. Risks: preview windows (needs scratch-buffer previews without
-  the 0.12.x markdown TS crash), sorter quality vs fzf-native, replacing
+  the markdown TS crash — since fixed, see FA-09), sorter quality vs fzf-native, replacing
   `telescope-ui-select` (`vim.ui.select` shim — the NvMenu modal can host it).
   Prerequisite: none technically, but land Waves 1.5–2 first to grow the
   modal/decoration muscle.
@@ -138,7 +146,7 @@ House rule reminder: a migrated plugin's spec is **kept with
 |---|---|
 | `nvim-treesitter` | the syntax engine; pinned `branch = "master"` (incident FA-24). Not replaceable. |
 | `mason` ×3 + `nvim-lspconfig` | distro infrastructure: server install + the server-config data set. The *API* is already native (`vim.lsp.config`/`enable`); lspconfig is used as data, not framework. |
-| `nvim-cmp` + LuaSnip | completion engines are deep (sorting, sources, snippet grammar). Watch Neovim's builtin completion/snippet work; re-evaluate when autotrigger lands stably. |
+| `nvim-cmp` + LuaSnip | completion engines are deep (sorting, sources, snippet grammar). **That watch is over**: 0.12 shipped `'autocomplete'` + `vim.lsp.completion`, so the stated trigger fired and the evaluation is recorded below. Verdict: **keep** — the builtin has no answer for friendly-snippets' 1522 snippets. |
 | `none-ls` + mason-tool-installer | formatter/linter orchestration depth (eslint_d condition, project detection). |
 | `tiny-inline-diagnostic` | native `virtual_lines = { current_line = true }` exists (0.11) but loses the rounded-bubble look that is part of the distro's face. Re-evaluate when native styling improves. |
 | `trouble` | list UX depth; only lists — `diagnostics.lua` owns the config. |
@@ -152,6 +160,186 @@ House rule reminder: a migrated plugin's spec is **kept with
 | `mini.animate` + `neoscroll` | animation timing engines; low value to own. |
 | `nvim-web-devicons` | shared icon data for many keepers; drops out only when its dependents do. |
 | `telescope`, `toggleterm`, `lualine`, `noice`, `alpha`, `notify`, `barbecue`, `satellite` | staying **for now** — they are the Wave 2/3 targets above. |
+
+## Bundled 0.12 packages — evaluated (2026-08-31)
+
+The 0.12 baseline move unlocked `$VIMRUNTIME/pack/dist/opt/`. Two of its
+packages were assessed; one landed, one was declined. Both `packadd`-only, so
+neither costs anything until used.
+
+| Package | Verdict |
+|---------|---------|
+| `nvim.undotree` | **Adopted.** `<leader>u` + a `:NvSinnerHelp` palette row. Fills a real gap — nothing here browsed undo history. `packadd` is idempotent (guarded by `g:loaded_undotree_plugin`; the rtp entry is never duplicated), so the keymap re-runs it on every press with no bookkeeping, and `:Undotree` toggles. Its buffer is `buftype = nofile`, which every visible-range decorator (`illuminate`, `indent`, `colorizer`, `todo`) and `ui-touch.eligible()` already skip — no denylist edits. Two upstream limits worth knowing, both left unpatched: (1) its augroup is created with `clear = true`, so opening a tree for a second buffer silently desyncs the first — one tree at a time is the supported model; (2) `undotree.lua:271` reads `vim.b[outbuf]` from a `vim.schedule` without re-validating the buffer, and the tree buffer is `bufhidden = wipe`, so opening and closing it **within one event-loop tick** prints a non-fatal `Invalid buffer id` to `:messages`. Probed: every realistic sequence is clean — open/close/reopen with a tick in between, and quitting with the tree open — because a real key press always yields to the loop. Not worth carrying a debounce for. |
+| `nvim.difftool` | **Declined.** It does cover something diffview cannot — arbitrary **non-git** file/directory diffing — but `lua/difftool.lua:64` calls `:only`, tearing down the AI terminal column and neo-tree in the current tab. Diffview already owns `<leader>g*` under non-negotiables that route `<leader>gd`/`<leader>gH` through `open_diff()` in at most one tab, precisely to stop the tab-stacking this would reintroduce. It also registers a load-time `VimEnter` autocmd with **no augroup** that hijacks `nvim -d`. The non-git file case is already `nvim -d a b` in a terminal. |
+
+## `'winborder'` — measured and rejected (2026-08-31)
+
+Neovim 0.12 adds a global default border for floats that pass no `border` key.
+It looked like a free win. It is not, and the reasoning is recorded here so it
+reads as measured rather than overlooked.
+
+**Precedence, probed on 0.12.3:** no `border` key → global applies; `border =
+nil` in the table → identical to absent, global applies; any explicit value
+(`"none"` included) wins. So the blast radius is exactly "floats that pass no
+border key".
+
+**For NvSinner's own UI it is a no-op.** All 12 `nvim_open_win` sites already
+pass a border — 9 × `"rounded"` (prompts, symbols, agents ×2, menu, ia, help,
+ai-ask, ui-touch) and 2 × `"none"` (backdrop, ai-complete) — with one
+exception: `lua/core/window-picker.lua:103`, whose 7×3 letter overlay is
+centred by arithmetic assuming no border and whose `winhighlight` maps
+`Normal`/`NormalFloat` but not `FloatBorder`. That one would **regress**.
+
+**The rest of the effect is on third-party floats, and three of them are bad:**
+lazy.nvim's backdrop (`view/float.lua:145`) and none-ls's (`info.lua:54`) are
+`columns × lines` floats with no border key — probed, a full-screen float plus a
+border clamps its content (78×21 on an 80×24 screen) and draws a rounded frame
+around the whole display, on every `:Lazy`. Both are hardcoded upstream and
+**cannot be overridden from config**. noice's `popupmenu` view (via nui's
+`get_default_winborder()`) would gain a frame on every `:` completion, drawn in
+`NoicePopupmenuBorder` where `bg == fg` — invisible but space-consuming.
+which-key gains one too (its `border = "none"` default is **commented out** at
+`config.lua:67`). nvim-cmp's `window.bordered()` reads the option directly, so
+the completion and documentation windows change as well.
+
+Unaffected: telescope (plenary hardcodes `"none"` on both the content window
+and its separate border wrapper — the double-border worry is unfounded),
+neo-tree (`popup_border_style = "NC"`), trouble, toggleterm, nvim-notify,
+satellite, mini.animate, image, neoconf.
+
+**Net:** four suppression sites plus two unfixable artifacts, to gain borders on
+`:Mason`, gitsigns popups and native `K` hover. Not worth it. The explicit
+per-site borders stay — cheap, self-documenting, and immune to a future
+upstream default change.
+
+*Revert recipe if this is ever revisited:* `vim.opt.winborder = "rounded"` in
+`core/options.lua`, `border = "none"` at `window-picker.lua:103`, plus
+`views.popupmenu.border.style` in the noice spec and a which-key `win.border`
+decision.
+
+**`'pumborder'`** was evaluated separately and also left unset: it styles the
+*builtin* popup menu, not nvim-cmp's floats, and `core/options.lua`'s
+`pumblend = 10` is a deliberate borderless "glass" look.
+
+## Completion — measured, and deferred with a concrete trigger (2026-09-01)
+
+`native-roadmap` kept nvim-cmp on the condition *"watch Neovim's builtin
+completion/snippet work; re-evaluate when autotrigger lands stably."* Neovim 0.12
+shipped `'autocomplete'` and `vim.lsp.completion`, so the trigger fired and this
+is that evaluation. Everything below was measured on this machine (0.12.3), not
+inferred.
+
+**What the builtin actually does — verified end to end in a real PTY.**
+`vim.lsp.completion.enable(true, id, buf, { autotrigger = true })` attaches,
+autotrigger fires on the server's own `triggerCharacters` (lua_ls advertises 19,
+including `.` and `:`), the popup opens, and its items are exactly what the
+server returned. Reading the runtime source confirms the rest: snippets expand
+through **`vim.snippet.expand`**, text edits and commands run on accept (so
+auto-import works), and a docs preview shows when `'completeopt'` contains
+`popup` — which is already the 0.12 default here.
+
+*Honest limit, stated because it looks like a failure and is not one:* in a
+sandbox the popup filled with `kind=Text` word completions. Asking lua_ls
+directly (`buf_request_sync` for `textDocument/completion`) returned **12 items,
+all `kind=Text`** — the server had no workspace context and said so. The builtin
+transmitted faithfully. Item quality is the server's job and is identical for
+either engine; this measurement says nothing against the builtin.
+
+**What the current stack costs.** The cmp chain loads on the first `InsertEnter`
+of a session: median **54.9 ms** (7 runs, warm cache; min 51.4, max 61.8), and
+**~130 ms cold**. Breakdown: nvim-cmp 29 · LuaSnip 16 · cmp_luasnip 9 ·
+cmp-nvim-lsp 1.5 · friendly-snippets ~0. The builtin costs zero — it is in the
+binary.
+
+**What migrating would GAIN.** Five plugins out. Buffer/path/tag sources via
+`'complete'` — which the current spec does **not** have (its only sources are
+`nvim_lsp` and `luasnip`). Fuzzy matching via `completeopt+=fuzzy`. The
+`cmp-nvim-lsp` capabilities hop disappears, un-coupling the LSP spec from the
+completion spec. `cmp.config.window.bordered()` disappears too, which retires one
+of the eight surfaces in the `'winborder'` analysis above. And because LSP
+snippets would run through `vim.snippet`, Neovim's builtin `<Tab>`/`<S-Tab>` jump
+maps would start working, making most of `completions.lua`'s explicit jump maps
+redundant (`tests/plugins/snippet_jump_spec.lua` asserts the condition that flips).
+
+**What migrating would LOSE, and why this is the verdict.**
+**friendly-snippets: 1522 snippets** across this repo's filetypes, counted after
+an eager load — typescriptreact 362, vue 357, javascript 209, css 156, html 135,
+yaml 80, markdown 71, python 67, lua 24. They are a VSCode snippet collection,
+not LSP items, so **nothing in the builtin serves them**. Roughly 1200 sit in the
+TS/Vue/web stack this config is used for daily. Accepting also moves from `<CR>`
+to `<C-y>`, which is muscle memory, not configuration.
+
+**Verdict: keep nvim-cmp.** Trading 1522 snippets and the accept key for five
+plugins and 55 ms once per session is a bad trade. That is a measured conclusion,
+not caution — the builtin is genuinely good, and if friendly-snippets were not in
+play this would be an easy migration.
+
+**The trigger for revisiting, stated concretely** so the next person is not left
+re-deriving it: *either* a builtin/native path serves a VSCode-format snippet
+collection, *or* the user stops relying on friendly-snippets (check with
+`#require("luasnip").get_snippets(ft)` after an eager load). Re-run the cost
+measurement then; the 55 ms is the whole upside.
+
+**On blink.cmp**, which LazyVim and AstroNvim both moved to: it keeps a snippets
+source, so it would not lose friendly-snippets, and it is faster than nvim-cmp.
+But it is a plugin swap, not a native-first move — it changes *whose* engine this
+distro ships, not whether it ships one. It only becomes interesting if nvim-cmp
+stops being maintained; it is a hobby project whose author has said fixes are not
+guaranteed. Watch, do not chase.
+
+## Pin age is not pin staleness (measured 2026-09-01)
+
+An audit flagged "six stale pins", oldest `barbecue` at 3 years 4 months. Checked
+against upstream with `git ls-remote`, **most of them are not stale at all** — the
+projects simply stopped changing, and a pin to a finished plugin is current by
+definition.
+
+| Plugin | Pin | Verdict |
+|---|---|---|
+| `barbecue` | cd7e7da (2023-04-28) | **at v1.2.0, the latest tag** |
+| `toggleterm.nvim` | 50ea089 (2024-12-30) | **at v2.13.1, the latest tag** |
+| `nvim-surround` | 2e93e15 | **at v4.0.5, the latest tag** |
+| `telescope-ui-select` | 6e51d7d (2023-12-04) | **at upstream HEAD** |
+| `diffview.nvim` | 4516612 (2024-06-13) | **at upstream HEAD** |
+| `cmp_luasnip` | 98d9cb5 (2024-11-04) | **at upstream HEAD** |
+| `mason.nvim` | 2a6940a | **at upstream HEAD** |
+| `telescope.nvim` | tag 0.1.8 | **behind — v0.2.2 exists** |
+| `mason-lspconfig.nvim` | 47059d7 | **behind — ~2 months of default-branch drift** |
+
+Two lessons, both cheap to re-run:
+
+1. **Compare against the right reference.** A `version = "*"` / `tag =` pin must be
+   compared to the latest *tag*; comparing it to `HEAD` reports every tag-pinned
+   plugin as behind, which is how `barbecue` and `toggleterm` landed on the "stale"
+   list. `diffview` and `cmp_luasnip` were specifically called "the uncovered gaps"
+   and are at HEAD.
+2. **Neither of the two real gaps is a drive-by bump.** telescope 0.1.8 → 0.2.2 is a
+   minor jump on the most-used UI in the editor, drags `telescope-ui-select`, and
+   telescope is a Wave 3 replacement target. mason-lspconfig is two months of branch
+   drift with no reported problem. Each deserves its own change and its own testing.
+
+Re-run the audit with:
+
+```bash
+cd ~/.local/share/nvsinner/lazy && for p in */; do p=${p%/}
+  url=$(git -C "$p" remote get-url origin 2>/dev/null) || continue
+  pin=$(git -C "$p" rev-parse HEAD | cut -c1-7)
+  head=$(git ls-remote "$url" HEAD | cut -f1 | cut -c1-7)
+  tag=$(git ls-remote --tags --refs "$url" | awk -F/ '{print $NF}' | sort -V | tail -1)
+  echo "$p pin=$pin head=$head latest_tag=$tag"
+done
+```
+
+## `williamboman/` → `mason-org/` — evaluated and declined (2026-09-01)
+
+mason moved orgs; the specs still name `williamboman/`, which GitHub redirects
+(verified — the installed clones use the old URL and work). Renaming looks free.
+It is not: lazy's `git.origin` task, on a changed URL, runs
+`fs.clean` **and then re-clones** (`lazy/manage/task/git.lua:212-235`). So the
+rename forces a wipe-and-re-clone of mason and mason-lspconfig on every existing
+install at the next update, to replace a working redirect with its target.
+
+Do it when there is another reason to touch those specs — not on its own.
 
 ## Scoreboard
 

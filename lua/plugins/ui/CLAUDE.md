@@ -54,7 +54,7 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   (`enabled = false`): replaced by the native reading view in
   `lua/core/markdown.lua` (pattern-based visible-range scan — heading bars,
   bullets, checkboxes, quote bars, fence shading, rules — same `_G.NvMdReader`
-  seam, same `<leader>m` / winbar "Open view" chip). The 0.12.x markdown
+  seam, same `<leader>m` / winbar "Open view" chip). The (misdiagnosed) markdown
   injection-query patch moved to the top of that core module. Kept as a revert
   path, but reverting is NOT a one-liner: flipping `enabled = true` must be
   paired with removing the `require("core.markdown")` line from `init.lua`, or

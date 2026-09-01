@@ -1,5 +1,13 @@
 return {
 	"nvim-telescope/telescope.nvim",
+	-- Pinned to 0.1.8 (2024-05-23). NOTE: this is genuinely BEHIND — upstream has
+	-- shipped v0.2.2. (An earlier version of this comment claimed "upstream ships
+	-- tags rarely"; checked against `git ls-remote --tags`, that was wrong.)
+	-- Held deliberately rather than bumped: 0.1.x -> 0.2.x is a minor jump on the
+	-- most-used UI in the editor, it drags telescope-ui-select with it, and
+	-- telescope is a Wave 3 native-replacement target (NvSinnerFind, see
+	-- docs/native-roadmap.md). Bump it as its own change with its own testing, or
+	-- replace it — not as a drive-by.
 	tag = "0.1.8",
 	-- Lazy: loads on the :Telescope command or any of the keymaps below.
 	cmd = "Telescope",
@@ -36,15 +44,6 @@ return {
 	config = function()
 		require("telescope").setup({
 			defaults = {
-				-- Neovim 0.12.x crashes the markdown treesitter highlighter
-				-- (node:range on a nil node). The file preview highlights markdown
-				-- with treesitter, so disable it for markdown/markdown_inline and
-				-- fall back to regex syntax. See lua/plugins/editor/nvim-treesitter.lua.
-				preview = {
-					treesitter = {
-						disable = { "markdown", "markdown_inline" },
-					},
-				},
 				-- Never surface git internals even when searching hidden files below.
 				file_ignore_patterns = { "^%.git/" },
 			},

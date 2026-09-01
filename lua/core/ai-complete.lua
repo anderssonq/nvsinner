@@ -840,18 +840,50 @@ vim.keymap.set("i", "<C-l>", "<Cmd>lua require('core.ai-complete').trigger()<CR>
 	desc = "Request AI completion (ghost text)",
 })
 
--- ─── Accept / dismiss (insert mode) — coexists with nvim-cmp (<Tab> is free) ──
--- <Tab>: accept the ghost ONLY when a suggestion is pending and cmp's popup is
--- not up; otherwise fall through to a literal Tab (built-in indent behaviour).
--- The mutation runs via <Cmd> so it's outside expr textlock. cmp here uses
--- cmp.mapping.preset.insert, which does not map <Tab>, so overloading it is safe.
+-- ─── Accept / dismiss (insert mode) — the insert-mode <Tab> arbiter ───────────
+-- Something has to arbitrate insert-mode <Tab>, and this map already did it for
+-- nvim-cmp, so it owns the whole chain rather than having three layers fight
+-- over one key. Priority, highest first:
+--
+--   1. cmp's popup is up            → literal <Tab> (cmp.mapping.preset.insert
+--                                      does not map <Tab>, so this is its own
+--                                      fall-through and must stay first)
+--   2. an AI ghost is pending       → accept it. The ghost only exists because
+--                                      the user pressed <C-l>, so an explicit
+--                                      request outranks an implicit jump.
+--   3. a LuaSnip placeholder ahead  → jump to it. Without this branch a snippet
+--                                      expands and then traps you: Neovim's
+--                                      builtin <Tab>/<S-Tab> jump maps drive
+--                                      `vim.snippet`, but completions.lua
+--                                      expands through LuaSnip, so
+--                                      `vim.snippet.active()` is false and the
+--                                      builtin maps fall through to a literal
+--                                      Tab. Verified on 0.12.3.
+--   4. otherwise                    → literal <Tab> (builtin indent behaviour)
+--
+-- The plugin requires are pcall'd, so this map is correct before lazy has loaded
+-- either of them and in the test harness where neither exists. Mutations run via
+-- <Cmd> so they are outside expr textlock.
+--
+-- Backwards jumps (<S-Tab>) and the select-mode half live in
+-- lua/plugins/lsp/completions.lua — they collide with nothing, so they belong
+-- with the plugin that owns LuaSnip rather than here.
+local function luasnip_jumpable(dir)
+	local ok, ls = pcall(require, "luasnip")
+	return ok and ls.jumpable(dir)
+end
+
 vim.keymap.set("i", "<Tab>", function()
 	local ok, cmp = pcall(require, "cmp")
-	if (not ok or not cmp.visible()) and require("core.ai-complete")._pending() then
+	local cmp_open = ok and cmp.visible()
+	if not cmp_open and require("core.ai-complete")._pending() then
 		return "<Cmd>lua require('core.ai-complete').accept()<CR>"
 	end
+	if not cmp_open and luasnip_jumpable(1) then
+		return "<Cmd>lua require('luasnip').jump(1)<CR>"
+	end
 	return "<Tab>"
-end, { expr = true, replace_keycodes = true, desc = "Accept AI ghost text / Tab" })
+end, { expr = true, replace_keycodes = true, desc = "AI ghost / snippet jump / Tab" })
 
 vim.keymap.set("i", "<C-]>", "<Cmd>lua require('core.ai-complete').dismiss()<CR>", {
 	silent = true,

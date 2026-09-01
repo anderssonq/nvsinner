@@ -39,15 +39,16 @@ line-by-line, 2026-07-02), not just what the README says.
 
 ```bash
 # macOS (Homebrew). Linux: apt/dnf/pacman equivalents; stylua via cargo if unpackaged.
-brew install neovim ripgrep node stylua     # neovim MUST be >= 0.11
+brew install neovim ripgrep node stylua     # neovim MUST be >= 0.12
 npm install -g prettier eslint_d            # needs node first (see Traps)
 ```
 
-Hard version gate — the config uses `vim.uv` and the native `vim.lsp.config` /
-`vim.lsp.enable` API and will NOT work below 0.11:
+Hard version gate — the floor moved from 0.11 to **0.12** after v1.9.1 (0.12's
+bundled packages, e.g. `nvim.undotree` behind `<leader>u`, plus the
+nvim-treesitter `main` migration path). The config will NOT work below 0.12:
 
 ```bash
-nvim --version | head -1    # expect: NVIM v0.11.x or newer (dev machine: v0.12.3)
+nvim --version | head -1    # expect: NVIM v0.12.0 or newer (dev machine: v0.12.3)
 ```
 
 `install.sh` itself only hard-checks two binaries: `git` and `nvim` (lines
@@ -97,9 +98,12 @@ curl -fsSL https://raw.githubusercontent.com/anderssonq/nvsinner/main/install.sh
 `install.sh` (bash, `set -euo pipefail`; source repo overridable via
 `NVSINNER_REPO=<url>`), step by step:
 
-1. **Hard-requires `git` and `nvim`** on PATH; exits 1 otherwise. It does NOT
-   verify the nvim version — only presence (the warning text says ">= 0.11"
-   but nothing enforces it).
+1. **Hard-requires `git` and `nvim`** on PATH; exits 1 otherwise. It **also
+   enforces the version** (since the 0.12 baseline move): a second guard runs
+   `nvim --headless -c 'if has("nvim-0.12") | qa | else | cq | endif'` and exits
+   1 with the found version. Asking the interpreter avoids parsing
+   `nvim --version` in shell. (Before that it was presence-only, and the
+   warning text claimed a check that did not exist.)
 2. **Config dir** (`${XDG_CONFIG_HOME:-$HOME/.config}/nvsinner`), three-way:
    - **`$CONFIG_DIR/.git` is a directory** → existing clone: if
      `git rev-parse --is-shallow-repository` says `true` (legacy `--depth=1`

@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/git/` — the git integration of a personal Neovim 0.11+ config.
+You own `lua/plugins/git/` — the git integration of a personal Neovim 0.12+ config.
 Each file returns a lazy.nvim spec. There is a deliberate **division of labor** —
 respect it.
 

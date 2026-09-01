@@ -83,6 +83,15 @@ local EXTRAS = {
 		desc = "Report missing external tools (<leader>xc)",
 		section = "maintenance",
 	},
+	-- Neovim 0.12's bundled undo-history browser. `cmd` is run through a bare
+	-- vim.cmd() (see M.run), so the bar chains the packadd with the command it
+	-- registers; packadd is idempotent, so re-running it costs nothing.
+	{
+		title = ":Undotree",
+		cmd = "packadd nvim.undotree | Undotree",
+		desc = "Undo-history browser — Neovim 0.12 builtin (<leader>u)",
+		section = "editor",
+	},
 }
 
 local WIDTH = 64

@@ -280,6 +280,6 @@ Re-verification one-liners for anything that may drift:
 - Reserved AI ids: `grep -n "99 + n\|id = n" lua/plugins/terminal/toggleterm.lua`
 - Update uses restore: `grep -n "restore" lua/core/update.lua install.sh`
 - Single vim.cmd exception: `grep -c "vim.cmd" lua/core/options.lua` (expect 1)
-- 0.12.x markdown workaround still present (remove rule 12's caveat when upstream fixes): `ls after/ftplugin/markdown.lua`
+- The treesitter query-API shim is wired (it replaced the 0.12 markdown workarounds): `grep -n 'ts-compat' lua/plugins/editor/nvim-treesitter.lua`
 - Id-collision incident: `git show 220a897 --stat`
 - Suite still green: `make test`

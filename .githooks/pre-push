@@ -12,9 +12,12 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# Every tracked *.lua lives under one of these (after/ftplugin/markdown.lua is
-# why `after` is here — it is easy to miss).
-LUA_PATHS=(init.lua colors lua tests after)
+# Every tracked *.lua lives under one of these. `after/` used to be listed for
+# after/ftplugin/markdown.lua; that file is gone (its 0.12 "crash" was really
+# nvim-treesitter's frozen master — see lua/core/ts-compat.lua), and stylua
+# errors on a path that does not exist, so the entry went with it. Re-add it if
+# an after/ file ever comes back.
+LUA_PATHS=(init.lua colors lua tests)
 
 # Nothing to check when the push carries no Lua. `@{u}` is unset for a brand-new
 # branch, so fall back to origin/main.

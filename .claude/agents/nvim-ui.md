@@ -5,7 +5,7 @@ model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/ui/` — the visual identity of a personal Neovim 0.11+ config:
+You own `lua/plugins/ui/` — the visual identity of a personal Neovim 0.12+ config:
 the **carbon** theme, a native oxocarbon / IBM Carbon port (design doctrine
 documented in `lua/core/carbon.lua`) —
 industrial grayscale core, blue-forward accents, color only where it carries
@@ -41,7 +41,7 @@ per-file contracts and load-bearing warnings for this directory.
 - `lualine.lua` — statusline with the carbon mode→accent chip map (documented
   in `lua/core/carbon.lua`).
 - `noice.lua` — centered floating `:` cmdline (`command_palette`), msgs via notify.
-  **LSP hover/signature OFF on purpose** (markdown TS highlighter crashes on 0.12.x
+  **LSP hover/signature OFF pending re-evaluation** (the 0.12.x markdown crash that justified it is fixed in core/ts-compat.lua
   transient floats — `K` keeps the native handler). Do NOT enable noice's lsp
   markdown paths.
 - `notify.lua` — `nvim-notify` backend for messages.

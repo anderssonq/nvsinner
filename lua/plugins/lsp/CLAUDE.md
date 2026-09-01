@@ -1,5 +1,29 @@
 # lua/plugins/lsp/ — LSP / completion / formatting contracts
 
+- **Neovim 0.12 native capabilities** (all builtin, no plugin): an `LspAttach`
+  autocmd enables `vim.lsp.linked_editing_range` on clients advertising
+  `textDocument/linkedEditingRange` (rename an HTML/JSX tag, its pair follows);
+  `:NvSinnerDiagnosticsWorkspace` wraps `vim.lsp.buf.workspace_diagnostics()`,
+  which reaches files Trouble cannot (it only sees loaded buffers), and is named
+  `NvSinner*` so `:NvSinnerHelp` discovers it for free; `<leader>zl` toggles
+  `vim.lsp.foldexpr` folding **per window**. Folding is a toggle and not a
+  default because `'foldmethod'` is exclusive — `expr` makes `:fold` raise E350,
+  silently breaking `<leader>zf`. `vim.lsp.document_color` was evaluated and NOT
+  adopted: its default `style = "background"` is the same treatment
+  `lua/core/colorizer.lua` already applies to hex literals, so the two would
+  decorate the same range; its complementary value (CSS vars, `rgb()`, named
+  colors) needs a rendering decision first.
+- **Snippet placeholder navigation lives in `completions.lua`.** Expanding a
+  snippet used to trap you on the first placeholder: Neovim 0.11+ ships default
+  `<Tab>`/`<S-Tab>` jump maps, but they are guarded on `vim.snippet.active()`,
+  and `snippet.expand` hands the body to **LuaSnip** — so the builtin maps fall
+  through to a literal Tab and nothing else was bound. The fix is two maps:
+  select-mode `<Tab>` (the one that actually fires — a placeholder is *selected*
+  after an expand) and `{i,s}` `<S-Tab>` for backwards. Insert-mode `<Tab>` is
+  deliberately NOT mapped here: it is arbitrated in `lua/core/ai-complete.lua`,
+  and mapping it here would silently replace that chain. If expansion ever moves
+  to `vim.snippet.expand`, these maps become dead weight — `tests/plugins/
+  snippet_jump_spec.lua` asserts `vim.snippet.active()` is false and will flip.
 - `lsp-config.lua` — `mason` + `mason-lspconfig`, then the **Neovim 0.11
   native API**: `vim.lsp.config("*", { capabilities })` +
   `vim.lsp.enable({...})`. Enabled servers: `ts_ls`, `solargraph`, `html`,

@@ -13,14 +13,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Two entries so "Neovim 0.12+" is a TESTED claim, not just a declared one:
+    # v0.12.0 is the declared floor, `stable` is whatever users install today.
+    # Still one platform — macOS and nightly remain unexercised.
+    strategy:
+      fail-fast: false
+      matrix:
+        nvim: [v0.12.0, stable]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Neovim (stable, >= 0.11)
+      - name: Install Neovim (${{ matrix.nvim }}, floor is 0.12)
         uses: rhysd/action-setup-vim@v1
         with:
           neovim: true
-          version: stable
+          version: ${{ matrix.nvim }}
 
       - name: Link config into the XDG path
         run: |
@@ -32,7 +39,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.local/share/nvim/lazy
-          key: lazy-${{ runner.os }}-${{ hashFiles('lazy-lock.json') }}
+          key: lazy-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lazy-lock.json') }}
 
       - name: Restore pinned plugins
         run: nvim --headless "+Lazy! restore" +qa

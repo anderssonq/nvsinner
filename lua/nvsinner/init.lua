@@ -9,5 +9,5 @@
 -- Bump it as part of shipping a release to main; that is what makes existing
 -- installs show "update available".
 return {
-	version = "1.9.1",
+	version = "2.0.0",
 }

@@ -179,9 +179,12 @@ local function open_float(lines)
 	end
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-	-- NOTE: deliberately NOT set to "markdown". The markdown treesitter
-	-- highlighter crashes on Neovim 0.12.x ("attempt to call method 'range'")
-	-- when parsing this transient float, so the doc is shown as plain text.
+	-- NOTE: deliberately NOT set to "markdown" — but not for the reason this
+	-- comment used to give. The "0.12.x markdown treesitter crash" was
+	-- nvim-treesitter's frozen master misreading 0.12's list-valued `match[id]`,
+	-- and core/ts-compat.lua fixes it. Setting `filetype = "markdown"` here is
+	-- now most likely safe; it is left as plain text pending its own check,
+	-- together with noice's hover/signature (see lua/plugins/ui/noice.lua).
 	vim.bo[buf].modifiable = false
 	local width = 1
 	for _, l in ipairs(lines) do

@@ -180,6 +180,68 @@ long-lived uv handles** (module table field). If you must probe it, loop
 `collectgarbage()` + `vim.wait` and treat "timer ever stops" as confirmation;
 treat "never stops" as inconclusive, not refutation.
 
+## Recipe 7 — a plugin's API assumptions (how the "0.12 markdown crash" was misdiagnosed)
+
+The most expensive kind of wrong belief is one that blames the platform for a
+**plugin's** stale API assumption. It produces workarounds instead of a fix, and
+it spreads: this one reached six suppression sites and ~18 files before anyone
+re-probed it.
+
+**The claim under test.** "Neovim 0.12.x has a markdown treesitter bug —
+`node:range()` on a nil node — so markdown highlighting must stay off."
+
+**The probe.** Ask what the API actually hands the callback, rather than reading
+the error and guessing whose fault it is:
+
+```lua
+vim.treesitter.query.add_directive("probe!", function(match, _, buf, pred, meta)
+  local v = match[pred[2]]
+  io.write(("match[id] type=%s is_list=%s #=%s\n")
+    :format(type(v), tostring(vim.islist(v)), #v))
+  io.write(("get_node_text(match[id]) -> %s\n")
+    :format(tostring(select(2, pcall(vim.treesitter.get_node_text, v, buf)))))
+end, { force = true })
+```
+
+**Result (2026-08-31, Neovim 0.12.3, headless, `-u NONE`):**
+
+```
+match[1] type=table  is_list=true  #=1
+get_node_text(match[id]) -> .../runtime/lua/vim/treesitter.lua:197:
+                            attempt to call method 'range' (a nil value)
+```
+
+**Conclusion.** 0.12 changed the handler contract to
+`fun(match: table<integer, TSNode[]>, …)` — `match[id]` is a **list of nodes**.
+`nvim-treesitter`'s frozen `master` still treats it as one node at six sites
+(`query_predicates.lua:56, 77, 99, 116, 137, 157`), and line 18 passes
+`{ force = true, all = false }` — `all` no longer exists on 0.12, so it is
+silently ignored. Neovim is behaving as documented; the pinned plugin is not.
+
+**Blast radius, probed per language** (plugin on the rtp so its queries shadow
+the runtime's): `markdown` (`#set-lang-from-info-string!`) **crash**; `html`
+(`#set-lang-from-mimetype!`) **crash**, and its `<script>`/`<style>` injections
+had silently never loaded; `bash` (`#downcase!`) **crash**. Only markdown ever
+got reported, because only markdown had a label attached to it.
+
+**Three lessons worth more than the fix:**
+
+1. **A crash inside `LanguageTree:parse(true)` is NOT a rendering claim.** Recipe
+   5's "you need a real TUI" rightly applies to repaints — it does not apply
+   here, and assuming it did is why this went unprobed for months. Test the
+   parse, not the paint: it reproduces headless in one command.
+2. **Read the archive against itself.** FA-09 recorded "the crash does not occur
+   on stable 0.11.x". A runtime regression cannot be sensitive to which *plugin*
+   is loaded, but a plugin whose `all = false` was still honored on 0.11 can be.
+   The disproof was sitting inside the entry that drew the wrong conclusion.
+3. **Test the absence of the bug by asserting the FEATURE, not the silence.** A
+   shim that returns early on every match also stops crashing — and kills every
+   injection. The passing assertion must be "the fenced `lua` block yields a
+   `lua` child tree", never "no error was thrown".
+
+Re-probe when: the treesitter pin moves, the Neovim floor moves, or any
+`#directive!` starts misbehaving.
+
 ## The discipline (idea lifecycle)
 
 1. **Hypothesis predicts the observation before you run.** Write down what the
@@ -205,10 +267,12 @@ treat "never stops" as inconclusive, not refutation.
 
 ## Provenance and maintenance
 
-Facts verified: 2026-07-02, Neovim 0.12.3 (`NVIM v0.12.3`), macOS, headless
-probes with `--clean`; outputs quoted verbatim. Recipes 2 and 3 contradict or
-refine CLAUDE.md's recorded claims — flagged above; re-probe before editing
-either doc sentence.
+Facts verified: 2026-07-02 (recipes 1-6) and **2026-08-31 (recipe 7)**, Neovim
+0.12.3 (`NVIM v0.12.3`), macOS, headless probes with `--clean` / `-u NONE`;
+outputs quoted verbatim. Recipes 2 and 3 contradict or refine CLAUDE.md's
+recorded claims — flagged above; re-probe before editing either doc sentence.
+**Recipe 7 overturned a claim carried in ~18 files**: the "0.12 markdown
+treesitter bug" is a frozen-plugin API mismatch, not a Neovim defect.
 
 Re-verification one-liners:
 
@@ -217,3 +281,5 @@ Re-verification one-liners:
 - Fast-context doctrine intact in code: `grep -n 'FAST event' lua/core/ai-activity.lua`
 - Timer still pinned: `grep -n 'M._timer' lua/core/ai-activity.lua`
 - Winbar still baked per-window: `grep -n 'winbar(%d)' lua/core/ui-touch.lua`
+- Recipe 7's shim still in place: `grep -n 'ts-compat' lua/plugins/editor/nvim-treesitter.lua`
+- Recipe 7's API assumption still true: `make test-file FILE=tests/core/ts_compat_spec.lua`

@@ -55,7 +55,7 @@ the repo lives only at `~/.config/nvsinner`, prefix commands with
 | # | Symptom | Likely cause | Discriminating experiment | Fix / pointer |
 |---|---------|--------------|---------------------------|---------------|
 | 1 | A plugin never loads | New category folder missing its `{ import = … }` line in `init.lua` (import does NOT recurse); or lazy trigger (`event`/`cmd`/`keys`/`ft`) never fires | Headless plugin-list probe: is it even in the spec? | Add the import line / fix the trigger (§1) |
-| 2 | Neovim crashes opening a markdown file (`attempt to call method 'range'`) | 0.12.x markdown-treesitter bug; the 3-part workaround was removed or bypassed | Headless markdown-open probe: `ts-active` must be `false` | Restore the 3 workaround files (§2); full story: nvsinner-failure-archaeology |
+| 2 | `attempt to call method 'range'` from a markdown/HTML/bash buffer | The `core/ts-compat` shim is missing or ran before nvim-treesitter (its `add_directive` then overwrites it) | `make test-file FILE=tests/plugins/treesitter_predicates_spec.lua` | Ensure `config()` calls `require("core.ts-compat").apply()` AFTER `configs.setup{}`; story: FA-09 |
 | 3a | Terminal spinner frozen while agent works | Redraw path regressed to `:redrawstatus` (doesn't repaint winbar from inside a terminal), or the `M._timer` handle got GC'd | Check `tick()` in `lua/core/ai-activity.lua` uses `nvim__redraw{winbar=true,flush=true}` | §3; theory: neovim-internals-reference |
 | 3b | Terminal winbar renders empty | Expression reads `vim.g.statusline_winid` (never set during winbar eval) instead of the baked-in bufnr | `:lua print(vim.wo.winbar)` — must contain `winbar(<bufnr>)` | §3 |
 | 3c | Bar label invisible when terminal unfocused | `NvTermBarDim` has `fg == bg` | Inspect the highlight; fg must be `#7a7f8d`-ish, not the bg | §3 |
@@ -376,7 +376,7 @@ first (leaders before lazy). Revert every bisect edit when done.
 
 ## §9 Errors from hover/doc floats
 
-**Why things are the way they are:** the 0.12.x markdown-treesitter crash (§2)
+**Why things are the way they are:** the misdiagnosed "0.12.x markdown-treesitter crash" (§2, FA-09)
 also fires inside transient floats that highlight markdown. Three deliberate
 guards exist; an error from a hover float almost always means one was undone:
 

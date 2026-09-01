@@ -8,26 +8,15 @@
 -- scope — this is a reading aid, not a renderer.
 --
 -- Everything is plain Lua patterns over the visible lines (same shape as
--- core/colorizer.lua / core/todo.lua). It must NEVER drive the markdown
--- treesitter tree: parsing markdown crashes Neovim 0.12.x (node:range on a
--- nil node in the code-fence language-detection injection — the very bug that
--- forced the query patch below and keeps noice's LSP markdown paths off).
+-- core/colorizer.lua / core/todo.lua). That is a PERFORMANCE choice — a
+-- visible-range decorator, like its two siblings — and it stands on its own.
+-- It used to be justified by "parsing markdown crashes Neovim 0.12.x"; that
+-- diagnosis was wrong. The crash was nvim-treesitter's frozen master reading
+-- 0.12's list-valued `match[id]` as a single node, and it is fixed in
+-- lua/core/ts-compat.lua. Markdown treesitter is safe to parse again.
 --
 -- Indented-code and mixed ```/~~~ fence edge cases are not modeled: any fence
 -- delimiter line toggles the shaded-block state.
-
--- Patch the markdown injections query at STARTUP (core loads before lazy and
--- before any buffer, so no markdown LanguageTree — which caches its injection
--- query at construction — exists yet): keep only the inline injection, drop
--- the code-fence language directive that triggers the 0.12.x crash. Nothing
--- in this config parses the markdown TS tree anymore, so this is insurance
--- for future consumers; deletable once upstream fixes the nil-node crash.
-pcall(
-	vim.treesitter.query.set,
-	"markdown",
-	"injections",
-	'((inline) @injection.content (#set! injection.language "markdown_inline"))'
-)
 
 local M = {}
 
