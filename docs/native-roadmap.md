@@ -146,7 +146,7 @@ tidies them away.
 |---|---|
 | `nvim-treesitter` | the syntax engine; pinned `branch = "master"` (incident FA-24). Not replaceable. |
 | `mason` ×3 + `nvim-lspconfig` | distro infrastructure: server install + the server-config data set. The *API* is already native (`vim.lsp.config`/`enable`); lspconfig is used as data, not framework. |
-| `nvim-cmp` + LuaSnip | completion engines are deep (sorting, sources, snippet grammar). Watch Neovim's builtin completion/snippet work; re-evaluate when autotrigger lands stably. |
+| `nvim-cmp` + LuaSnip | completion engines are deep (sorting, sources, snippet grammar). **That watch is over**: 0.12 shipped `'autocomplete'` + `vim.lsp.completion`, so the stated trigger fired and the evaluation is recorded below. Verdict: **keep** — the builtin has no answer for friendly-snippets' 1522 snippets. |
 | `none-ls` + mason-tool-installer | formatter/linter orchestration depth (eslint_d condition, project detection). |
 | `tiny-inline-diagnostic` | native `virtual_lines = { current_line = true }` exists (0.11) but loses the rounded-bubble look that is part of the distro's face. Re-evaluate when native styling improves. |
 | `trouble` | list UX depth; only lists — `diagnostics.lua` owns the config. |
@@ -220,6 +220,72 @@ decision.
 **`'pumborder'`** was evaluated separately and also left unset: it styles the
 *builtin* popup menu, not nvim-cmp's floats, and `core/options.lua`'s
 `pumblend = 10` is a deliberate borderless "glass" look.
+
+## Completion — measured, and deferred with a concrete trigger (2026-09-01)
+
+`native-roadmap` kept nvim-cmp on the condition *"watch Neovim's builtin
+completion/snippet work; re-evaluate when autotrigger lands stably."* Neovim 0.12
+shipped `'autocomplete'` and `vim.lsp.completion`, so the trigger fired and this
+is that evaluation. Everything below was measured on this machine (0.12.3), not
+inferred.
+
+**What the builtin actually does — verified end to end in a real PTY.**
+`vim.lsp.completion.enable(true, id, buf, { autotrigger = true })` attaches,
+autotrigger fires on the server's own `triggerCharacters` (lua_ls advertises 19,
+including `.` and `:`), the popup opens, and its items are exactly what the
+server returned. Reading the runtime source confirms the rest: snippets expand
+through **`vim.snippet.expand`**, text edits and commands run on accept (so
+auto-import works), and a docs preview shows when `'completeopt'` contains
+`popup` — which is already the 0.12 default here.
+
+*Honest limit, stated because it looks like a failure and is not one:* in a
+sandbox the popup filled with `kind=Text` word completions. Asking lua_ls
+directly (`buf_request_sync` for `textDocument/completion`) returned **12 items,
+all `kind=Text`** — the server had no workspace context and said so. The builtin
+transmitted faithfully. Item quality is the server's job and is identical for
+either engine; this measurement says nothing against the builtin.
+
+**What the current stack costs.** The cmp chain loads on the first `InsertEnter`
+of a session: median **54.9 ms** (7 runs, warm cache; min 51.4, max 61.8), and
+**~130 ms cold**. Breakdown: nvim-cmp 29 · LuaSnip 16 · cmp_luasnip 9 ·
+cmp-nvim-lsp 1.5 · friendly-snippets ~0. The builtin costs zero — it is in the
+binary.
+
+**What migrating would GAIN.** Five plugins out. Buffer/path/tag sources via
+`'complete'` — which the current spec does **not** have (its only sources are
+`nvim_lsp` and `luasnip`). Fuzzy matching via `completeopt+=fuzzy`. The
+`cmp-nvim-lsp` capabilities hop disappears, un-coupling the LSP spec from the
+completion spec. `cmp.config.window.bordered()` disappears too, which retires one
+of the eight surfaces in the `'winborder'` analysis above. And because LSP
+snippets would run through `vim.snippet`, Neovim's builtin `<Tab>`/`<S-Tab>` jump
+maps would start working, making most of `completions.lua`'s explicit jump maps
+redundant (`tests/plugins/snippet_jump_spec.lua` asserts the condition that flips).
+
+**What migrating would LOSE, and why this is the verdict.**
+**friendly-snippets: 1522 snippets** across this repo's filetypes, counted after
+an eager load — typescriptreact 362, vue 357, javascript 209, css 156, html 135,
+yaml 80, markdown 71, python 67, lua 24. They are a VSCode snippet collection,
+not LSP items, so **nothing in the builtin serves them**. Roughly 1200 sit in the
+TS/Vue/web stack this config is used for daily. Accepting also moves from `<CR>`
+to `<C-y>`, which is muscle memory, not configuration.
+
+**Verdict: keep nvim-cmp.** Trading 1522 snippets and the accept key for five
+plugins and 55 ms once per session is a bad trade. That is a measured conclusion,
+not caution — the builtin is genuinely good, and if friendly-snippets were not in
+play this would be an easy migration.
+
+**The trigger for revisiting, stated concretely** so the next person is not left
+re-deriving it: *either* a builtin/native path serves a VSCode-format snippet
+collection, *or* the user stops relying on friendly-snippets (check with
+`#require("luasnip").get_snippets(ft)` after an eager load). Re-run the cost
+measurement then; the 55 ms is the whole upside.
+
+**On blink.cmp**, which LazyVim and AstroNvim both moved to: it keeps a snippets
+source, so it would not lose friendly-snippets, and it is faster than nvim-cmp.
+But it is a plugin swap, not a native-first move — it changes *whose* engine this
+distro ships, not whether it ships one. It only becomes interesting if nvim-cmp
+stops being maintained; it is a hobby project whose author has said fixes are not
+guaranteed. Watch, do not chase.
 
 ## Scoreboard
 
