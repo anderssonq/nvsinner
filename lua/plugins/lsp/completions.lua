@@ -38,5 +38,34 @@ return {
 				{ name = "luasnip" },
 			}),
 		})
+
+		-- ─── Snippet placeholder navigation ────────────────────────────────
+		-- Expanding a snippet without these is a trap: you land on the first
+		-- placeholder and cannot reach the second. Neovim 0.11+ ships default
+		-- <Tab>/<S-Tab> jump maps, but they drive `vim.snippet`, and the
+		-- `snippet.expand` above hands the body to LuaSnip — so
+		-- `vim.snippet.active()` is false, the builtin maps fall through, and
+		-- nothing else was bound. Verified on 0.12.3: after an expand,
+		-- `luasnip.jumpable(1)` is true while `vim.snippet.active()` is false.
+		--
+		-- Select mode matters as much as insert: a placeholder is SELECTED
+		-- after a jump, so `s` is the mode you are actually in when you press
+		-- <Tab> to move on.
+		--
+		-- Insert-mode <Tab> is deliberately absent here — it is arbitrated in
+		-- lua/core/ai-complete.lua, which already chains cmp and the AI ghost
+		-- and now the forward jump too. Mapping it here would silently replace
+		-- that chain and break ghost accept.
+		local ls = require("luasnip")
+		vim.keymap.set({ "i", "s" }, "<S-Tab>", function()
+			if ls.jumpable(-1) then
+				ls.jump(-1)
+			end
+		end, { silent = true, desc = "Snippet: previous placeholder" })
+		vim.keymap.set("s", "<Tab>", function()
+			if ls.jumpable(1) then
+				ls.jump(1)
+			end
+		end, { silent = true, desc = "Snippet: next placeholder" })
 	end,
 }

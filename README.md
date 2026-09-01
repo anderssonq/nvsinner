@@ -751,6 +751,7 @@ Ask-AI modal.
 | `<C-Y>` | n | Save file (with notification) |
 | `<C-U>` / `<C-R>` | n | Undo / redo (with notification) |
 | `<leader>u` | n | Undo-history browser (`:Undotree`, Neovim 0.12 builtin) — press again to close |
+| `<Tab>` / `<S-Tab>` | i, s | Jump to the next / previous snippet placeholder. Insert-mode `<Tab>` is shared: an open completion popup wins, then a pending AI ghost, then the snippet jump, then a literal Tab |
 | `<C-Up>` | n | Grow window height (+2) |
 | `<C-,>` / `<C-.>` | n, t | Grow / shrink window width (±20 columns) — also from inside a terminal (resize the AI column) |
 | `<C-;>` / `<C-'>` | n, t | Grow / shrink window height (±5 rows) — also from inside a terminal |
