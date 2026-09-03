@@ -139,9 +139,11 @@ full stories live in **nvsinner-failure-archaeology**.
 ### LSP & 0.12.x hazards
 
 11. **Never reintroduce `require("lspconfig").<server>.setup()`.** Deprecated;
-    this config uses the Neovim 0.11 native API only:
-    `vim.lsp.config("*", …)` + `vim.lsp.enable({ "ts_ls", "solargraph",
-    "html", "lua_ls" })` (verified in `lua/plugins/lsp/lsp-config.lua`).
+    this config uses the native API only: `vim.lsp.config("*", …)` plus
+    `vim.lsp.enable` (core includes the Vue 3 `vtsls` + `vue_ls` hybrid pair;
+    toolchain-gated servers are enabled individually after an executable
+    probe). Never enable `ts_ls` beside `vtsls` (verified in
+    `lua/plugins/lsp/lsp-config.lua`).
 12. **Do not enable noice's LSP hover/signature (markdown) paths.**
     `lua/plugins/ui/noice.lua` sets `hover = { enabled = false }` and
     `signature = { enabled = false }` because the markdown treesitter

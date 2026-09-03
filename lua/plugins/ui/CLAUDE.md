@@ -47,6 +47,9 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   with the terminal winbar so every window has a consistent top bar. Its
   `custom_section` appends the native file badge (focus dot · icon · filename ·
   modified dot) from `lua/core/filebadge.lua` at the right end.
+  Barbecue's own navic attacher is disabled; navic auto-attaches with
+  `vue_ls > vtsls` preference so the intentional two-client Vue stack does not
+  warn or let TypeScript-only symbols win for an SFC.
   **markdown is in `exclude_filetypes`** so it doesn't fight
   `core/filebadge.lua`'s markdown winbar (badge + "Open view" chip) for the
   same line.

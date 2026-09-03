@@ -120,7 +120,7 @@ any existing `~/.config/nvim` without touching it.
 | Neovim **0.12+** | bundled `nvim.undotree`, bundled treesitter parsers, built-in markdown highlighting |
 | `git` | lazy.nvim plugin fetch |
 | `ripgrep` | Telescope live grep |
-| `node` | `prettier` / `eslint_d` |
+| Node **20+** | JS/TS/Vue language servers, `prettier` / `eslint_d` |
 | A **Nerd Font** | icons (FiraCode Nerd Font is bundled in `fonts/`) |
 | `eslint_d`, `prettier`, `stylua`, `shfmt` | none-ls formatting/linting (auto-installed via Mason on first boot) |
 | an AI CLI, e.g. `claude` | AI terminal column (optional) |
@@ -195,12 +195,12 @@ NVIM_APPNAME=nvsinner nvim     # lazy.nvim bootstraps + installs on first launch
 > dirs, so it never collides with another Neovim setup — your existing
 > `~/.config/nvim` is untouched.
 
-LSP servers (`lua_ls`, `ts_ls`, `html`, `pyright`, `bashls`, `jsonls`,
-`yamlls`, `cssls`) and the formatting/linting tools (`stylua`, `prettier`,
-`eslint_d`, `shfmt`) auto-install via Mason on first launch — no
+LSP servers (`lua_ls`, `vtsls`, `vue_ls`, `html`, `pyright`, `bashls`,
+`jsonls`, `yamlls`, `cssls`) and the formatting/linting tools (`stylua`,
+`prettier`, `eslint_d`, `shfmt`) auto-install via Mason on first launch — no
 manual `:MasonInstall` or `npm i -g` needed. On the first interactive launch a
 one-time toast points at `:checkhealth nvsinner` if any external tool is
-missing. Verify anytime with `:Lazy` and `:checkhealth`.
+missing or incompatible. Verify anytime with `:Lazy` and `:checkhealth`.
 
 ## 🤖 The AI workflow
 
@@ -552,7 +552,7 @@ lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<l
 lua/core/agents.lua            Agent cockpit: every AI column + status + chat preview (:NvSinnerAgents, <leader>xa)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
-lua/core/health.lua            :checkhealth nvsinner + first-run missing-tools toast
+lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems toast
 lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
 lua/core/image-open.lua        Image files open in macOS Quick Look
 lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
@@ -651,6 +651,11 @@ spec; new files in an existing category are picked up automatically.
 | Click a tree row | mouse | Open the file / expand the folder — **one click**, not two (switch to stock double-click in `:NvSinnerMenu` → "Explorer click") |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
 | `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down |
+
+Search pickers adapt to the available space: results and a larger dark preview
+sit side by side on wide screens, then stack vertically on narrow screens. The
+editor behind preview-based searches is dimmed; small selection dropdowns are
+not.
 
 ### LSP & editing
 
@@ -1042,17 +1047,18 @@ nvim --headless -c "lua assert(loadfile('lua/core/options.lua'))" -c "qa"
 
 ## 🩺 Health check
 
-Missing external tools (ripgrep, node, stylua, prettier, eslint_d, a Nerd
-Font) make features silently no-op rather than error. To see what's present
-at a glance:
+Missing external tools (ripgrep, Node 20+, curl, stylua, prettier, eslint_d,
+shfmt, a Nerd Font) make features silently no-op rather than error. To see
+what's present — including the exact Node executable and whether its version
+can run the JS/TS/Vue servers — at a glance:
 
 ```vim
 :checkhealth nvsinner
 ```
 
-It lists each external with an install hint for anything missing. On the
-**first interactive launch** NvSinner also pops a one-time toast if
-something's missing, pointing you here — it never nags again.
+It lists each external with an install hint for anything missing or
+incompatible. On the **first interactive launch** NvSinner also pops a
+one-time toast if something is wrong, pointing you here — it never nags again.
 
 ## 🧹 Uninstalling
 

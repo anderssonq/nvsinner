@@ -1,0 +1,171 @@
+<div id="nvsinner-telescope-layouts">
+  <style>
+    #nvsinner-telescope-layouts {
+      display: grid;
+      gap: 20px;
+      color: #d0d0d0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    #nvsinner-telescope-layouts h3 {
+      margin: 0 0 8px;
+      color: #f2f2f2;
+      font-weight: 500;
+    }
+    #nvsinner-telescope-layouts .nvsinner-screen {
+      position: relative;
+      min-height: 292px;
+      overflow: hidden;
+      background: #161616;
+    }
+    #nvsinner-telescope-layouts .nvsinner-code {
+      padding: 18px;
+      color: #525252;
+      white-space: pre-wrap;
+    }
+    #nvsinner-telescope-layouts .nvsinner-dim {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.58);
+    }
+    #nvsinner-telescope-layouts .nvsinner-picker {
+      position: absolute;
+      inset: 24px 6%;
+      display: grid;
+      gap: 2px;
+    }
+    #nvsinner-telescope-layouts .nvsinner-wide {
+      grid-template-columns: minmax(180px, 0.42fr) minmax(260px, 0.58fr);
+      grid-template-rows: 38px 1fr;
+      grid-template-areas:
+        "prompt preview"
+        "results preview";
+    }
+    #nvsinner-telescope-layouts .nvsinner-narrow {
+      inset-inline: 17%;
+      grid-template-columns: 1fr;
+      grid-template-rows: 38px 0.72fr 1.28fr;
+      grid-template-areas:
+        "prompt"
+        "results"
+        "preview";
+    }
+    #nvsinner-telescope-layouts .nvsinner-prompt {
+      grid-area: prompt;
+      padding: 9px 12px;
+      background: #393939;
+      color: #f2f2f2;
+    }
+    #nvsinner-telescope-layouts .nvsinner-prompt::before {
+      content: "› ";
+      color: #78a9ff;
+    }
+    #nvsinner-telescope-layouts .nvsinner-results,
+    #nvsinner-telescope-layouts .nvsinner-preview {
+      position: relative;
+      padding: 22px 12px 10px;
+      overflow: hidden;
+    }
+    #nvsinner-telescope-layouts .nvsinner-results {
+      grid-area: results;
+      background: #131313;
+    }
+    #nvsinner-telescope-layouts .nvsinner-preview {
+      grid-area: preview;
+      background: #0d0d0d;
+    }
+    #nvsinner-telescope-layouts .nvsinner-title {
+      position: absolute;
+      top: 0;
+      left: 12px;
+      padding: 2px 9px;
+      background: #ff7eb6;
+      color: #161616;
+      font-weight: 500;
+    }
+    #nvsinner-telescope-layouts .nvsinner-preview .nvsinner-title {
+      background: #ee5396;
+    }
+    #nvsinner-telescope-layouts .nvsinner-row {
+      padding: 4px 6px;
+      white-space: nowrap;
+    }
+    #nvsinner-telescope-layouts .nvsinner-row:first-of-type {
+      background: #393939;
+    }
+    #nvsinner-telescope-layouts .nvsinner-line {
+      height: 8px;
+      margin: 8px 0;
+      background: #262626;
+    }
+    #nvsinner-telescope-layouts .nvsinner-line:nth-child(2n) {
+      width: 78%;
+    }
+    #nvsinner-telescope-layouts .nvsinner-line:nth-child(3n) {
+      width: 61%;
+      background: #393939;
+    }
+    @media (max-width: 540px) {
+      #nvsinner-telescope-layouts .nvsinner-screen {
+        min-height: 330px;
+      }
+      #nvsinner-telescope-layouts .nvsinner-picker,
+      #nvsinner-telescope-layouts .nvsinner-narrow {
+        inset: 18px 5%;
+        grid-template-columns: 1fr;
+        grid-template-rows: 38px 0.7fr 1.3fr;
+        grid-template-areas: "prompt" "results" "preview";
+      }
+    }
+  </style>
+
+  <section aria-label="Telescope adaptable en pantalla ancha">
+    <h3>Diseño adaptable · pantalla ancha</h3>
+    <div class="nvsinner-screen">
+      <div class="nvsinner-code">local telescope = require("telescope")
+function search_project()
+  return telescope.find_files()
+end</div>
+      <div class="nvsinner-dim"></div>
+      <div class="nvsinner-picker nvsinner-wide">
+        <div class="nvsinner-prompt">health</div>
+        <div class="nvsinner-results">
+          <span class="nvsinner-title">Resultados</span>
+          <div class="nvsinner-row">› lua/core/health.lua</div>
+          <div class="nvsinner-row">  tests/core/health_spec.lua</div>
+          <div class="nvsinner-row">  lua/nvsinner/health.lua</div>
+          <div class="nvsinner-row">  README.md</div>
+        </div>
+        <div class="nvsinner-preview">
+          <span class="nvsinner-title">Preview oscuro</span>
+          <div class="nvsinner-line"></div><div class="nvsinner-line"></div>
+          <div class="nvsinner-line"></div><div class="nvsinner-line"></div>
+          <div class="nvsinner-line"></div><div class="nvsinner-line"></div>
+          <div class="nvsinner-line"></div><div class="nvsinner-line"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-label="Telescope adaptable en pantalla angosta">
+    <h3>El mismo diseño · pantalla angosta</h3>
+    <div class="nvsinner-screen">
+      <div class="nvsinner-code">const project = "nvsinner"
+const query = "health"</div>
+      <div class="nvsinner-dim"></div>
+      <div class="nvsinner-picker nvsinner-narrow">
+        <div class="nvsinner-prompt">health</div>
+        <div class="nvsinner-results">
+          <span class="nvsinner-title">Resultados</span>
+          <div class="nvsinner-row">› lua/core/health.lua</div>
+          <div class="nvsinner-row">  tests/core/health_spec.lua</div>
+        </div>
+        <div class="nvsinner-preview">
+          <span class="nvsinner-title">Preview oscuro</span>
+          <div class="nvsinner-line"></div><div class="nvsinner-line"></div>
+          <div class="nvsinner-line"></div><div class="nvsinner-line"></div>
+          <div class="nvsinner-line"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

@@ -77,7 +77,7 @@ value (FA-25). It is the only core option a user can retune at runtime —
 | hover float caps | width ≤ 80, height ≤ 18 | `lua/core/ui-touch.lua` (`open_float`) | doc float size |
 | first-run toast defer | 800 ms after `User VeryLazy` | `lua/core/health.lua` (`M.setup`) | wait for nvim-notify |
 | first-run marker | `stdpath("state") .. "/nvsinner-health-checked"` | `lua/core/health.lua` | greet-once file |
-| `M.tools` | ripgrep(`rg`), node, stylua, prettier, eslint_d | `lua/core/health.lua` | probed externals (Nerd Font is info-only, not in this table) |
+| `M.tools` | ripgrep(`rg`), Node 20+, curl, stylua, prettier, eslint_d, shfmt | `lua/core/health.lua` | probed externals (Node includes minimum-version + executable-path reporting; Nerd Font is info-only, not in this table) |
 | updater title | `"🔥 NvSinner"` | `lua/core/update.lua` | toast title |
 
 > ⚠️ **Known doc drift (2026-07-02):** CLAUDE.md's Auto-reload section says the
@@ -193,8 +193,8 @@ inline justification).
 
 | Axis | Value | File |
 |---|---|---|
-| Mason auto-install | `ensure_installed = {lua_ls, ts_ls, html}`, `automatic_enable = false` | `lua/plugins/lsp/lsp-config.lua` |
-| enabled servers | `vim.lsp.enable`: ts_ls, solargraph, html, lua_ls (solargraph NOT ensure_installed — needs Ruby; harmless if absent) | `lua/plugins/lsp/lsp-config.lua` |
+| Mason auto-install | `ensure_installed` includes `vtsls` + `vue_ls` and the core Lua/web/data servers; `automatic_enable = false` | `lua/plugins/lsp/lsp-config.lua` |
+| enabled servers | Core uses the Vue 3 `vtsls` + `vue_ls` hybrid stack (never `ts_ls` beside it); solargraph/gopls/rust_analyzer are enabled only when executable | `lua/plugins/lsp/lsp-config.lua` |
 | semantic tokens | nilled in `"*"` `on_attach` (`semanticTokensProvider = nil`) — treesitter is the only syntax-color source | `lua/plugins/lsp/lsp-config.lua` |
 | none-ls sources | stylua, prettier, eslint_d (eslint_d via none-ls-extras; binary must be on PATH) | `lua/plugins/lsp/none-ls.lua` |
 | diagnostics UI owner | `lua/plugins/lsp/diagnostics.lua` owns `vim.diagnostic.config` (`virtual_text = false`, rounded floats, sign icons) — keep diagnostic UI config there |

@@ -42,10 +42,69 @@ return {
 		-- this lazy load via the :Telescope command stub.
 	},
 	config = function()
+		-- Telescope is three floats, not one modal window. Once its windows exist,
+		-- find the preview by its public highlight mapping and put NvSinner's
+		-- shared backdrop below it. Pickers without a preview (notably ui-select's
+		-- dropdown) never match, so nested selectors are not dimmed twice.
+		local function attach_preview_backdrop()
+			for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+				if vim.api.nvim_win_is_valid(win) then
+					local winhl = vim.wo[win].winhighlight
+					if winhl:find("TelescopePreviewNormal", 1, true) then
+						local existing = vim.w[win].nvsinner_telescope_backdrop
+						if type(existing) == "number" and vim.api.nvim_win_is_valid(existing) then
+							return
+						end
+						local backdrop = require("core.backdrop").attach(win)
+						if backdrop then
+							vim.w[win].nvsinner_telescope_backdrop = backdrop
+						end
+						return
+					end
+				end
+			end
+		end
+
+		vim.api.nvim_create_autocmd("User", {
+			group = vim.api.nvim_create_augroup("nv_telescope_backdrop", { clear = true }),
+			pattern = { "TelescopeFindPre", "TelescopePreviewerLoaded" },
+			callback = function(ev)
+				-- FindPre fires before Telescope creates its floats; defer that path.
+				-- PreviewerLoaded also covers a preview recreated after a resize.
+				if ev.match == "TelescopeFindPre" then
+					vim.schedule(attach_preview_backdrop)
+				else
+					attach_preview_backdrop()
+				end
+			end,
+		})
+
 		require("telescope").setup({
 			defaults = {
 				-- Never surface git internals even when searching hidden files below.
 				file_ignore_patterns = { "^%.git/" },
+				-- One search surface, two shapes: wide screens keep results beside a
+				-- larger preview; narrow screens stack them. Best matches stay near
+				-- the prompt at the top in both arrangements.
+				sorting_strategy = "ascending",
+				layout_strategy = "flex",
+				layout_config = {
+					horizontal = {
+						width = 0.92,
+						height = 0.86,
+						prompt_position = "top",
+						preview_width = 0.58,
+						preview_cutoff = 1,
+					},
+					vertical = {
+						width = 0.92,
+						height = 0.90,
+						mirror = true,
+						prompt_position = "top",
+						preview_height = 0.58,
+						preview_cutoff = 20,
+					},
+				},
 			},
 			pickers = {
 				-- <leader>f finds hidden dotfiles too (rg --hidden). .git/ is still

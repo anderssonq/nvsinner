@@ -26,8 +26,10 @@ M.tools = {
 	{
 		name = "node",
 		cmd = "node",
-		used_by = "prettier / eslint_d runtime",
-		install = "brew install node  (or your distro's nodejs)",
+		used_by = "JS/TS/Vue LSPs and prettier / eslint_d runtime",
+		install = "install Node 20+ with brew, nvm, or your distro's nodejs package",
+		minimum_major = 20,
+		show_path = true,
 	},
 	{
 		name = "curl",
@@ -64,9 +66,19 @@ M.tools = {
 	},
 }
 
--- Probe each tool with vim.fn.executable (fast, no subprocess). `with_version`
--- shells out for a version string — fine for :checkhealth, skipped for the
--- startup toast where we only care present/absent.
+-- Test seam around the only subprocess used by tool probing.
+function M._run_version(cmd)
+	local out = vim.fn.system({ cmd, "--version" })
+	return out, vim.v.shell_error
+end
+
+local function version_major(version)
+	return version and tonumber(version:match("^v?(%d+)")) or nil
+end
+
+-- Probe each tool with vim.fn.executable. `with_version` shows versions for the
+-- full report; tools with a minimum version are always queried so the one-time
+-- startup check catches an executable that exists but cannot run its clients.
 ---@param opts? { with_version?: boolean }
 function M.check_tools(opts)
 	opts = opts or {}
@@ -74,12 +86,14 @@ function M.check_tools(opts)
 	for _, t in ipairs(M.tools) do
 		local found = vim.fn.executable(t.cmd) == 1
 		local version
-		if found and opts.with_version then
-			local out = vim.fn.system({ t.cmd, "--version" })
-			if vim.v.shell_error == 0 then
+		if found and (opts.with_version or t.minimum_major) then
+			local out, exit_code = M._run_version(t.cmd)
+			if exit_code == 0 then
 				version = vim.trim((out or ""):gsub("\n.*$", "")) -- first line only
 			end
 		end
+		local major = version_major(version)
+		local compatible = t.minimum_major == nil or (major ~= nil and major >= t.minimum_major)
 		results[#results + 1] = {
 			name = t.name,
 			cmd = t.cmd,
@@ -87,6 +101,10 @@ function M.check_tools(opts)
 			install = t.install,
 			found = found,
 			version = version,
+			path = found and vim.fn.exepath(t.cmd) or nil,
+			minimum_major = t.minimum_major,
+			compatible = compatible,
+			show_path = t.show_path,
 		}
 	end
 	return results
@@ -108,10 +126,25 @@ function M.report()
 
 	h.start("NvSinner · external tools")
 	for _, r in ipairs(M.check_tools({ with_version = true })) do
-		if r.found then
-			h.ok(("%s%s — %s"):format(r.name, r.version and (" " .. r.version) or "", r.used_by))
-		else
+		if not r.found then
 			h.warn(("%s not found — %s"):format(r.name, r.used_by), { "Install: " .. r.install })
+		elseif not r.compatible then
+			h.error(
+				("%s %s is incompatible — %s requires version %d+"):format(
+					r.name,
+					r.version or "(version unknown)",
+					r.used_by,
+					r.minimum_major
+				),
+				{
+					"Executable: " .. (r.path or r.cmd),
+					"Install: " .. r.install,
+					"Restart Neovim after changing PATH.",
+				}
+			)
+		else
+			local path = r.show_path and r.path and (" (" .. r.path .. ")") or ""
+			h.ok(("%s%s%s — %s"):format(r.name, r.version and (" " .. r.version) or "", path, r.used_by))
 		end
 	end
 
@@ -135,9 +168,10 @@ local function mark_seen(path)
 	end
 end
 
--- One-time, first-interactive-launch nudge: if any external is missing, point
+-- One-time, first-interactive-launch nudge: if any external is missing or
+-- incompatible, point
 -- the user at :checkhealth nvsinner. Greets once regardless (writes the marker
--- even when nothing's missing) so it never nags on later launches. The Nerd Font
+-- even when everything is healthy) so it never nags on later launches. The Nerd Font
 -- is intentionally NOT counted — it can't be detected from here.
 ---@param opts? { marker?: string } test seam: override the marker path.
 function M.first_run_notify(opts)
@@ -147,24 +181,26 @@ function M.first_run_notify(opts)
 		return
 	end
 
-	local missing = {}
+	local issues = {}
 	for _, r in ipairs(M.check_tools()) do
 		if not r.found then
-			missing[#missing + 1] = r.name
+			issues[#issues + 1] = r.name .. " missing"
+		elseif not r.compatible then
+			issues[#issues + 1] = ("%s %s (need %d+)"):format(r.name, r.version or "version unknown", r.minimum_major)
 		end
 	end
 
 	mark_seen(marker) -- greet once regardless of the outcome
 
-	if #missing == 0 then
+	if #issues == 0 then
 		return
 	end
 
 	vim.notify(
-		("%d optional tool%s missing: %s.\nRun  :checkhealth nvsinner  for install hints."):format(
-			#missing,
-			#missing == 1 and "" or "s",
-			table.concat(missing, ", ")
+		("%d tool problem%s: %s.\nRun  :checkhealth nvsinner  for details."):format(
+			#issues,
+			#issues == 1 and "" or "s",
+			table.concat(issues, ", ")
 		),
 		vim.log.levels.WARN,
 		{ title = TITLE }

@@ -14,7 +14,7 @@ the whole flow (clone → launcher → plugin bootstrap).
 
 ```bash
 # macOS (Homebrew). Linux: swap brew for apt/dnf/pacman + cargo/npm equivalents.
-brew install neovim ripgrep node   # neovim MUST be >= 0.12
+brew install neovim ripgrep node   # Neovim >= 0.12; Node >= 20
 ```
 
 The formatting/linting binaries (`stylua`, `prettier`, `eslint_d`, `shfmt`)
@@ -54,11 +54,13 @@ opt-in `:NvSinnerSync` path — never an install step.
 
 ## 4. LSP servers via Mason (automatic)
 
-`mason-lspconfig` auto-installs `lua_ls`, `ts_ls`, `html`, `pyright`, `bashls`,
-`jsonls`, `yamlls`, and `cssls` on first launch (`ensure_installed` in
-`lsp-config.lua`) — no manual step needed. The toolchain-gated servers are
-optional manual installs: `solargraph` (Ruby), `gopls` (Go), `rust_analyzer`
-(Rust) — they are already enabled and light up once installed:
+`mason-lspconfig` auto-installs `lua_ls`, `vtsls`, `vue_ls`, `html`, `pyright`,
+`bashls`, `jsonls`, `yamlls`, and `cssls` on first launch (`ensure_installed`
+in `lsp-config.lua`) — no manual step needed. `vtsls` and `vue_ls` form the Vue
+3 hybrid stack; `ts_ls` is intentionally absent so two TypeScript clients never
+attach to the same buffer. The toolchain-gated servers are optional manual
+installs: `solargraph` (Ruby), `gopls` (Go), `rust_analyzer` (Rust). NvSinner
+only enables each one when its executable is available; restart after installing:
 
 ```bash
 # Optional (each needs its language toolchain):
@@ -103,16 +105,18 @@ Then open `nvim` and run `:Lazy` / `:Mason` to confirm everything installed.
 Neovim **0.12+** (hard requirement — bundled packages, bundled treesitter
 parsers and the 0.12 query API; `install.sh` gates on it and
 `:checkhealth nvsinner` re-checks it),
-`git`, `ripgrep` (live grep), `node` (for `prettier` / `eslint_d`), a Nerd
-Font, and for linting/formatting: `stylua`, `prettier`, `eslint_d`, `shfmt`
+`git`, `ripgrep` (live grep), Node **20+** (JS/TS/Vue LSPs plus `prettier` /
+`eslint_d`), a Nerd Font, and for linting/formatting: `stylua`, `prettier`,
+`eslint_d`, `shfmt`
 (auto-installed via Mason on first boot — see
 `lua/plugins/lsp/mason-tools.lua`). For AI, install a CLI agent such as Claude
 Code (`claude`).
 
 ## Install / uninstall scripts — `install.sh`, `uninstall.sh`
 
-- `install.sh`: clone-or-update → `nvsinner` launcher (`~/.local/bin`) → headless
-  `Lazy! restore`. If `~/.local/bin` isn't on PATH it **prints** the exact
+- `install.sh`: hard-gates git, Neovim 0.12+, and Node 20+, then
+  clone-or-update → `nvsinner` launcher (`~/.local/bin`) → headless `Lazy!
+  restore`. If `~/.local/bin` isn't on PATH it **prints** the exact
   `export PATH` line (naming the likely rc: `.zshrc` / `.bash_profile` on macOS /
   `.bashrc` on Linux / fish's `config.fish` with `fish_add_path`) — it never
   edits the user's shell files.

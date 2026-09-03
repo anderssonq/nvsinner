@@ -66,6 +66,11 @@
 - `telescope.lua` — `<leader>f` find files (incl. hidden dotfiles),
   `<leader>sf` live grep, `<leader>fb` buffers, plus the `<leader>s*` pickers
   (diagnostics / keymaps / commands / resume / help / symbols / references).
+  Search pickers use `layout_strategy = "flex"`: horizontal at 100+ columns
+  (42% results / 58% preview), vertical below that, with the prompt and best
+  matches at the top in both shapes. Results stay on the solid `blend` surface
+  and preview on darker `shade`, even in transparent mode. Pickers with a real
+  preview get `core.backdrop`; preview-less pickers do not.
   telescope-ui-select skins `vim.ui.select` (used by the `<leader>ja`/`jc`
   AI session pickers). The spec's `init` shims `vim.ui.select` so the FIRST
   call of a session lazy-loads telescope and re-dispatches — without it, a

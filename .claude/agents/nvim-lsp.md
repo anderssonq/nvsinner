@@ -14,9 +14,10 @@ per-file contracts and load-bearing warnings for this directory.
 ## Files & their jobs
 - `lsp-config.lua` — `mason` + `mason-lspconfig`, then the Neovim 0.11 native API:
   `vim.lsp.config("*", { capabilities })` + `vim.lsp.enable({...})`. Servers:
-  `ts_ls`, `solargraph`, `html`, `lua_ls`. **Do NOT reintroduce
+  `vtsls` + `vue_ls` for Vue 3, plus the general web/core servers; Ruby/Go/Rust
+  servers are enabled only when executable. **Do NOT reintroduce
   `require("lspconfig").<server>.setup()`** (deprecated). mason-lspconfig
-  auto-installs `lua_ls` and `ts_ls`.
+  auto-installs both Vue servers. Never enable `ts_ls` beside `vtsls`.
 - `completions.lua` — `nvim-cmp` + LuaSnip. `<C-Space>` triggers completion.
 - `none-ls.lua` — `none-ls` + `none-ls-extras`; sources: `stylua`, `prettier`,
   `eslint_d` (eslint_d comes from none-ls-extras and needs the binary on PATH).

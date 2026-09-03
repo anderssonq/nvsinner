@@ -51,7 +51,7 @@ lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, mo
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/version.lua         Version state: current/display access + once-per-session async remote check against raw main (dashboard footer update prompt, :NvSinnerHelp title) (native)
-lua/core/health.lua          Missing-externals detection: :checkhealth nvsinner + one-time first-run toast (native)
+lua/core/health.lua          Missing/incompatible-tool detection: :checkhealth nvsinner + one-time first-run toast (native)
 lua/core/image-open.lua      Open image files in macOS Quick Look + metadata placeholder (native)
 lua/core/git-blame.lua       Inline git blame for the cursor line, async porcelain → eol virt_text (native, replaces git-blame.nvim)
 lua/core/illuminate.lua      Symbol-occurrence underline: LSP document_highlight + visible-range fallback (native, replaces vim-illuminate)

@@ -263,7 +263,7 @@ is why: the distro composes prompts, you decide when they run.
 | A theme | A palette table in `carbon.lua` + an entry in `M.themes` and `M.theme_names` | Fill the **entire** role-key set; a missing role is a nil highlight, not a fallback. |
 | An accent / folder / slot pack | The matching table in `carbon.lua` | Override only the roles that pack owns. |
 | A prompt | `settings/prompts.json` (committed) | Shipped library, user-editable, surfaced by `:NvSinnerPrompts`. |
-| An LSP server | `ensure_installed` and `vim.lsp.enable({…})` in `lsp-config.lua` | A server needing an external toolchain (`gopls`, `rust_analyzer`, `solargraph`) is enabled but **not** auto-installed — harmless when absent. |
+| An LSP server | `ensure_installed` and `vim.lsp.enable({…})` in `lsp-config.lua` | Core servers auto-install; a server needing an external toolchain (`gopls`, `rust_analyzer`, `solargraph`) must be executable before NvSinner enables it. Vue uses the paired `vtsls` + `vue_ls` hybrid stack. |
 | A spec | `tests/<area>/<name>_spec.lua` | See [CONTRIBUTING](CONTRIBUTING.md#tests). |
 
 ### Conventions a new core module follows
