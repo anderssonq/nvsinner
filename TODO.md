@@ -102,7 +102,8 @@ each with its rationale.
       ship pinned, `restore` on install/update, `:Lazy sync` to float on latest).
 - [x] `NVIM_APPNAME=nvsinner` launcher (`bin/nvsinner`) + dev symlink.
 - [x] `install.sh` (clone → launcher → `Lazy! sync`).
-- [x] First-boot Mason auto-install of LSP servers (lua_ls, ts_ls, html).
+- [x] First-boot Mason auto-install of LSP servers (including the Vue 3
+      `vtsls` + `vue_ls` hybrid stack).
 - [x] NvSinner branding (dashboard + README).
 - [x] Separate repo (`anderssonq/nvsinner`), split out of the personal dotfile
       repo with a fresh history.

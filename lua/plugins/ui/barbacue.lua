@@ -12,6 +12,16 @@ return {
 		"nvim-tree/nvim-web-devicons",
 	},
 	config = function()
+		-- Vue SFCs intentionally have two document-symbol-capable clients. Let
+		-- navic arbitrate them and prefer vue_ls, which understands the whole SFC,
+		-- while vtsls remains the only candidate in plain JS/TS buffers.
+		require("nvim-navic").setup({
+			lsp = {
+				auto_attach = true,
+				preference = { "vue_ls", "vtsls" },
+			},
+		})
+
 		-- Applied with FRESH carbon roles (single source: lua/core/carbon.lua)
 		-- and re-run on ColorScheme, so a live dark↔light / accent switch
 		-- (:NvSinnerMenu) recolors the breadcrumbs too.
@@ -24,6 +34,9 @@ return {
 			local CONTEXT = c.base09 -- identity accent for LSP symbol icons
 
 			require("barbecue").setup({
+				-- nvim-navic owns attachment so Vue's two LSP clients can be
+				-- resolved with the explicit preference above.
+				attach_navic = false,
 				-- markdown's winbar is owned by the native file badge + "Open view"
 				-- chip (core/filebadge.lua + render-markdown.lua) — keep barbecue's
 				-- breadcrumb off it so the two don't fight over the same line.

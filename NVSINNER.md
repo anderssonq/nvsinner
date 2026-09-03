@@ -29,9 +29,10 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
 ## What's missing to make it a distributable product (not just a dotfile)
 
 1. ✅ **Auto-install LSP servers from Mason on first boot.**
-   Done — `lsp-config.lua` carries `ensure_installed = { "lua_ls", "ts_ls",
-   "html" }` (`mason-lspconfig`, `event = "VeryLazy"`, depends on `mason.nvim`,
-   `automatic_enable = false`). No manual `:MasonInstall` for the core servers.
+   Done — `lsp-config.lua` auto-installs the core servers, including the Vue 3
+   hybrid pair (`vtsls` + `vue_ls`), through `mason-lspconfig` (`event =
+   "VeryLazy"`, depends on `mason.nvim`, `automatic_enable = false`). No manual
+   `:MasonInstall` for the core servers.
 2. ✅ **Branding.** Dashboard logo + footer already spell "NvSinner"
    ([dashboard.lua](lua/plugins/ui/dashboard.lua)); [README.md](README.md) title
    and intro now read "NvSinner" too.
@@ -70,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v2.0.0).** The
+10. ✅ **Versioned releases + update check (v1.0.0, current v3.0.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "1.9.1"`) — and [lua/core/version.lua](lua/core/version.lua)
+    (`version = "3.0.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v2.0.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.0.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -154,7 +155,15 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     for months did not survive being measured — the startup number's
     methodology, the "dead" lockfile entries (they are the tombstone revert
     path), the "stale" pins (most were at their latest tag), and the crash
-    narrative itself.
+    narrative itself. **v3.0.0** makes Node 20+ an explicit installation floor
+    and replaces `ts_ls` with the Vue 3 hybrid pair: `vtsls` owns TypeScript
+    while `vue_ls` owns SFC regions, with a portable Mason plugin path and no
+    duplicate TypeScript client. `:checkhealth nvsinner` now reports the exact
+    Node executable and rejects incompatible versions; optional Ruby, Go and
+    Rust servers only enable when their toolchain exists, avoiding repeated LSP
+    log noise. Telescope becomes a solid adaptive search surface: results and a
+    larger dark preview sit side by side on wide screens, stack vertically on
+    narrow screens, and dim the editor only for preview-based pickers.
 
 ## Status
 

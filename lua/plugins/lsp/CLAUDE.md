@@ -26,12 +26,16 @@
   snippet_jump_spec.lua` asserts `vim.snippet.active()` is false and will flip.
 - `lsp-config.lua` — `mason` + `mason-lspconfig`, then the **Neovim 0.11
   native API**: `vim.lsp.config("*", { capabilities })` +
-  `vim.lsp.enable({...})`. Enabled servers: `ts_ls`, `solargraph`, `html`,
-  `lua_ls`, `pyright`, `gopls`, `rust_analyzer`, `bashls`, `jsonls`, `yamlls`,
-  `cssls`. Do **not** reintroduce `require("lspconfig").<server>.setup()`
-  (deprecated).
-  - `mason-lspconfig` carries `ensure_installed = { "lua_ls", "ts_ls", "html",
-    "pyright", "bashls", "jsonls", "yamlls", "cssls" }` — all node-standalone,
+  `vim.lsp.enable({...})`. Core servers: `vtsls`, `vue_ls`, `html`, `lua_ls`,
+  `pyright`, `bashls`, `jsonls`, `yamlls`, `cssls`; `solargraph`, `gopls`, and
+  `rust_analyzer` are executable-gated optional servers. Do **not** reintroduce
+  `require("lspconfig").<server>.setup()` (deprecated).
+  - Vue 3 uses language-tools hybrid mode: `vue_ls` owns HTML/CSS in the SFC;
+    `vtsls`, configured with Mason's `@vue/typescript-plugin`, owns JS/TS and
+    includes the `vue` filetype. Never enable `ts_ls` beside `vtsls` — that
+    duplicates the TypeScript client.
+  - `mason-lspconfig` carries `ensure_installed = { "lua_ls", "vtsls",
+    "vue_ls", "html", "pyright", "bashls", "jsonls", "yamlls", "cssls" }`,
     so a fresh NvSinner install auto-installs them on first boot (it's
     `event = "VeryLazy"` + depends on `mason.nvim` so the install fires even
     on the dashboard). `automatic_enable = false` on purpose: **we** enable
@@ -39,9 +43,9 @@
     mason-lspconfig could start a server before `on_attach` nils semantic
     tokens (below) and the `@lsp.*` repaint would come back. The
     toolchain-gated servers — solargraph (Ruby), gopls (Go), rust_analyzer
-    (Rust) — are left out of `ensure_installed` but stay in `vim.lsp.enable`
-    (harmless if not installed; they light up once the toolchain + server
-    exist).
+    (Rust) — are left out of `ensure_installed` and enabled individually only
+    when `vim.fn.executable` sees their command. Installing one requires a
+    restart before it becomes active.
   - **LSP keymaps are global on purpose** (not LspAttach/buffer-local): the
     `vim.lsp.buf.*` calls no-op safely without a client and global maps keep
     which-key listings stable. `<leader>rn` = rename. The Neovim 0.11

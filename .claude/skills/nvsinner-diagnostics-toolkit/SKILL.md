@@ -97,11 +97,12 @@ ignore.
 
 - `:checkhealth nvsinner` (interactive) — provider `lua/nvsinner/health.lua`
   delegates to `lua/core/health.lua:report()`. Sections: Neovim version
-  (error if < 0.12), each external tool as ok-with-version or warn-with-install-
-  hint (ripgrep, node, stylua, prettier, eslint_d), Nerd Font as info-only.
+  (error if < 0.12), each external tool as ok-with-version or warn/error with an
+  install hint (ripgrep, Node 20+, curl, stylua, prettier, eslint_d, shfmt).
+  Node also reports its exact executable path. Nerd Font is info-only.
 - Headless capture of everything:
   `nvim --headless "+checkhealth" "+w! /tmp/health.txt" +qa` then read the file.
-- Quick binary presence without Neovim: `for t in rg node stylua prettier eslint_d; do command -v $t >/dev/null && echo "OK $t" || echo "MISS $t"; done`
+- Quick binary presence without Neovim: `for t in rg node curl stylua prettier eslint_d shfmt; do command -v $t >/dev/null && echo "OK $t" || echo "MISS $t"; done`; then `node --version` (must be 20+) and, inside Neovim, `:lua print(vim.fn.exepath("node"))`.
 
 ## 6. Runtime state probes (one-liners)
 

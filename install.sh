@@ -22,12 +22,17 @@ warn() { printf '\033[33m! %s\033[0m\n' "$1"; }
 
 command -v git  >/dev/null || { warn "git is required"; exit 1; }
 command -v nvim >/dev/null || { warn "neovim (>= 0.12) is required"; exit 1; }
+command -v node >/dev/null || { warn "node (>= 20) is required for the JS/TS/Vue language servers"; exit 1; }
 # Real version gate, not just a presence check: NvSinner's floor is Neovim 0.12
 # (bundled nvim.undotree, bundled treesitter parsers), and a 0.11 install
 # must fail HERE rather than at first boot. Ask the interpreter instead of
 # parsing `nvim --version` in shell.
 nvim --headless -c 'if has("nvim-0.12") | qa | else | cq | endif' >/dev/null 2>&1 \
   || { warn "neovim >= 0.12 is required; found: $(nvim --version | head -1)"; exit 1; }
+# Ask Node itself for the major version. The language servers are launched via
+# `/usr/bin/env node`, so the PATH visible here is the one the launcher inherits.
+node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 20 ? 0 : 1)' \
+  || { warn "node >= 20 is required; found: $(node --version 2>&1) at $(command -v node)"; exit 1; }
 
 # 1. Config dir ---------------------------------------------------------------
 # Re-running the one-liner UPDATES an existing NvSinner clone (git pull) instead
@@ -90,5 +95,5 @@ ok "Plugins installed"
 
 printf '\n'
 ok "NvSinner is ready — launch it with:  nvsinner"
-info "First launch also auto-installs 8 LSP servers (lua_ls, ts_ls, html, pyright, bashls, jsonls, yamlls, cssls) and 4 formatters/linters (stylua, prettier, eslint_d, shfmt) via Mason."
+info "First launch also auto-installs 9 LSP servers (lua_ls, vtsls, vue_ls, html, pyright, bashls, jsonls, yamlls, cssls) and 4 formatters/linters (stylua, prettier, eslint_d, shfmt) via Mason."
 info "Update later with  :NvSinnerUpdate  (or re-run this installer)."

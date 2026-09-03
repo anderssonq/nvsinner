@@ -17,11 +17,23 @@ return {
 		config = function()
 			require("mason-lspconfig").setup({
 				-- First-boot auto-install (the distro should need no manual
-				-- :MasonInstall). Everything here installs standalone via node —
-				-- no extra toolchain needed. solargraph (Ruby), gopls (Go) and
-				-- rust_analyzer (Rust) are intentionally omitted: they need their
-				-- language toolchains; install by hand only if you edit those.
-				ensure_installed = { "lua_ls", "ts_ls", "html", "pyright", "bashls", "jsonls", "yamlls", "cssls" },
+				-- :MasonInstall). Mason manages everything here without an external
+				-- language toolchain; the JS-based servers require Node 20+. vtsls
+				-- + vue_ls work together for Vue SFCs; do not also enable ts_ls or
+				-- two TypeScript clients attach.
+				-- solargraph (Ruby), gopls (Go) and rust_analyzer (Rust) are
+				-- intentionally omitted: install them only with their toolchains.
+				ensure_installed = {
+					"lua_ls",
+					"vtsls",
+					"vue_ls",
+					"html",
+					"pyright",
+					"bashls",
+					"jsonls",
+					"yamlls",
+					"cssls",
+				},
 				-- We enable + configure servers ourselves via the native vim.lsp
 				-- API in nvim-lspconfig's config (the "*" config nils semantic
 				-- tokens to keep Treesitter as the single colour source). Don't let
@@ -43,11 +55,9 @@ return {
 		config = function()
 			local capabilities = require("cmp_nvim_lsp").default_capabilities()
 
-			-- Neovim 0.11 native LSP API. Replaces the deprecated
-			-- require("lspconfig").<server>.setup({}) calls and also fixes the
-			-- previous typo (ts_lsp -> ts_ls). Per-server base configs come from
-			-- nvim-lspconfig's bundled lsp/*.lua files; we just layer cmp
-			-- capabilities onto all of them and enable the ones we want.
+			-- Native LSP API. Per-server base configs come from nvim-lspconfig's
+			-- bundled lsp/*.lua files; we layer cmp capabilities onto all of them
+			-- and enable the ones we want.
 			vim.lsp.config("*", {
 				capabilities = capabilities,
 				-- Keep Treesitter as the SINGLE source of syntax colour. Without
@@ -59,23 +69,64 @@ return {
 					client.server_capabilities.semanticTokensProvider = nil
 				end,
 			})
-			-- Enabling a server whose binary is absent is harmless (it just never
-			-- starts), so the toolchain-gated servers (solargraph, gopls,
-			-- rust_analyzer) stay enabled here even though ensure_installed above
-			-- skips them: install the toolchain + server and they light up.
+
+			-- Vue 3 language-tools uses hybrid mode: vue_ls owns the SFC's
+			-- HTML/CSS regions while vtsls, extended with the Vue TypeScript
+			-- plugin, owns JavaScript/TypeScript in the same buffer. Mason ships
+			-- the plugin inside vue-language-server, so this path is portable
+			-- across NVIM_APPNAMEs and operating systems.
+			local vue_language_server_path = vim.fs.joinpath(
+				vim.fn.stdpath("data"),
+				"mason",
+				"packages",
+				"vue-language-server",
+				"node_modules",
+				"@vue",
+				"language-server"
+			)
+			vim.lsp.config("vtsls", {
+				settings = {
+					vtsls = {
+						tsserver = {
+							globalPlugins = {
+								{
+									name = "@vue/typescript-plugin",
+									location = vue_language_server_path,
+									languages = { "vue" },
+									configNamespace = "typescript",
+								},
+							},
+						},
+					},
+				},
+				filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact", "vue" },
+			})
+
 			vim.lsp.enable({
-				"ts_ls",
-				"solargraph",
+				"vtsls",
+				"vue_ls",
 				"html",
 				"lua_ls",
 				"pyright",
-				"gopls",
-				"rust_analyzer",
 				"bashls",
 				"jsonls",
 				"yamlls",
 				"cssls",
 			})
+
+			-- These servers require language-specific toolchains and are not
+			-- Mason-managed by default. Native vim.lsp.enable() validates `cmd`
+			-- eagerly, so enabling an absent binary floods lsp.log on every file.
+			-- Probe first; installing one later makes it available next launch.
+			for _, optional in ipairs({
+				{ server = "solargraph", binary = "solargraph" },
+				{ server = "gopls", binary = "gopls" },
+				{ server = "rust_analyzer", binary = "rust-analyzer" },
+			}) do
+				if vim.fn.executable(optional.binary) == 1 then
+					vim.lsp.enable(optional.server)
+				end
+			end
 
 			-- ─── Neovim 0.12 native LSP capabilities ──────────────────────────
 			-- Opt-in per client, gated on the server actually advertising the

@@ -101,6 +101,11 @@ describe("core.carbon", function()
 		vim.cmd.colorscheme("carbon")
 		assert.is_nil(vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
 		assert.is_nil(vim.api.nvim_get_hl(0, { name = "NormalFloat" }).bg)
+		-- Search is a modal reading surface: results and preview deliberately
+		-- remain solid while the editor around them becomes transparent.
+		assert.are.equal(0x131313, vim.api.nvim_get_hl(0, { name = "TelescopeResultsNormal" }).bg)
+		assert.are.equal(0x0d0d0d, vim.api.nvim_get_hl(0, { name = "TelescopePreviewNormal" }).bg)
+		assert.are.equal(0x0d0d0d, vim.api.nvim_get_hl(0, { name = "TelescopePreviewBorder" }).bg)
 		-- Chips stay solid so the UI remains legible on any terminal bg.
 		assert.are.equal(0x33b1ff, vim.api.nvim_get_hl(0, { name = "StatusTerminal" }).bg)
 		-- Restore the opaque scheme for any spec running after this one.

@@ -326,8 +326,9 @@ single source of syntax colour —
 
 - `vim.lsp.config("*", { … on_attach = function(client) client.server_capabilities.semanticTokensProvider = nil end })`
 - `mason-lspconfig` has `automatic_enable = false` **on purpose**: servers are
-  enabled by *our* `vim.lsp.enable({ "ts_ls", "solargraph", "html", "lua_ls" })`
-  only after the `"*"` config lands. If mason-lspconfig auto-enables, a server
+  enabled by *our* `vim.lsp.enable` calls (core includes `vtsls` + `vue_ls`;
+  optional toolchains are executable-gated) only after the `"*"` config lands.
+  If mason-lspconfig auto-enables, a server
   can start before the on_attach nil and the repaint comes back.
 
 **Discriminating experiments** (in a buffer with an attached server):

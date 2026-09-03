@@ -389,7 +389,7 @@ vim.lsp.config("*", {
     client.server_capabilities.semanticTokensProvider = nil
   end,
 })
-vim.lsp.enable({ "ts_ls", "solargraph", "html", "lua_ls" })
+vim.lsp.enable({ "vtsls", "vue_ls", "html", "lua_ls" })
 ```
 
 - **Capability surgery**: nil-ing `semanticTokensProvider` in `on_attach`
@@ -400,9 +400,10 @@ vim.lsp.enable({ "ts_ls", "solargraph", "html", "lua_ls" })
   If it auto-enabled servers, one could attach *before* the `"*"` config (and
   its on_attach) is registered, and the `@lsp.*` repaint would return. The repo
   enables servers itself, after `vim.lsp.config("*", …)` has landed.
-  `ensure_installed = { "lua_ls", "ts_ls", "html" }` still gives first-boot
-  auto-install (solargraph is enabled but not ensure-installed — needs Ruby;
-  enabling a non-installed server is harmless).
+  `ensure_installed` still gives first-boot auto-install, including `vtsls` +
+  `vue_ls` for Vue 3. Toolchain-gated servers are not ensure-installed and are
+  only enabled after `vim.fn.executable` confirms their command, because native
+  enable validates an absent `cmd` loudly.
 
 **The trap.** "Add a server" changes touch three places that must stay
 consistent: `ensure_installed` (install), `vim.lsp.enable` (activation), and —

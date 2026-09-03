@@ -251,13 +251,17 @@ local hl = {
 	StatusLineDiagnosticWarn = { fg = c.base14, bg = c.base00, bold = true },
 	StatusLineDiagnosticError = { fg = c.base10, bg = c.base00, bold = true },
 
-	-- ── Telescope (§7): borderless + recessed; the prompt is a lighter panel ─
-	TelescopeNormal = { fg = c.base04, bg = bgf },
-	TelescopeBorder = { fg = edge, bg = bgf },
-	TelescopeResultsNormal = { fg = c.base04, bg = bgf },
-	TelescopeResultsTitle = { fg = edge, bg = bgf },
-	TelescopePreviewNormal = { fg = c.base04, bg = bgf },
-	TelescopePreviewBorder = { fg = edge, bg = bgf },
+	-- ── Telescope (§7): a solid adaptive modal, even in transparent mode ────
+	-- Results use the recessed blend role; the code preview drops one step to
+	-- shade so its reading surface stays visibly separate. Borders match their
+	-- surfaces for the same borderless Carbon silhouette as the native modals.
+	TelescopeNormal = { fg = c.base04, bg = c.blend },
+	TelescopeBorder = { fg = c.blend, bg = c.blend },
+	TelescopeResultsNormal = { fg = c.base04, bg = c.blend },
+	TelescopeResultsBorder = { fg = c.blend, bg = c.blend },
+	TelescopeResultsTitle = { fg = c.blend, bg = c.blend },
+	TelescopePreviewNormal = { fg = c.base04, bg = c.shade },
+	TelescopePreviewBorder = { fg = c.shade, bg = c.shade },
 	TelescopePreviewTitle = { fg = c.base00, bg = c.base12, bold = true },
 	TelescopePromptNormal = { fg = c.base05, bg = c.base02 },
 	TelescopePromptBorder = { fg = c.base02, bg = c.base02 },

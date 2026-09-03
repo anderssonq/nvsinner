@@ -333,7 +333,10 @@ editing.
   contrast survives transparent mode) and dim the editor behind them via
   `backdrop.lua` (a full-screen non-focusable `backdrop`-black float at
   `winblend` 60, one zindex layer below the modal, torn down by a `WinClosed`
-  autocmd on the modal window). Identity accent: `base09 #78a9ff` (blue);
+  autocmd on the modal window). Telescope's adaptive search surface follows
+  the same rule: solid `blend` results, a darker `shade` preview, and a backdrop
+  only when a preview exists (the small `vim.ui.select` dropdown stays exempt).
+  Identity accent: `base09 #78a9ff` (blue);
   attention/modified: `base10 #ee5396` (magenta); busy chip: `base12 #ff7eb6`
   (pink); focused terminal bar: `base11 #33b1ff` (carbon's terminal-mode
   accent).
@@ -945,20 +948,22 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
 
 ## Health check — `health.lua` (required from `init.lua`)
 
-- Surfaces missing external tools (ripgrep, node, stylua, prettier, eslint_d, a
-  Nerd Font) so features fail *loudly* instead of silently no-op-ing. **One tool
-  table (`M.tools`), two entry points:**
+- Surfaces missing or incompatible external tools (ripgrep, Node 20+, stylua,
+  prettier, eslint_d, a Nerd Font) so features fail *loudly* instead of silently
+  no-op-ing. **One tool table (`M.tools`), two entry points:**
   - **`:checkhealth nvsinner`** — `lua/nvsinner/health.lua` is a thin provider
     (`{ check = … }`) that Neovim discovers by module path
     (`lua/<name>/health.lua` → checkhealth name `<name>`); it delegates to
     `core.health.report()`, which walks `check_tools({ with_version = true })`
-    and emits `vim.health.ok/warn` with an install hint per missing tool. It
-    shows in the full `:checkhealth` (and the one `:NvSinnerUpdate` runs) under
-    "nvsinner" too.
+    and emits `vim.health.ok/warn/error` with an install hint per missing or
+    incompatible tool. Node has a version floor of 20 because it runs the
+    JS/TS/Vue servers; its row also prints `vim.fn.exepath("node")`, making a
+    stale GUI/terminal PATH visible. It shows in the full `:checkhealth` (and
+    the one `:NvSinnerUpdate` runs) under "nvsinner" too.
   - **First-run toast** — `M.setup()` (called at require time) registers a
     `User VeryLazy` autocmd that, after an 800ms defer (so nvim-notify is
-    ready), runs `M.first_run_notify()`: if any tool is missing it fires a
-    one-time `vim.notify` pointing at `:checkhealth nvsinner`. A marker file
+    ready), runs `M.first_run_notify()`: if any tool is missing or incompatible
+    it fires a one-time `vim.notify` pointing at `:checkhealth nvsinner`. A marker file
     under `stdpath("state")` makes it **greet once** (written even when
     nothing's missing, so it never nags). `M.first_run_notify({ marker = … })`
     takes a marker override as a test seam (mirrors `update.lua`'s
@@ -967,11 +972,14 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `#vim.api.nvim_list_uis() == 0`, so the installer's headless `Lazy! restore`
   and the test harness don't write the marker or toast; the user's first
   *interactive* launch gets the greeting.
+- **Version probing is selective** — the full report calls every present tool's
+  `--version`; the first-run path stays presence-only except for tools carrying
+  `minimum_major` (currently Node), whose tiny synchronous version probe is
+  required to catch "installed but too old". `M._run_version` is the test seam.
 - **Nerd Font is info-only** — it's a terminal/GUI font setting that can't be
   probed from inside Neovim, so it's reported as `vim.health.info` and left OUT
-  of the missing-count that drives the toast. Tool checks use
-  `vim.fn.executable` (fast, no subprocess); versions shell out only for
-  `:checkhealth`.
+  of the issue count that drives the toast. Tool presence checks use
+  `vim.fn.executable`; version subprocesses follow the selective rule above.
 
 ## Image viewer — `image-open.lua` (required from `init.lua`)
 

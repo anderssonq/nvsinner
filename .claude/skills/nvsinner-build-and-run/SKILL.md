@@ -39,7 +39,7 @@ line-by-line, 2026-07-02), not just what the README says.
 
 ```bash
 # macOS (Homebrew). Linux: apt/dnf/pacman equivalents; stylua via cargo if unpackaged.
-brew install neovim ripgrep node stylua     # neovim MUST be >= 0.12
+brew install neovim ripgrep node stylua     # Neovim >= 0.12; Node >= 20
 npm install -g prettier eslint_d            # needs node first (see Traps)
 ```
 
@@ -51,10 +51,10 @@ nvim-treesitter `main` migration path). The config will NOT work below 0.12:
 nvim --version | head -1    # expect: NVIM v0.12.0 or newer (dev machine: v0.12.3)
 ```
 
-`install.sh` itself only hard-checks two binaries: `git` and `nvim` (lines
-23–24; it exits 1 if either is missing). Everything else (ripgrep, stylua,
-prettier, eslint_d) is surfaced later by `:checkhealth nvsinner` — features
-no-op silently without them, they don't block install.
+`install.sh` hard-checks `git`, Neovim 0.12+, and Node 20+ before touching the
+install. Everything else (ripgrep, stylua, prettier, eslint_d, shfmt) is
+surfaced later by `:checkhealth nvsinner` — features no-op silently without
+them, they don't block install.
 
 ### 1b. Bundled Nerd Font  [manual — needs a human for the GUI step]
 
@@ -205,22 +205,24 @@ Ordered by what actually happens on the first interactive launch:
 2. **Mason LSP auto-install** (`lua/plugins/lsp/lsp-config.lua`):
    `mason-lspconfig` runs at `event = "VeryLazy"` (fires even when you land on
    the dashboard with no file open) with `dependencies = { mason.nvim }`, and
-   `ensure_installed = { "lua_ls", "ts_ls", "html" }` — so those three servers
+   `ensure_installed` includes `lua_ls`, the Vue 3 hybrid pair (`vtsls` +
+   `vue_ls`), and the HTML/Python/shell/JSON/YAML/CSS servers, so all nine
    download on first boot with no manual `:MasonInstall`.
    `automatic_enable = false` is deliberate: servers are enabled by *our*
    `vim.lsp.enable` only after the `"*"` config lands (whose `on_attach` nils
    `semanticTokensProvider`); letting mason-lspconfig auto-enable could start a
    server early and reintroduce the `@lsp.*` repaint. Do not flip it.
-3. **solargraph is optional** — enabled in `vim.lsp.enable` (harmless when
-   absent) but left out of `ensure_installed` because it needs a Ruby
-   toolchain. Only if you edit Ruby:
+3. **solargraph is optional** — left out of `ensure_installed` because it needs
+   a Ruby toolchain, and enabled only when its executable exists. Only if you
+   edit Ruby (then restart NvSinner):
    `NVIM_APPNAME=nvsinner nvim --headless "+MasonInstall solargraph" +qa`.
 4. **First-run health toast** (`lua/core/health.lua`, `M.setup()` runs at
    require time from `init.lua`): registers a once-only `User VeryLazy`
    autocmd → 800ms defer (so nvim-notify is ready) → `first_run_notify()`. It
-   probes the tool table (ripgrep, node, stylua, prettier, eslint_d — via
-   `vim.fn.executable`, no subprocess) and, if anything is missing, fires one
-   `vim.notify` pointing at `:checkhealth nvsinner`. A **marker file** at
+   probes the tool table (ripgrep, Node 20+, stylua, prettier, eslint_d — via
+   `vim.fn.executable`, plus a tiny Node version subprocess) and, if anything
+   is missing or incompatible, fires one `vim.notify` pointing at `:checkhealth
+   nvsinner`. A **marker file** at
    `stdpath("state") .. "/nvsinner-health-checked"` (i.e.
    `~/.local/state/nvsinner/nvsinner-health-checked`) is written **even when
    nothing is missing**, so it greets exactly once and never nags. To re-test
@@ -349,7 +351,7 @@ NVIM_APPNAME=nvsinner nvim --headless "+checkhealth" +qa
 NVIM_APPNAME=nvsinner nvim "+checkhealth nvsinner"        # interactive is easiest to read
 
 # 4. Plugin state matches the lock:  :Lazy   (interactive; look for "restore" cleanliness)
-# 5. LSP servers landed:             :Mason  (lua_ls, ts_ls, html installed)
+# 5. LSP servers landed:             :Mason  (vtsls + vue_ls installed)
 ```
 
 For the repo's own test suite (`make test`) see `nvsinner-testing-and-qa`.
@@ -364,8 +366,8 @@ For the repo's own test suite (`make test`) see `nvsinner-testing-and-qa`.
 | Legacy shallow clone (old installer used `--depth=1`) | `git pull` errors / odd history behavior | Re-run the installer — it detects `--is-shallow-repository` and `fetch --unshallow`s automatically; or by hand: `git -C ~/.config/nvsinner fetch --unshallow` |
 | No restart after `:NvSinnerUpdate` | New config code "doesn't take effect" | Expected — the pull rewrites disk but old Lua modules stay loaded in the running instance. Restart Neovim (the final toast says so) |
 | Running the wrong appname | Plain `nvim` shows another config; changes "missing"; separate plugin/state dirs confuse debugging | Always launch via `nvsinner` or `NVIM_APPNAME=nvsinner nvim`; remember data/state/cache are per-appname even on the dev symlink machine |
-| solargraph missing | Ruby LSP never attaches (silently — `vim.lsp.enable` of an uninstalled server is harmless) | Needs a Ruby toolchain; then `:MasonInstall solargraph`. Intentionally not in `ensure_installed` |
-| npm globals before node | `npm: command not found` installing prettier/eslint_d/claude-code | `brew install node` first; re-run the npm installs; confirm with `:checkhealth nvsinner` |
+| solargraph missing | Ruby LSP never attaches; no repeated startup errors are logged | Needs a Ruby toolchain; then `:MasonInstall solargraph` and restart. Intentionally not in `ensure_installed` |
+| Node missing or older than 20 inside Neovim | JS/TS/Vue servers fail at startup (`Unexpected token '??='` is the classic old-Node signature) | Install Node 20+, restart the terminal/Neovim so PATH changes land, then confirm the version and executable with `:checkhealth nvsinner` |
 | Manual-copy install (no `.git`) | `:NvSinnerUpdate` warns "not a git clone"; installer re-run leaves the dir untouched | Replace the copy with a real clone (back up local edits first), or update by copying files by hand |
 | `:Lazy sync` on a user install | Local `lazy-lock.json` rewritten; plugin set drifts from the tested one | That's the documented opt-in float. To return to golden: `git -C ~/.config/nvsinner checkout lazy-lock.json && nvim --headless "+Lazy! restore" +qa` (with appname) |
 | First-run toast never appears when testing | You expected the missing-tools nudge | Marker already written: delete `~/.local/state/nvsinner/nvsinner-health-checked`. Headless runs never write it, so only an interactive launch consumes it |
