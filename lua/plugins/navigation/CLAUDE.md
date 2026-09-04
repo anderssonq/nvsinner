@@ -6,16 +6,16 @@
   from the carbon folder packs (`M.folder_colors()` in `lua/core/carbon.lua`).
   The mouse-hover row wash on tree rows is native —
   `lua/core/neotree-hover.lua`, driven from ui-touch's `<MouseMove>` handler.
-  `source_selector` puts **Files / Buffers / Git tabs in the tree's winbar**
+  `source_selector` puts **Files / Buffers tabs in the tree's winbar**
   (that winbar is unowned: ui-touch's `SKIP_FT` lists `neo-tree`, filebadge
   only claims markdown). Tab colors are the carbon `NeoTreeTab*` groups in
   `colors/carbon.lua` — neo-tree defines those groups itself with hardcoded
   near-black hexes, so carbon must override them or the tabs ignore the
   theme; they carry both `fg` and `bg` so neo-tree's own
   `create_highlight_group` skips them. **`window.width` is 38 for the tabs'
-  sake**: `tabs_layout = "equal"` splits the width into fixed thirds and
-  `" 󰈚 Buffers "` truncates below 38 (measured) — narrowing the tree
-  re-truncates the labels.
+  sake**: `tabs_layout = "equal"` splits the width into fixed halves and
+  `" 󰈚 Buffers "` would truncate in a narrower half (measured) — narrowing
+  the tree re-truncates the labels.
 - **Click-to-open** — neo-tree's ONLY stock mouse binding is
   `["<2-LeftMouse>"] = "open"` (`neo-tree/defaults.lua`). A top-level
   `window.mappings` adds `<LeftRelease>` (single click opens a file / toggles a
@@ -51,13 +51,17 @@
   Measured on a synthetic 24k-file repo with a 24k-file ignored `node_modules`:
   the call cost **~64 ms per render** before, none after. Files keeps its git
   state (that source uses the genuinely async path).
-- **The Git tab's blocking scan is NOT fixable from config** — it is the tab's
-  content. `git_status/lib/items.lua` hard-calls the same sync `git.status`
-  with `--untracked-files=all` on top of the default `--ignored=traditional`,
-  which enumerates every ignored file and then *discards* it. Measured on the
-  same repo: **73 ms** vs 14 ms for a plain `git status`, i.e. `--ignored` is a
-  ~5× multiplier that scales with the ignored tree. Since it is only paid when
-  you deliberately click "Git", it is left alone. **Do not "fix" this with
+- **The Git tab is REMOVED — do not re-add it.** Its scan is the tab's content
+  and is NOT fixable from config: `git_status/lib/items.lua` hard-calls the
+  same sync `git.status` with `--untracked-files=all` on top of the default
+  `--ignored=traditional`, which enumerates every ignored file and then
+  *discards* it. Measured on the same repo as above: **73 ms** vs 14 ms for a
+  plain `git status`, i.e. `--ignored` is a ~5× multiplier that scales with
+  the ignored tree. Diffview already owns git (`<leader>gd` etc., see
+  `lua/plugins/git/CLAUDE.md`), so the tab was pure cost — it is dropped from
+  `source_selector.sources` (the `git_status` source itself stays in
+  neo-tree's defaults, so a deliberate `:Neotree source=git_status` still
+  works if ever needed). **Do not "fix" the scan with
   `core.fsmonitor` / `core.untrackedCache`** — measured A/B on the same repo,
   fsmonitor made it *worse* (plain status 0.412 s vs 0.132 s per 10 calls;
   with `--ignored` 0.828 s vs 0.674 s): the daemon's IPC costs more than it
@@ -66,6 +70,8 @@
 - `telescope.lua` — `<leader>f` find files (incl. hidden dotfiles),
   `<leader>sf` live grep, `<leader>fb` buffers, plus the `<leader>s*` pickers
   (diagnostics / keymaps / commands / resume / help / symbols / references).
+  `<leader>ld` / `<leader>lt` peek at the LSP definition / type definition in
+  the picker with preview instead of jumping (`gd` / `grt` still jump).
   Search pickers use `layout_strategy = "flex"`: horizontal at 100+ columns
   (42% results / 58% preview), vertical below that, with the prompt and best
   matches at the top in both shapes. Results stay on the solid `blend` surface

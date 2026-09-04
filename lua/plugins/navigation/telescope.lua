@@ -38,6 +38,26 @@ return {
 		{ "<leader>sh", "<cmd>Telescope help_tags<cr>", desc = "Search help" },
 		{ "<leader>ss", "<cmd>Telescope lsp_document_symbols<cr>", desc = "Document symbols" },
 		{ "<leader>sR", "<cmd>Telescope lsp_references<cr>", desc = "LSP references" },
+		-- gd/grt jump straight to the file; these show the same targets as a
+		-- modal with a code preview, so you can read the definition and press
+		-- q/Esc without leaving where you were. jump_type = "never" matters:
+		-- telescope's LSP pickers jump DIRECTLY to a single result instead of
+		-- opening the picker (builtin/__lsp.lua), which would make the peek
+		-- indistinguishable from gd whenever there is exactly one definition.
+		{
+			"<leader>ld",
+			function()
+				require("telescope.builtin").lsp_definitions({ jump_type = "never" })
+			end,
+			desc = "Preview definition",
+		},
+		{
+			"<leader>lt",
+			function()
+				require("telescope.builtin").lsp_type_definitions({ jump_type = "never" })
+			end,
+			desc = "Preview type definition",
+		},
 		-- <leader>fb (buffers) is mapped in lua/core/keymaps.lua and also triggers
 		-- this lazy load via the :Telescope command stub.
 	},

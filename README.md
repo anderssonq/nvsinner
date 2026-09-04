@@ -663,6 +663,7 @@ not.
 |------|------|--------|
 | `K` | n | Hover docs |
 | `gd` | n | Go to definition |
+| `<leader>ld` / `<leader>lt` | n | Peek at the definition / type definition in a Telescope modal with preview — `q`/`<Esc>` closes without leaving where you were |
 | `<leader>lf` | n | Format buffer |
 | `<leader>ca` | n | Code action |
 | `<leader>rn` | n | Rename symbol |
@@ -782,23 +783,21 @@ Three plugins load eagerly: the colorscheme (`theme.lua`, `lazy = false` +
 the plugin must load for the maps to exist). Check the breakdown anytime with
 `:Lazy profile`.
 
-### Neo-tree's Buffers and Git tabs
+### Neo-tree's Buffers tab and the removed Git tab
 
 neo-tree computes git state by shelling out to `git status`, and for two of its
-three source tabs that call is **synchronous** — it blocks the editor.
+source tabs that call is **synchronous** — it blocks the editor.
 neo-tree's `git_status_async` option does *not* cover them; only the Files
 (filesystem) source reads it.
 
 - **Buffers** used to pay that cost on *every render*. NvSinner disables it
   (`buffers.before_render`), so the tab is instant — at the cost of git symbols
   on buffer rows. Files still shows git state.
-- **Git** still blocks while it scans, because the scan *is* the tab's content.
-  It runs with `--untracked-files=all` on top of `--ignored=traditional`, which
-  enumerates every ignored file (`node_modules/`, `dist/`, `.venv/`…). Measured
-  on a synthetic 24k-file repo with a 24k-file ignored tree: **73 ms**, against
-  14 ms for a plain `git status` — a ~5× multiplier that grows with the ignored
-  tree, so a large `node_modules` can push it into the hundreds of ms. You only
-  pay it when you click the Git tab.
+- **Git** blocks while it scans, because the scan *is* the tab's content
+  (**73 ms** measured against 14 ms for a plain `git status` — a ~5× multiplier
+  that grows with the ignored tree), and diffview already owns git. So NvSinner
+  **removes the tab** from the tree's winbar: Files and Buffers only. A
+  deliberate `:Neotree source=git_status` still works if you ever want it.
 
 If you want that faster today, the lever is your `.gitignore` scope, not
 Neovim. **`core.fsmonitor` / `core.untrackedCache` do not help** — measured A/B,

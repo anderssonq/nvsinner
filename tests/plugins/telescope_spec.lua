@@ -33,4 +33,13 @@ describe("telescope spec", function()
 		assert.is_truthy(code:find("hidden%s*=%s*true"))
 		assert.is_truthy(code:find('file_ignore_patterns%s*=%s*%{%s*"%^%%%.git/"'))
 	end)
+
+	it("keeps the peek-pickers for LSP definitions mapped", function()
+		assert.is_truthy(code:find('%"%<leader%>ld%"'))
+		assert.is_truthy(code:find('%"%<leader%>lt%"'))
+		-- Without this, telescope jumps directly to a single result instead of
+		-- opening the picker (builtin/__lsp.lua), so the peek would silently
+		-- degrade into gd whenever there is exactly one definition.
+		assert.is_equal(2, select(2, code:gsub('jump_type%s*=%s*"never"', "")))
+	end)
 end)

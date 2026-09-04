@@ -12,7 +12,7 @@
 --- `core.mouse.clicked_line` is the missed-row guard: `getmousepos().line`
 --- CLAMPS to the last buffer line, so without it a click on the empty space
 --- below the tree would open the last file. (The tree's winbar carries the
---- Files/Buffers/Git selector, so the helper's winbar offset is always in play
+--- source selector, so the helper's winbar offset is always in play
 --- here.) diffview's file panels share the same guard.
 local function open_clicked(state)
 	if not require("core.mouse").clicked_line(state.winid) then
@@ -77,11 +77,14 @@ return {
 	},
 	config = function()
 		require("neo-tree").setup({
-			-- Source tabs in the tree's winbar: Files / Buffers / Git. The
+			-- Source tabs in the tree's winbar: Files / Buffers. The
 			-- tree's winbar is unowned (ui-touch's SKIP_FT lists "neo-tree",
 			-- filebadge only claims markdown), so this takes it uncontested.
-			-- git_status needs no enabling — it is already in neo-tree's
-			-- default `sources`, and `enable_git_status` defaults to true.
+			-- The git_status tab is deliberately absent: its scan is synchronous
+			-- and ~5× a plain `git status` (it forces `--untracked-files=all`
+			-- over `--ignored=traditional`), and diffview already owns git.
+			-- Files keeps its git state — the filesystem source reads the
+			-- genuinely async path.
 			source_selector = {
 				winbar = true,
 				statusline = false,
@@ -90,7 +93,6 @@ return {
 				sources = {
 					{ source = "filesystem", display_name = " 󰉓 Files " },
 					{ source = "buffers", display_name = " 󰈚 Buffers " },
-					{ source = "git_status", display_name = " 󰊢 Git " },
 				},
 				content_layout = "start",
 				tabs_layout = "equal",
@@ -143,9 +145,9 @@ return {
 					hide_gitignored = true,
 				},
 				window = {
-					-- 38, not the old 30: the source_selector's "equal" layout
-					-- splits the width into fixed thirds, and " 󰈚 Buffers " (11
-					-- cells + separator) truncates to "Buffer…" below 38.
+					-- 38: the source_selector's "equal" layout splits the width
+					-- into fixed halves, and " 󰈚 Buffers " (11 cells +
+					-- separator) would truncate in a narrower half.
 					-- Measured — drop this to 32 if you ever switch to "start".
 					width = 38, -- columns
 					-- Default side for a bare :Neotree; the <leader>e keymap passes

@@ -61,6 +61,21 @@ describe("neo-tree spec", function()
 		end)
 	end)
 
+	describe("source selector", function()
+		-- The git_status tab is removed from the winbar: its scan is synchronous
+		-- (~5x a plain `git status`, and it scales with the ignored tree) and
+		-- diffview already owns git. The selector must list ONLY filesystem +
+		-- buffers — re-adding git_status resurrects the blocking tab.
+		it("lists only the Files and Buffers tabs (no git_status)", function()
+			assert.matches('source%s*=%s*"filesystem"', code)
+			assert.matches('source%s*=%s*"buffers"', code)
+			assert.is_nil(
+				code:match('source%s*=%s*"git_status"'),
+				"the Git tab was deliberately removed; diffview owns git"
+			)
+		end)
+	end)
+
 	-- window.mappings MERGE with neo-tree's ~40 defaults; they are only discarded
 	-- when use_default_mappings = false. Setting that would silently drop every
 	-- stock binding (a, r, d, y, x, p, w, …) while the click maps kept working.
