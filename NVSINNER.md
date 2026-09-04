@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
-10. ✅ **Versioned releases + update check (v1.0.0, current v3.0.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.1.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-    (`version = "3.0.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.1.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.0.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.1.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -164,6 +164,15 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     log noise. Telescope becomes a solid adaptive search surface: results and a
     larger dark preview sit side by side on wide screens, stack vertically on
     narrow screens, and dim the editor only for preview-based pickers.
+    **v3.1.0** gives LSP navigation a peek mode: `<leader>ld` /
+    `<leader>lt` open the definition / type definition in the Telescope picker
+    with its code preview instead of jumping (`jump_type = "never"` —
+    telescope otherwise jumps straight to a single result, which made the peek
+    indistinguishable from `gd`), and neo-tree's Git tab is gone from the
+    winbar: its synchronous `git status` scan is the tab's whole content
+    (~5× a plain status, scaling with the ignored tree) and diffview already
+    owns git, so the tree keeps only Files / Buffers while Files keeps its
+    async git state.
 
 ## Status
 
