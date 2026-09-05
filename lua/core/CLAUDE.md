@@ -455,7 +455,12 @@ the **statusline** (a lualine component in `lua/plugins/ui/lualine.lua`).
   legacy persisted `background` key migrates to `moon`/`carbon` on load) /
   `transparent` / `accent` / `folder` / `notif` / `variables` / `strings` /
   `functions` (carbon flags), `tree_side` (neo-tree position), `ai_side` (AI/vertical
-  terminal column side), `key_timeout` (`'timeoutlen'` — the prefix wait on
+  terminal column side), `inlay_hints` (LSP inlay hints — off by default, since
+  they put virtual text on most lines; the applier calls
+  `vim.lsp.inlay_hint.enable` across attached buffers, `lsp-config.lua`'s
+  `LspAttach` reads it for buffers that attach later, and `<leader>lh` flips
+  this same key so the toggle and the menu row can never disagree),
+  `key_timeout` (`'timeoutlen'` — the prefix wait on
   `<leader>t`/`j`/`jx`/`f`; applied straight over `core/options.lua`'s 300 ms
   baseline in `M.setup`, since unlike the carbon flags it has no `vim.g`/env
   layer for `seed_flag` to respect), `quiet` (mute INFO-level `vim.notify`;
@@ -656,6 +661,10 @@ pulled from `carbon.lua`). The illuminate/cursorline plugin notes live in
   is non-focusable and torn down on cursor move / mode / layout change. The
   same handler also drives the neo-tree hover row wash synchronously, before
   the debounce (see *Tree hover* below).
+- **`fillchars` is owned here**, not in `core/options.lua`: the box-drawing
+  separators plus `eob = " "` (blanks the `~` column below the last line — it
+  carries no information and is the loudest thing in an otherwise empty pane),
+  `fold` and `diff`. Pinned by `tests/core/ui_touch_spec.lua`.
 - Highlights live in an `apply_hl()` re-applied on `ColorScheme`. All values
   are roles from `carbon.lua` — never hardcode a hex here.
 - **First-open caveat** — a toggleterm window fires `BufWinEnter` while its
@@ -1018,9 +1027,58 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   blame (cleared on `BufWritePost`) so a scratch note doesn't spawn a git
   process per cursor move. While typing (`CursorMovedI`/`InsertEnter`) it
   only clears — re-blaming per keystroke is churn.
+- **A second chunk names the branch the commit was merged from** — ` <branch>
+  #<pr>` in `NvGitBlameRef` (carbon `base09` italic, so it follows the accent
+  pack and reads as a reference, not more comment prose). It is a SEPARATE
+  `virt_text` chunk on purpose: chunk 1 is the annotation contract the spec
+  pins, so the ref can never disturb it.
+- **How the branch is resolved, and why the second git call is not optional.**
+  `git log --merges --ancestry-path --reverse <sha>..HEAD` yields the merges
+  descending from the blamed commit; the first one introduced it. That alone
+  is NOT enough: a commit made straight on the mainline is also an ancestor of
+  every later merge, so it would borrow an unrelated branch's name. The
+  candidate is therefore kept only when `git merge-base --is-ancestor <sha>
+  <merge>^1` **fails** — i.e. the commit genuinely arrived through the merged
+  side. `tests/core/git_blame_spec.lua` pins both halves with a real two-branch
+  repo. `M._parse_ref` reads the subject shapes that actually occur (GitHub's
+  `Merge pull request #N from <owner>/<branch>`, cutting the owner at the FIRST
+  slash because branch names carry slashes; git's own `Merge branch '<x>'`;
+  the remote-tracking form) — never `git name-rev`, which only answers while
+  the merged branch still exists, and merged branches get deleted.
+- **"No merge found" has TWO causes, and conflating them was the first
+  version's bug.** The commit may have LANDED without leaving a merge (squash-
+  or rebase-merge, or a direct push), or it may simply **not be merged yet** —
+  the everyday case of reading a line you just wrote on a feature branch, which
+  reported no branch at all. One `git branch --all --contains <sha>
+  --format=%(HEAD)%09%(refname)` separates them in a single call: it names every
+  branch holding the commit AND marks the current one with `*`. If a branch in
+  `M.TRUNKS` (`main`/`master`/`trunk` — extend it for a repo whose mainline is
+  called something else) holds it, it landed, and the `summary` the blame
+  already parsed is the fallback (forges append `(#123)`, so the PR number costs
+  no extra process). Otherwise it is in flight, and the branch is named with
+  `M.REF_ICON_LOCAL` (a pull-request glyph) instead of the branch glyph, so
+  "still on this branch" never reads as "merged from". Full refnames are
+  requested rather than `refname:short` so `refs/remotes/origin/main` reduces to
+  `main` exactly while a local branch really called `feature/main` does not.
+  The trunk check is also what stops a single-branch repo from labelling every
+  line.
+- **Cost**: measured 13 ms on this repo and 22 ms on a 1900-commit one, and
+  **memoised per `dir + sha`** (`M.REF_CACHE_MAX` entries, negatives cached
+  too) — a sha is immutable, so it resolves once per distinct commit, not per
+  cursor settle. A shallow clone or a repo without merges must not re-spawn
+  two processes on every line. **The in-flight verdict is the one volatile
+  answer** — it becomes a merge the moment the branch lands, and the branch
+  itself changes on checkout — so it alone expires (`M.REF_TTL_MS`, 15 s) while
+  a resolved merge is kept for the session. Paint is two-phase: the annotation lands at
+  `M.DELAY` as before and is repainted when the ref answers, through a **fixed
+  extmark id** so the second paint replaces rather than stacks, and behind the
+  same generation counter so it can never land on a moved cursor.
+  `M.SHOW_REF = false` turns the whole thing off.
 - `:NvSinnerBlameToggle` flips the whole feature. Seams: `M._ns`,
   `M.refresh(buf)` (immediate, no debounce — cursor autocmds don't fire
-  headless), `M._format(porcelain)`, `M._reset()`.
+  headless), `M._format(porcelain)`, `M._parse_ref(subject)`,
+  `M._parse_branches(stdout)`, `M._on_trunk(names)`, `M._ref_text(ref)`,
+  `M._ref_for(dir, sha, summary, cb)`, `M._reset()`.
 
 ## Symbol occurrences — `illuminate.lua` (required from `init.lua`)
 

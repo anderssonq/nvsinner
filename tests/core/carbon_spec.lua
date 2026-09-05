@@ -132,4 +132,48 @@ describe("core.carbon", function()
 		vim.g.nvsinner_theme = nil
 		vim.cmd.colorscheme("carbon")
 	end)
+
+	-- Groups Neovim (or a plugin) ships with a hardcoded off-palette color, or
+	-- with none at all. Each value below was MEASURED as wrong/absent before it
+	-- was mapped, so this is the guard against drifting back to stock.
+	it("claims the groups that otherwise arrive off-palette", function()
+		vim.cmd.colorscheme("carbon")
+		local c = carbon.colors()
+		local function rgb(role)
+			return tonumber(c[role]:sub(2), 16)
+		end
+		local function fg(group)
+			return vim.api.nvim_get_hl(0, { name = group, link = false }).fg
+		end
+		local function bg(group)
+			return vim.api.nvim_get_hl(0, { name = group, link = false }).bg
+		end
+
+		-- Shipped as Neovim's own pastels (#b3f6c0 / #8cf8f7 / #ffc0b9);
+		-- @diff.plus/minus/delta default-link here, so these cover all six.
+		assert.are.equal(rgb("base07"), fg("Added"))
+		assert.are.equal(rgb("base09"), fg("Changed"))
+		assert.are.equal(rgb("base10"), fg("Removed"))
+		assert.are.equal(rgb("base07"), fg("@diff.plus"))
+
+		-- Shipped with a gray of its own, off the monochrome ramp.
+		assert.are.equal(rgb("base02"), fg("Conceal"))
+
+		-- Undefined upstream: the active tab (visible in every diffview
+		-- session) and the builtin popup's fuzzy-match run.
+		assert.are.equal(rgb("base09"), bg("TabLineSel"))
+		assert.is_not_nil(fg("PmenuMatch"))
+		assert.is_not_nil(fg("MsgArea") or bg("MsgArea"))
+
+		-- Plugin UIs that hardcode literal hexes rather than link.
+		assert.are.equal(rgb("base09"), bg("MasonHeader"), "mason ships #DCA561")
+		assert.are.equal(rgb("base09"), bg("LeapLabel"), "leap ships #ffaf3f")
+
+		-- The graded heading ramp must match what the reading view paints, so a
+		-- markdown buffer looks the same with core/markdown.lua on or off.
+		local reader = { base10 = 1, base09 = 2, base12 = 3, base14 = 4, base08 = 5, base07 = 6 }
+		for role, level in pairs(reader) do
+			assert.are.equal(rgb(role), fg("@markup.heading." .. level), "heading level " .. level)
+		end
+	end)
 end)

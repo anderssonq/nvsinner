@@ -82,6 +82,15 @@ any existing `~/.config/nvim` without touching it.
 - **Prompt library** — `<leader>p` opens a modal of eleven reusable AI
   prompts (plain JSON, hand-editable) and copies your pick to the OS
   clipboard.
+- **Inline blame that names the branch** — park the cursor on any line and the
+  end of it tells you who wrote it and when, plus the branch the commit belongs
+  to. Two cases, told apart by their glyph: ` release/v3.1.0 #22` for work
+  **merged from** a branch, and ` feature/wip` for work **still in flight** on
+  the branch you are on — the everyday case, which a search for the merge
+  commit can never answer because there is no merge yet. A commit made straight
+  on the mainline is never credited to someone else's branch, and squash-merges
+  (no merge commit at all) still surface their PR number. Toggle it with
+  `:NvSinnerBlameToggle`.
 - **Mason-style modals** — `:NvSinnerMenu` (settings, persisted),
   `:NvSinnerIA` (the AI hub), `:NvSinnerPrompts`, and `:NvSinnerHelp` (a
   command palette that runs what you pick), all keyboard- and mouse-driven.
@@ -413,6 +422,7 @@ hovering moves the selection and a click cycles the row's value.
 | Explorer click | `single` (default — one click opens a file / expands a folder) / `double` (the stock behavior). Applies to **both** explorers: the Neo-tree sidebar and the diff file list (`<leader>gd` / `<leader>gh`), where one click previews that file's diff |
 | AI column side | `left` / `right` |
 | AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
+| Inlay hints | `on` / `off` (default `off`) — LSP inlay hints (parameter names, inferred types) as virtual text. Off by default because they change how every line reads; `<leader>lh` is the same switch |
 | Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
 
@@ -443,6 +453,7 @@ edit, and nothing here requires editing Lua.
 | `tree_click` | Explorer click | `"single"` |
 | `ai_side` | AI column side | `"right"` |
 | `ai_complete` | AI completion | `true` |
+| `inlay_hints` | Inlay hints | `false` |
 | `key_timeout` | Key timeout | `300` |
 | `quiet` | Notifications | `false` |
 | `ai_model` | *(not in this menu — picked in `:NvSinnerIA`)* | `"minimax-m2.5"` |
@@ -612,7 +623,7 @@ spec; new files in an existing category are picked up automatically.
 
 | File | Plugin | Keys / notes |
 |------|--------|--------------|
-| `lsp-config.lua` | mason + native `vim.lsp` | `K` hover · `gd` definition · `<leader>lf` format · `<leader>ca` code action · `<leader>rn` rename · `:Mason` |
+| `lsp-config.lua` | mason + native `vim.lsp` | `K` hover · `gd` definition · `<leader>lf` format · `<leader>lh` inlay hints · `<leader>ca` code action · `<leader>rn` rename · `:Mason` |
 | `trouble.lua` | trouble.nvim | `<leader>xx` diagnostics · `<leader>xX` buffer · `<leader>xs` symbols · `<leader>xl`/`<leader>xq` loclist/qflist |
 | `none-ls.lua` | none-ls + extras | Formatters/linters: stylua, prettier, eslint_d, shfmt |
 | `mason-tools.lua` | mason-tool-installer | Auto-installs stylua/prettier/eslint_d/shfmt via Mason on first boot (`:MasonToolsInstall` retries) |
@@ -625,7 +636,7 @@ spec; new files in an existing category are picked up automatically.
 |------|--------|------|
 | `toggleterm.lua` | toggleterm.nvim | `<leader>t` / `<leader>t2…9` horizontal terms (20% height) · `<leader>j` / `<leader>j2…9` AI sessions |
 | `persistence.lua` | persistence.nvim | **Disabled** — native sessions in `lua/core/sessions.lua` keep `<leader>SQ` / `<leader>Sc` / `<leader>Sl` |
-| `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua` (`:NvSinnerBlameToggle`) |
+| `git-blame.lua` | git-blame.nvim | **Disabled** — native inline blame in `lua/core/git-blame.lua`, which also names the merged-from branch + PR (`:NvSinnerBlameToggle`) |
 | `gitsigns.lua` | gitsigns.nvim | Sign-column hunk markers · `]h` / `[h` hunks · `<leader>h*` actions |
 | `diffview.lua` | diffview.nvim | `<leader>gd` diff (one tab, always the same one) · `<leader>gh`/`<leader>gH` file/repo history (`gH` one tab too) · `<leader>gq` close · `<leader>gi` into the diff, `gf` out |
 | `todocomment.lua` | todo-comments.nvim | **Disabled** — replaced by the native keyword chips + gutter icons (`lua/core/todo.lua`) |
@@ -665,6 +676,7 @@ not.
 | `gd` | n | Go to definition |
 | `<leader>ld` / `<leader>lt` | n | Peek at the definition / type definition in a Telescope modal with preview — `q`/`<Esc>` closes without leaving where you were |
 | `<leader>lf` | n | Format buffer |
+| `<leader>lh` | n | Toggle LSP **inlay hints** (parameter names, inferred types). Off by default; the same switch as `:NvSinnerMenu` → "Inlay hints", so the two can't disagree |
 | `<leader>ca` | n | Code action |
 | `<leader>rn` | n | Rename symbol |
 | `grn` / `gra` / `grr` / `gri` / `grt` / `gO` | n | Neovim's stock LSP maps: rename / code action / references / implementation / type definition / document symbols. Left as-is, never remapped — `<leader>rn` and `<leader>ca` are the mnemonic aliases. (`grx` runs a codelens where your Neovim provides it.) |
@@ -736,6 +748,7 @@ Ask-AI modal.
 | `<leader>hs` / `<leader>hr` | n | Stage / reset hunk |
 | `<leader>hS` / `<leader>hR` | n | Stage / reset whole buffer |
 | `<leader>hb` | n | Blame current line (full popup) |
+| *(automatic)* | — | Inline blame on the cursor line: ` summary • date • author • <sha>` plus ` branch #PR` for the merge that brought it in. `:NvSinnerBlameToggle` turns it off |
 | `<leader>gd` | n | Diffview: working tree vs index — **at most one tab**: pressed again it returns to the view already open (refreshing its file list) instead of stacking a second one |
 | `<leader>gh` / `<leader>gH` | n | Diffview: current-file / whole-repo history. `<leader>gH` is **one tab** like `<leader>gd`; `<leader>gh` opens one per file, since two files are two histories |
 | `<leader>gq` | n | Diffview: close |

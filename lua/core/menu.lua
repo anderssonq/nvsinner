@@ -68,6 +68,7 @@ local ITEMS = {
 	{ key = "tree_click", label = "Explorer click", values = { "single", "double" } },
 	{ key = "ai_side", label = "AI column side", values = { "left", "right" } },
 	{ key = "ai_complete", label = "AI completion", values = { false, true }, show = bool_show("on", "off") },
+	{ key = "inlay_hints", label = "Inlay hints", values = { false, true }, show = bool_show("on", "off") },
 	{
 		key = "key_timeout",
 		label = "Key timeout",

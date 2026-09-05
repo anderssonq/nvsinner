@@ -144,6 +144,24 @@ return {
 					if client:supports_method("textDocument/linkedEditingRange") then
 						pcall(vim.lsp.linked_editing_range.enable, true, { client_id = client.id })
 					end
+					-- Inlay hints follow the persisted setting rather than the
+					-- server's capability alone: they put virtual text on most
+					-- lines, which is a real change to how code reads, so it is
+					-- the user's call (:NvSinnerMenu -> "Inlay hints", or
+					-- <leader>lh). Buffers attaching later land here and inherit
+					-- whatever the setting currently says.
+					if client:supports_method("textDocument/inlayHint") then
+						local ok, settings = pcall(require, "core.settings")
+						pcall(
+							vim.lsp.inlay_hint.enable,
+							ok and settings.get("inlay_hints") or false,
+							{ bufnr = ev.buf }
+						)
+					end
+
+					-- NOT set up here: vim.lsp.document_color. Neovim 0.12
+					-- enables it by DEFAULT (see :h lsp-defaults — the docs only
+					-- describe how to opt OUT), so there is nothing to turn on.
 				end,
 			})
 
@@ -195,6 +213,16 @@ return {
 			-- README/CLAUDE.md keymap tables rather than remapped.
 			vim.keymap.set("n", "K", vim.lsp.buf.hover, { desc = "LSP hover docs" })
 			vim.keymap.set("n", "<leader>lf", vim.lsp.buf.format, { desc = "Format Code" })
+
+			-- Inlay hints: flip the persisted setting, so the toggle and the
+			-- :NvSinnerMenu row are the same switch rather than two that can
+			-- disagree. settings.set() applies it live to every attached buffer.
+			vim.keymap.set("n", "<leader>lh", function()
+				local settings = require("core.settings")
+				local on = not settings.get("inlay_hints")
+				settings.set("inlay_hints", on)
+				vim.notify("Inlay hints " .. (on and "on" or "off"), vim.log.levels.INFO, { timeout = 250 })
+			end, { desc = "Toggle LSP inlay hints" })
 			vim.keymap.set("n", "gd", vim.lsp.buf.definition, { desc = "Go to definition" })
 			vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "Code action" })
 			vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { desc = "Rename symbol" })

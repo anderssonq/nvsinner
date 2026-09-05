@@ -53,6 +53,25 @@ describe("lsp-config spec", function()
 	local src = table.concat(vim.fn.readfile("lua/plugins/lsp/lsp-config.lua"), "\n")
 	local code = src:gsub("%-%-[^\n]*", "")
 
+	-- Inlay hints are a real 0.12 capability that was simply never called. The
+	-- wiring has three halves that must agree: the capability gate, the
+	-- persisted setting it reads (so the <leader>lh toggle and the
+	-- :NvSinnerMenu row are one switch), and the toggle itself.
+	it("gates inlay hints on the server capability AND the persisted setting", function()
+		assert.is_truthy(code:find('supports_method%("textDocument/inlayHint"%)'))
+		assert.is_truthy(code:find("vim%.lsp%.inlay_hint%.enable"))
+		assert.is_truthy(code:find('get%("inlay_hints"%)'), "must read the setting, not hardcode a default")
+		assert.is_truthy(code:find('"<leader>lh"'), "the toggle keymap")
+		assert.is_truthy(code:find('set%("inlay_hints"'), "the toggle must persist through core.settings")
+	end)
+
+	-- Guard against re-adding a call for something Neovim already does: 0.12
+	-- enables document colors by default, and :h lsp-defaults only documents
+	-- how to opt OUT. Enabling it again would be a no-op that reads as a feature.
+	it("does not re-enable document colors, which 0.12 turns on by default", function()
+		assert.is_nil(code:find("document_color%.enable"))
+	end)
+
 	it("uses the Vue 3 hybrid stack without a duplicate TypeScript client", function()
 		local installed = assert(code:match("ensure_installed%s*=%s*%{(.-)%}"))
 		local enabled = assert(code:match("vim%.lsp%.enable%(%{(.-)%}%)"))

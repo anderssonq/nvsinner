@@ -82,6 +82,32 @@ local hl = {
 	SpellCap = { undercurl = true, sp = c.base14 },
 	SpellLocal = { undercurl = true, sp = c.base09 },
 	SpellRare = { undercurl = true, sp = c.base15 },
+	-- Groups Neovim leaves stock, so they arrive as a hardcoded gray or as
+	-- nothing at all. Verified undefined (or off-palette) after a carbon apply;
+	-- the ones Neovim already default-links onto carbon roles — Substitute,
+	-- SpecialKey, FloatFooter, WildMenu, Pmenu{Kind,Extra}, SnippetTabstop,
+	-- Lsp*, Diagnostic*, @lsp.type.* — are deliberately left to inherit.
+	Bold = { bold = true },
+	Italic = { italic = true },
+	Conceal = { fg = c.base02 }, -- ships its own gray, off the ramp
+	MsgArea = { fg = c.base04, bg = bg0 },
+	MsgSeparator = { fg = c.base02, bg = bg0 },
+	-- The tabline is only ever visible with 2+ tabs — which is exactly the
+	-- diffview workflow, where TabLineSel being UNDEFINED left the active tab
+	-- indistinguishable from the rest.
+	TabLine = { fg = c.base03, bg = c.base01 },
+	TabLineSel = { fg = c.base00, bg = c.base09, bold = true },
+	TabLineFill = { bg = bg0 },
+	-- Fuzzy-match runs in the builtin popup menu (0.11+).
+	PmenuMatch = { fg = c.base08, bold = true },
+	PmenuMatchSel = { fg = c.base08, bg = c.base02, bold = true },
+	ComplMatchIns = { fg = c.base08 },
+	DiagnosticDeprecated = { strikethrough = true, sp = c.base03 },
+	-- Inlay hints default-link to NonText (base02), which is the near-invisible
+	-- separator tone — unreadable for text you are meant to read. A muted chip
+	-- keeps them clearly secondary while telling them apart from comments,
+	-- which share base03 but carry no surface.
+	LspInlayHint = { fg = c.base03, bg = c.base01, italic = true },
 
 	-- ── Syntax, classic groups (§5.2) — syntax bg stays NONE ─────────────────
 	Comment = { fg = c.base03, italic = true },
@@ -196,6 +222,12 @@ local hl = {
 	diffAdded = { fg = c.base07 },
 	diffChanged = { fg = c.base09 },
 	diffRemoved = { fg = c.base10 },
+	-- The 0.10 standardized names. Neovim ships them with its own pastels
+	-- (#b3f6c0 / #8cf8f7 / #ffc0b9), which is off-palette everywhere they show;
+	-- @diff.plus/minus/delta default-link here, so these three fix all six.
+	Added = { fg = c.base07 },
+	Changed = { fg = c.base09 },
+	Removed = { fg = c.base10 },
 	GitSignsAdd = { fg = c.base07 },
 	GitSignsChange = { fg = c.base09 },
 	GitSignsDelete = { fg = c.base10 },
@@ -225,6 +257,17 @@ local hl = {
 	markdownListMarker = { fg = c.base08 },
 	markdownBlockquote = { fg = c.base08 },
 	["@markup.heading"] = { fg = c.base10, bold = true },
+	-- Graded levels, the SAME ramp core/markdown.lua paints in the reading
+	-- view, so a markdown buffer reads the same with the view on or off.
+	["@markup.heading.1"] = { fg = c.base10, bold = true },
+	["@markup.heading.2"] = { fg = c.base09, bold = true },
+	["@markup.heading.3"] = { fg = c.base12, bold = true },
+	["@markup.heading.4"] = { fg = c.base14 },
+	["@markup.heading.5"] = { fg = c.base08 },
+	["@markup.heading.6"] = { fg = c.base07 },
+	["@markup.list.checked"] = { fg = c.base13 },
+	["@markup.list.unchecked"] = { fg = c.base03 },
+	["@markup.math"] = { fg = c.base14 },
 	["@markup.link"] = { fg = c.base14, underline = true },
 	["@markup.link.url"] = { fg = c.base14, underline = true },
 	["@markup.link.label"] = { fg = c.base14 },
@@ -337,6 +380,16 @@ local hl = {
 	NeoTreeGitModified = { fg = c.base09 },
 	NeoTreeGitDeleted = { fg = c.base10 },
 	NeoTreeGitUntracked = { fg = c.base14 },
+	NeoTreeGitStaged = { fg = c.base07 },
+	NeoTreeGitConflict = { fg = c.base14 },
+	NeoTreeGitRenamed = { fg = c.base09 },
+	NeoTreeModified = { fg = c.base10 },
+	NeoTreeExpander = { fg = c.base03 },
+	NeoTreeCursorLine = { bg = c.base01 },
+	NeoTreeDimText = { fg = c.base02 },
+	NeoTreeFileNameOpened = { fg = c.base04, italic = true },
+	NeoTreeFloatBorder = { fg = edge, bg = bgf },
+	NeoTreeFloatTitle = { fg = c.base05, bg = bgf, bold = true },
 	NeoTreeWinSeparator = { fg = transparent and c.base01 or c.base00, bg = bg0 }, -- seamless panel
 	-- Source-selector tabs (winbar). The active tab is a chip — solid base01 +
 	-- accent text, same rationale as NvMenuSel / NvTreeHover — so it stays
@@ -355,6 +408,35 @@ local hl = {
 	WhichKeyDesc = { fg = c.base04 },
 	WhichKeySeparator = { fg = c.base03 },
 	WhichKeyNormal = { bg = bgf },
+
+	-- ── Mason (§7) ───────────────────────────────────────────────────────────
+	-- The one plugin UI that ships literal hexes rather than links: an orange
+	-- (#DCA561) and a cyan (#56B6C2) that belong to a different theme entirely.
+	-- Remapped onto the identity accent and the busy pink.
+	MasonNormal = { fg = c.base04, bg = bgf },
+	MasonBackdrop = { bg = c.backdrop },
+	MasonHeader = { fg = c.base00, bg = c.base09, bold = true },
+	MasonHeaderSecondary = { fg = c.base00, bg = c.base12, bold = true },
+	MasonHeading = { fg = c.base04, bold = true },
+	MasonHighlight = { fg = c.base08 },
+	MasonHighlightBlock = { fg = c.base00, bg = c.base08 },
+	MasonHighlightBlockBold = { fg = c.base00, bg = c.base08, bold = true },
+	MasonHighlightSecondary = { fg = c.base12 },
+	MasonHighlightBlockSecondary = { fg = c.base00, bg = c.base12 },
+	MasonHighlightBlockBoldSecondary = { fg = c.base00, bg = c.base12, bold = true },
+	MasonMuted = { fg = c.base03 },
+	MasonMutedBlock = { fg = c.base00, bg = c.base03 },
+	MasonMutedBlockBold = { fg = c.base00, bg = c.base03, bold = true },
+	MasonLink = { fg = c.base09, underline = true },
+
+	-- ── leap.nvim (§7) ───────────────────────────────────────────────────────
+	-- Same story: leap hardcodes an amber (#ffaf3f) and a lime (#ccff88). The
+	-- label is the thing you aim at, so it takes the identity accent as a solid
+	-- chip; the match underneath stays a dimmer chip so the two never compete.
+	LeapMatch = { fg = c.base00, bg = c.base12, bold = true },
+	LeapLabel = { fg = c.base00, bg = c.base09, bold = true },
+	LeapLabelDimmed = { fg = c.base03 },
+	LeapBackdrop = { fg = c.base03 },
 }
 
 for group, spec in pairs(hl) do

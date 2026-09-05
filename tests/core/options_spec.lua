@@ -41,4 +41,10 @@ describe("core.options", function()
 		assert.is_true(vim.o.splitright)
 		assert.matches("a", vim.o.mouse)
 	end)
+
+	-- Neovim ships both at 0, which glues the cursor to the viewport edge.
+	it("keeps a margin of context around the cursor", function()
+		assert.is_true(vim.o.scrolloff > 0, "scrolloff 0 means the cursor rides the edge")
+		assert.is_true(vim.o.sidescrolloff > 0)
+	end)
 end)
