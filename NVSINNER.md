@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.1.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.2.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.1.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.2.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.1.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.2.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -173,6 +173,23 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     (~5× a plain status, scaling with the ignored tree) and diffview already
     owns git, so the tree keeps only Files / Buffers while Files keeps its
     async git state.
+    **v3.2.0** teaches the inline blame which branch a line came from. Two
+    cases, told apart by their glyph: the branch a commit was **merged from**
+    (` release/v3.1.0 #22`, read from the merge that actually introduced it,
+    so a commit already on the mainline is never credited to someone else's
+    branch), and work **still in flight** on the branch you are standing on
+    (` feature/wip`) — the everyday case, which a search for the merge
+    commit structurally cannot answer because there is no merge yet. The carbon
+    theme also stops leaking. An audit of what Neovim 0.12 genuinely leaves
+    unset (most modern groups default-link onto roles the theme already sets,
+    and lazy/trouble/satellite/diffview all self-theme off them) claimed only
+    the groups measured wrong or absent: `Conceal`, `Added`/`Changed`/`Removed`,
+    `TabLineSel` — undefined, and the active tab in every diffview session —
+    the graded `@markup.heading` ramp, the Neo-tree gaps, plus mason and leap,
+    the two plugin UIs that hardcode off-palette hexes. nvim-cmp now renders
+    the 25 `CmpItemKind*` chips the palette had always defined and nothing ever
+    drew, LSP inlay hints arrive as an opt-in `<leader>lh` / `:NvSinnerMenu`
+    row, and `'scrolloff'` stops gluing the cursor to the viewport edge.
 
 ## Status
 

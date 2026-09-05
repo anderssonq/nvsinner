@@ -19,6 +19,10 @@ describe("core.ui-touch", function()
 	it("enables mouse move events and continuous box-drawing separators", function()
 		assert.is_true(vim.o.mousemoveevent)
 		assert.are.equal("│", vim.opt.fillchars:get().vert)
+		-- The `~` column below the last line carries no information; blanking it
+		-- is the point of setting eob at all, so an empty string here is the
+		-- assertion (unset would render Neovim's tilde again).
+		assert.are.equal(" ", vim.opt.fillchars:get().eob)
 	end)
 
 	it("bakes the buffer number into a focused terminal's winbar expression", function()

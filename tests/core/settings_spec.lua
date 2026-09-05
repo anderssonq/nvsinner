@@ -27,6 +27,9 @@ describe("core.settings", function()
 		assert.are.equal("single", settings.get("tree_click"))
 		assert.are.equal("right", settings.get("ai_side"))
 		assert.is_true(settings.get("ai_complete"))
+		-- Off by default on purpose: inlay hints put virtual text on most lines,
+		-- which is a change to how every buffer reads — the user's call.
+		assert.is_false(settings.get("inlay_hints"))
 		assert.are.equal("minimax-m2.5", settings.get("ai_model"))
 		assert.are.equal(300, settings.get("key_timeout"))
 		assert.is_false(settings.get("quiet"))

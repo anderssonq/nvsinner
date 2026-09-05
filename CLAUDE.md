@@ -138,7 +138,8 @@ line to `init.lua`** or its files will silently never load.
 - **Auto-reload means disk wins** — unsaved in-Vim edits to a buffer the AI
   changes are discarded (intended viewer-style workflow).
 - **Don't enable gitsigns `current_line_blame`** — inline blame is
-  git-blame.nvim's job; gitsigns owns the popup.
+  `lua/core/git-blame.lua`'s job (git-blame.nvim has been a disabled tombstone
+  since Wave 1); gitsigns owns the popup.
 - **`<leader>gd` / `<leader>gH` must never be bare `Diffview*` commands** —
   neither dedupes, so every press stacked another tab; they go through
   `open_diff()` / `open_repo_history()`, which reuse the view already open.

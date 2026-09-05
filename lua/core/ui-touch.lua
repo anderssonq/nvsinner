@@ -46,6 +46,10 @@ apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", { pattern = "*", callback = apply_hl })
 
 -- Continuous box-drawing separators so the pane borders read as clean lines.
+-- `eob` blanks the column of `~` below the last line — it carries no
+-- information and is the loudest thing in an otherwise empty pane; `fold` drops
+-- the trailing dashes of a closed fold for the same reason, and `diff` fills
+-- deleted regions with a diagonal hatch instead of `-`, which reads as content.
 vim.opt.fillchars:append({
 	vert = "│",
 	horiz = "─",
@@ -54,6 +58,9 @@ vim.opt.fillchars:append({
 	vertleft = "┤",
 	vertright = "├",
 	verthoriz = "┼",
+	eob = " ",
+	fold = " ",
+	diff = "╱",
 })
 
 -- ─── 1. Active-window border + glow ────────────────────────────────────────

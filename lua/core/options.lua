@@ -26,6 +26,13 @@ vim.cmd([[
 
 vim.opt.termguicolors = true
 
+-- Keep a margin of context around the cursor instead of letting it sit on the
+-- very edge of the viewport (Neovim's default is 0 for both). The vertical
+-- margin is what you feel while reading code; the horizontal one only bites on
+-- long unwrapped lines, which this config still wraps by default.
+vim.opt.scrolloff = 6
+vim.opt.sidescrolloff = 8
+
 -- Name the terminal window/tab after the project, so several nvsinner tabs are
 -- tellable apart. 'titlestring' is evaluated like 'statusline' because it
 -- contains a "%", and the expression re-requires core/project.lua at evaluation

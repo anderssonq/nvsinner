@@ -21,6 +21,7 @@
 --     neo-tree (same file) and diffview's file panels (lua/plugins/git/diffview.lua)
 --   * ai_side   → AI/vertical terminal column side (lua/plugins/terminal/toggleterm.lua)
 --   * ai_complete → inline AI completion on/off (lua/core/ai-complete.lua)
+--   * inlay_hints → LSP inlay hints on/off (lua/plugins/lsp/lsp-config.lua)
 --   * ai_model   → inline-completion model (lua/core/ai-complete.lua; :NvSinnerIA)
 --   * key_timeout → 'timeoutlen': the prefix wait on <leader>t/j/jx/f
 --   * quiet     → mute info-level vim.notify toasts (warnings/errors still show)
@@ -42,6 +43,7 @@ M.defaults = {
 	tree_click = "single", -- explorer mouse (neo-tree + diffview panels): "single" (one click opens) | "double" (stock)
 	ai_side = "right", -- AI / vertical terminal columns: "left" | "right"
 	ai_complete = true, -- inline AI completion (ghost text) on/off; no-ops without $OPENCODE_API_KEY
+	inlay_hints = false, -- LSP inlay hints; off by default because they change how every line reads
 	ai_model = "minimax-m2.5", -- inline-completion model (:NvSinnerIA picker; fastest verified OpenCode Zen id); $OPENCODE_MODEL still overrides
 	key_timeout = 300, -- 'timeoutlen' ms: the prefix wait on <leader>t/j/jx/f (core/options.lua sets the same baseline)
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
@@ -188,6 +190,11 @@ local apply = {
 		end)
 	end,
 	ai_model = function() end, -- read at request time by ai-complete.M.model(); nothing to apply live
+	inlay_hints = function(v)
+		-- Apply to every buffer that already has a capable client attached;
+		-- buffers attached later pick the value up in the LspAttach handler.
+		pcall(vim.lsp.inlay_hint.enable, v, {})
+	end,
 	key_timeout = function(v)
 		vim.opt.timeoutlen = v
 	end,

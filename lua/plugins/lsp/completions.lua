@@ -26,6 +26,56 @@ return {
 				completion = cmp.config.window.bordered(),
 				documentation = cmp.config.window.bordered(),
 			},
+			-- The colorscheme has always defined all 25 `CmpItemKind*` chips
+			-- (dark text on an accent, colors/carbon.lua §7) but nothing ever
+			-- rendered a kind, so the menu came out uniformly gray. Putting the
+			-- kind FIRST as an icon-only field turns each chip into a compact
+			-- colored square at the left edge — the icon carries the color, and
+			-- the kind's name moves to the muted `menu` field where it explains
+			-- the glyph without competing with it. No lspkind dependency: the
+			-- table below is the whole feature.
+			formatting = {
+				fields = { "kind", "abbr", "menu" },
+				format = function(_, item)
+					local icons = {
+						Text = "󰉿",
+						Method = "󰆧",
+						Function = "󰊕",
+						Constructor = "",
+						Field = "󰜢",
+						Variable = "󰀫",
+						Class = "󰠱",
+						Interface = "",
+						Module = "",
+						Property = "󰜢",
+						Unit = "󰑭",
+						Value = "󰎠",
+						Enum = "",
+						Keyword = "󰌋",
+						Snippet = "",
+						Color = "󰏘",
+						File = "󰈙",
+						Reference = "󰈇",
+						Folder = "󰉋",
+						EnumMember = "",
+						Constant = "󰏿",
+						Struct = "󰙅",
+						Event = "",
+						Operator = "󰆕",
+						TypeParameter = "",
+					}
+					local kind = item.kind
+					item.menu = kind
+					-- Padded so the chip reads as a block, not a tinted glyph.
+					item.kind = string.format(" %s ", icons[kind] or "")
+					-- A long completion must not push the kind chip or the menu
+					-- off the popup; the docs window carries the full text.
+					if #item.abbr > 50 then
+						item.abbr = item.abbr:sub(1, 49) .. "…"
+					end
+					return item
+				end,
+			},
 			mapping = cmp.mapping.preset.insert({
 				["<C-b>"] = cmp.mapping.scroll_docs(-4),
 				["<C-f>"] = cmp.mapping.scroll_docs(4),
