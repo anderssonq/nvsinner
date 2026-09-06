@@ -552,6 +552,7 @@ lua/core/settings.lua          Persistent :NvSinnerMenu settings (JSON in settin
 lua/core/menu.lua              :NvSinnerMenu settings modal
 lua/core/prompts.lua           :NvSinnerPrompts prompt library modal
 lua/core/help.lua              :NvSinnerHelp command palette
+lua/core/replace.lua           :NvSinnerReplace word-replace modal (<leader>rw): file, confirm, cgn, project-wide
 lua/core/keymaps.lua           Global keymaps (save/undo/redo, folds, split-resize, buffers)
 lua/core/autoreload.lua        Disk auto-reload + edit toast for the AI terminal workflow
 lua/core/ai-edits.lua          Underlines AI-written lines after a reload, until you take over
@@ -679,6 +680,7 @@ not.
 | `<leader>lh` | n | Toggle LSP **inlay hints** (parameter names, inferred types). Off by default; the same switch as `:NvSinnerMenu` → "Inlay hints", so the two can't disagree |
 | `<leader>ca` | n | Code action |
 | `<leader>rn` | n | Rename symbol |
+| `<leader>rw` | n, v | **Replace word** (`:NvSinnerReplace`) — opens a modal over the word under the cursor (or the visual selection) with four actions: `f` replace every exact match in this file · `c` replace asking `y`/`n`/`a`/`q` per match · `o` one by one with `cgn` (then `.` repeats, `n` skips) · `p` replace across the whole project. Matching is exact — replacing `foo` never touches `foobar` |
 | `grn` / `gra` / `grr` / `gri` / `grt` / `gO` | n | Neovim's stock LSP maps: rename / code action / references / implementation / type definition / document symbols. Left as-is, never remapped — `<leader>rn` and `<leader>ca` are the mnemonic aliases. (`grx` runs a codelens where your Neovim provides it.) |
 | `]d` / `[d` | n | Neovim builtins: next / previous diagnostic |
 | `<leader>xx` / `<leader>xX` | n | Trouble: workspace / buffer diagnostics |

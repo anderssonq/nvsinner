@@ -602,6 +602,67 @@ the **statusline** (a lualine component in `lua/plugins/ui/lualine.lua`).
   non-modifiable, with cursorline; `run()` jumps the source window to the
   picked symbol; warns when no LSP client is attached.
 
+## Word replace — `replace.lua` (required from `init.lua`)
+
+- **`:NvSinnerReplace`** / `<leader>rw` (normal: the `<cword>`; visual: the
+  selection) — the discoverable face of `:s`. A Mason-style modal titled with
+  the target word offers four rows, each a verb: **Replace in file** (`f`,
+  `:%s/…/g`), **Replace asking** (`c`, the `gc` flag — `y`/`n`/`a`/`q` per
+  match), **One by one** (`o`, the native `cgn` + `.` flow), **Replace in
+  project** (`p`, ripgrep under the project root). Picking a row always asks
+  for the new word with `vim.ui.input` (pre-filled with the target, so it is an
+  edit rather than a retype); an unchanged or empty answer is a no-op.
+- **The letter shortcuts RUN their row** instead of only selecting it — the one
+  place this modal departs from the house scheme (`menu`/`help`/`ia` digits
+  only move the cursor). The rows are verbs and the modal exists to be one
+  keystroke from intent to prompt. Digits keep the house behaviour, and `l`
+  is deliberately NOT a run key here (it would shadow nothing, but the letters
+  already cover it). `f`/`c`/`o`/`p` miss the modal's `j`/`k`/`q` maps; the
+  spec pins that they stay unique and non-colliding.
+- **Patterns are built with `\V` (very nomagic)**, and `\<…\>` boundaries are
+  added ONLY for a bare keyword token (`^[%w_]+$`). Both halves matter:
+  without `\V`, a target like `a.b` would match `axb`; with `\<…\>` forced onto
+  `$5` or `path/to/x` the boundaries would either never fire or fire in
+  surprising places, because they anchor between keyword and non-keyword
+  characters. Replacements escape `\`, `&`, `~` and `/` — `&` is the whole
+  match and `~` the previous replacement, so an unescaped `X&Y` silently
+  expands. `M.pattern` / `M.replacement` are pure and specced against a table
+  of adversarial targets.
+- **Match counts come from the `n` flag, not the substitution's own report.**
+  `:%s/…//gn` reports without substituting AND regardless of `'report'`
+  (default 2 — so a one-line replace prints nothing to parse). Counting first
+  is also what makes "no matches" a clean WARN instead of a caught E486.
+  Every buffer-scoped `:s` runs under `keeppatterns` so the user's search
+  register survives — except the `cgn` row, whose whole job is to SET `@/`.
+- **The project path calls ripgrep directly, never `:grep`.** Neovim 0.12
+  auto-detects `grepprg=rg --vimgrep -uu`, and `-uu` is `--no-ignore --hidden`
+  — it would walk `.git/` and `node_modules/`. `M.search` spawns `rg` through
+  `vim.system` with `--fixed-strings` (plus `--word-regexp`, mirroring
+  `M.pattern`'s boundary rule), so `.gitignore` stays in force. Root comes from
+  `core/project.root()` — the repo's only root helper, already cached and
+  `DirChanged`-invalidated. rg exits **1 for "no matches"**, so only `code > 1`
+  is an error.
+- **Writing many files is gated behind a `vim.ui.select` naming the blast
+  radius** ("2 matches in 2 files"), and the matches are parked in the
+  **quickfix list** first — so a cancel still leaves something to inspect, and
+  `<leader>xq` renders it in Trouble for free. This is the repo's first
+  quickfix consumer.
+- **`| update` inside the same `:cfdo` step is load-bearing, not tidiness.**
+  `autoreload.lua` runs an unconditional `checktime` every second plus one on
+  `BufEnter`, and its `FileChangedShell` sets `v:fcs_choice = "reload"` without
+  looking at `'modified'` — the documented disk-wins trade-off. A buffer left
+  modified-but-unwritten across a tick loses its replacements silently. Writing
+  in the same step closes that window, and the resulting `BufWritePost`
+  re-snapshots `ai-edits.lua`, so the rewritten lines are not painted as
+  "the AI wrote this". For the same reason this must never be implemented by
+  shelling out to `sed`: an external write storms the `🤖 AI · edited` toast
+  (autoreload's dedup is per-file, 250 ms) and washes every open file.
+  The command is `silent` so the per-file `(3 of 12):` echo stays out of the
+  way; errors still raise and are caught.
+- Seams: `M.pattern`, `M.replacement`, `M.search`, `M._parse_match` (greedy
+  filename capture, so a path containing a colon still splits), `M._summary`,
+  `M._items`, `M._ctx`, `M._reset`. Spec: `tests/core/replace_spec.lua`.
+
 ## Backdrop — `backdrop.lua` (required from `init.lua`)
 
 - Dimming backdrop behind the NvSinner modals: `attach()` opens a full-screen

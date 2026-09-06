@@ -12,6 +12,7 @@ return {
 			{ "<leader>h", group = "hunks" },
 			{ "<leader>j", group = "ai sessions" },
 			{ "<leader>l", group = "lsp" },
+			{ "<leader>r", group = "replace" },
 			{ "<leader>s", group = "search" },
 			{ "<leader>S", group = "session" },
 			{ "<leader>t", group = "terminal" },

@@ -20,7 +20,7 @@ M.tools = {
 	{
 		name = "ripgrep",
 		cmd = "rg",
-		used_by = "Telescope live grep",
+		used_by = "Telescope live grep and :NvSinnerReplace's project-wide replace",
 		install = "brew install ripgrep  (apt/dnf/pacman: ripgrep)",
 	},
 	{

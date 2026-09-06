@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.2.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.3.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.2.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.3.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.2.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.3.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -190,6 +190,22 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     the 25 `CmpItemKind*` chips the palette had always defined and nothing ever
     drew, LSP inlay hints arrive as an opt-in `<leader>lh` / `:NvSinnerMenu`
     row, and `'scrolloff'` stops gluing the cursor to the viewport edge.
+    **v3.3.0** gives search-and-replace a face. `<leader>rw` over a word (or a
+    visual selection) opens `:NvSinnerReplace`, a modal titled with the target
+    offering four verbs: replace every match in this file, replace asking
+    `y`/`n`/`a`/`q` per match, step through them with the native `cgn` + `.`
+    flow, or replace across the whole project — VSCode's "Replace in Files",
+    with the confirmation naming the blast radius before anything is written.
+    Matching is exact by construction: patterns are built with `\V` and take
+    `\<…\>` boundaries only for bare keyword tokens, so replacing `foo` never
+    touches `foobar` while a target like `a.b` still matches literally rather
+    than as a regex. The project path calls ripgrep directly instead of
+    `:grep`, whose auto-detected `-uu` would walk `.git/` and `node_modules/`,
+    parks the hits in the quickfix list so a cancel still leaves something to
+    inspect, and writes every file inside the same `:cfdo` step that edits it —
+    not tidiness but a requirement, since the auto-reload's unconditional
+    `checktime` reloads on disk without checking `'modified'` and would
+    silently discard a buffer left unwritten.
 
 ## Status
 

@@ -40,6 +40,14 @@ per-subsystem contracts and load-bearing warnings for this directory.
   blue identity, `base10` magenta attention, `base11` terminal focus, `base12`
   pink busy). Never hardcode a hex in a core module — `require("core.carbon")`
   and reference a role.
+- **Anything that writes files in bulk must write inside the same step that
+  edits them** (`:cfdo … | update`, never a modify-now-save-later split), and
+  must never shell out to `sed`. `autoreload.lua`'s unconditional 1s
+  `checktime` reloads on `FileChangedShell` without checking `'modified'`, so a
+  buffer left modified-but-unwritten loses its edits silently; an external
+  writer additionally storms the `🤖 AI · edited` toast and washes every open
+  file via `ai-edits.lua`. `lua/core/replace.lua`'s project path is the worked
+  example — read its section in `lua/core/CLAUDE.md` before writing another.
 - All Lua, comments in English. If you add a new `require` to a core module, add it
   to `init.lua` in the right order.
 
