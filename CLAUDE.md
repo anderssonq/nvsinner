@@ -33,6 +33,7 @@ lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over c
 lua/core/prompts.lua         :NvSinnerPrompts — prompt-library modal over settings/prompts.json → OS clipboard (native)
 lua/core/help.lua            :NvSinnerHelp — command palette listing every NvSinner command; pick one to run it (native)
 lua/core/symbols.lua         :NvSinnerSymbols / <leader>cs — LSP document-symbols modal; pick a symbol to jump to it (native)
+lua/core/replace.lua         :NvSinnerReplace / <leader>rw — word replace modal: this file, confirm each, cgn one-by-one, or project-wide via ripgrep + :cfdo (native)
 lua/core/backdrop.lua        Dimming backdrop + interaction guard behind the NvSinner modals (full-screen winblend float that swallows mouse events, WinEnter focus trap, auto-closes with the modal) (native)
 settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
 lua/core/carbon.lua          Carbon base16 role palette + background themes + accent packs — the ONE source of truth for every color
@@ -193,9 +194,11 @@ reference** — check it before adding a map. Leader namespaces (leader = Space)
   view a diff ⇄ file-list toggle; diffview's own `gf` is the exit, leaving the
   tab standing; plus gitsigns' `gu` = the unified inline diff) · `h` hunks
   (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
-  primed with `@`-mentions of the visible buffers) · `l` lsp · `s` search
-  (telescope) · `S` session (persistence) · `t` terminals · `x` trouble +
-  NvSinner shortcuts (normal; `xa` = the agent cockpit) / Ask-AI modal (visual)
+  primed with `@`-mentions of the visible buffers) · `l` lsp · `r` replace
+  (`rn` = LSP rename symbol; `rw` = the word-replace modal, n + visual) ·
+  `s` search (telescope) · `S` session (persistence) · `t` terminals ·
+  `x` trouble + NvSinner shortcuts (normal; `xa` = the agent cockpit) /
+  Ask-AI modal (visual)
 - `<leader>zl` toggles **LSP structural folding** per window
   (`vim.lsp.foldexpr`, 0.12). Deliberately NOT a default: `'foldmethod'` is
   exclusive, so `expr` makes `:fold` raise E350 and silently breaks
