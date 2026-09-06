@@ -29,6 +29,13 @@ jobs:
           neovim: true
           version: ${{ matrix.nvim }}
 
+      # ripgrep is a declared distro dependency (core/health.lua reports it),
+      # and tests/core/replace_spec.lua drives the REAL binary rather than a
+      # stub — the project-wide replace is only meaningful against actual rg
+      # output. The ubuntu-latest image does not ship it.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       - name: Link config into the XDG path
         run: |
           mkdir -p ~/.config
