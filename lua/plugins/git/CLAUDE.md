@@ -187,3 +187,14 @@
   - The handlers `require` lazily inside their bodies, so the spec table stays
     loadable with no plugins on the runtimepath (what
     `tests/plugins/diffview_spec.lua` asserts).
+
+  **Click, never drag-select in the panels** — the same lock neo-tree gets
+  (`lua/plugins/navigation/CLAUDE.md`): the spec's `init` registers a
+  `FileType DiffviewFiles,DiffviewFileHistory` autocmd (augroup
+  `nvsinner_diffview_mouse`) routing each panel buffer through
+  `core.mouse.lock_selection()`. Why `init` and not `CLICK_MAPS`: the locks must
+  be **expr** maps so a separator resize-drag falls through, while every entry in
+  the panel keymap lists is asserted to be a plain normal-mode callback with a
+  `desc`. `init` also runs at startup without loading diffview, and the panel
+  filetypes only exist once it has. **`keymaps.view` is deliberately excluded** —
+  the diff windows are real text and keep normal drag-selection.

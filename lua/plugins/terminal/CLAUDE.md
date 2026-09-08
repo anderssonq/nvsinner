@@ -48,6 +48,30 @@
 - `<leader>j` is also a prefix of `<leader>j2`…, so a bare `<leader>j` waits
   one `timeoutlen` (which-key shows the menu) before falling back to session
   1; press a digit right after `<leader>j` to jump straight to that session.
+- **`persist_mode = false` — focusing a column lands in terminal-INSERT.**
+  The contract above ("the column sits in terminal-insert mode whenever
+  focused", which is why the `<leader>j*` maps can be normal-mode only) was
+  quietly broken. toggleterm defaults `persist_mode = true`: `handle_term_leave`
+  snapshots the mode on `WinLeave`, and `handle_term_enter` restores it on
+  `BufEnter` through a **`vim.schedule`d `stopinsert`** — which lands AFTER
+  `core/autoreload.lua`'s synchronous `startinsert` and wins. So one `<Esc>`
+  (the documented way out, mapped below) persisted NORMAL for that column, and
+  every later focus needed an `i`. It defeated the explicit `startinsert!` in
+  `on_panel_open`, `<leader>jx`, `<leader>ja`, `ai-sessions.send_to` and the
+  `:NvSinnerAgents` cockpit too — one option repairs all five.
+  - **Rejected alternative: scheduling autoreload's `startinsert` to outrun it.**
+    autoreload is registered pre-lazy, so it runs FIRST and therefore *schedules*
+    first; toggleterm still lands last. Ordering hacks cannot win this.
+  - Verified by a real-PTY A/B on the full config: after `<Esc>` → leave → return,
+    `persist_mode = true` gives `mode() == "nt"` and `false` gives `"t"`.
+  - **The trade-off, accepted knowingly**: `persist_mode` is a GLOBAL toggleterm
+    option, so it covers the horizontal `<leader>t` terminals too. `<Esc>`-then-
+    scroll a long build log no longer survives clicking away and back — you snap
+    to insert at the bottom. AI CLIs are unaffected (their TUIs own their own
+    scrollback). If this ever bites, the follow-up is a `core/settings` key read
+    by `autoreload.should_insert`, not a per-terminal hack.
+  - Pinned by `tests/plugins/terminal_keymaps_spec.lua` against
+    **comment-stripped** source, so the prose above cannot satisfy the test.
 - **Terminal-mode maps deliberately exclude `jk`.** `<esc>` is the only escape
   to terminal-normal mode. A `jk` map makes every literal `j` a prefix, so the
   keystroke is withheld one `timeoutlen` before reaching the CLI — typing

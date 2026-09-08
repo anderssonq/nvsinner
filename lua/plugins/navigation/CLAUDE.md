@@ -41,6 +41,24 @@
     first click just expanded.
   - The handlers read the setting **live**, so switching applies on the next
     click without re-running neo-tree's `setup()` (its applier is a no-op).
+- **Click, never drag-select** — sweeping the pointer across tree rows used to
+  paint a Visual selection over the filenames, which is meaningless in an
+  explorer and swallowed the next click. A `FileType neo-tree` autocmd
+  (augroup `nvsinner_neotree_mouse`) hands each tree buffer to
+  `core.mouse.lock_selection()`, which locks the six selection-starting mouse
+  gestures (`<LeftDrag>`, `<2-`/`<3-`/`<4-LeftDrag>`, `<3-`/`<4-LeftMouse>`).
+  Points that are load-bearing:
+  - **An autocmd, not `window.mappings`.** The locks must be **expr** maps (to
+    let a resize-drag fall through), and `'mouse'` is a global-only option, so
+    buffer-local maps are the only lever available at all.
+  - **`<LeftRelease>` must stay a plain consuming callback.** Vim finalises a
+    mouse selection on the RELEASE, from the remembered press position — so an
+    expr/fall-through `<LeftRelease>` would re-enter Visual mode even with every
+    drag gesture locked. Verified by probe; pinned by `neotree_spec.lua`.
+  - **Visual mode itself is untouched**: neo-tree binds real visual commands
+    (copy/cut/delete over a multi-row selection). Only the MOUSE path is cut.
+  - `<2-LeftMouse>` is deliberately NOT in the lock list — both explorers
+    already claim it, so mouse word-select can never fire.
 - **The Buffers tab does NOT show git symbols, on purpose.** neo-tree's buffers
   source subscribes a `BEFORE_RENDER` handler that calls the **synchronous**
   `git.status` (`vim.fn.system`, `neo-tree/git/init.lua:251`) on *every render*

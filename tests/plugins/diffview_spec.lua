@@ -172,6 +172,26 @@ describe("diffview spec", function()
 	describe("round-trip source guards", function()
 		local src = table.concat(vim.fn.readfile(repo_root() .. "/lua/plugins/git/diffview.lua"), "\n")
 
+		-- Click, never drag-select in the two file panels: like neo-tree's tree
+		-- they are pickers, not text. Installed from an `init` FileType autocmd
+		-- rather than the keymap tables below, because the lock needs EXPR maps
+		-- (to fall through on a separator resize-drag) while every panel map is
+		-- asserted above to be a plain normal-mode callback with a desc.
+		it("locks mouse selection on both file panels", function()
+			local code = src:gsub("%-%-[^\n]*", "")
+			assert.is_truthy(code:match('require%("core%.mouse"%)%.lock_selection'))
+			assert.is_truthy(code:match('"DiffviewFiles"'), "the file panel must be covered")
+			assert.is_truthy(code:match('"DiffviewFileHistory"'), "the history panel too")
+		end)
+
+		-- The diff windows are real text; drag-selection must survive there.
+		it("never locks the diff windows themselves", function()
+			assert.is_nil(
+				src:match('pattern%s*=%s*{[^}]*"DiffviewView"'),
+				"keymaps.view / the diff windows keep normal drag selection"
+			)
+		end)
+
 		-- The keys own different halves of the trip. <leader>gi staying INSIDE
 		-- the view is the whole point: conflating them costs you the file list
 		-- mid-review.

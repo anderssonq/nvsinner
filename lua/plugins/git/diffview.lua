@@ -469,6 +469,23 @@ return {
 		{ "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diff: close view" },
 		{ "<leader>gi", into_diff, desc = "Diff: into the diff (toggle diff/file list)" },
 	},
+	-- Click, never drag-select in the two file panels. Like neo-tree's tree they
+	-- are pickers, not text, so a press-and-sweep across entries should highlight
+	-- nothing. It rides `init` (not the keymaps table below) for two reasons: the
+	-- drag-lock needs EXPR maps so a separator resize-drag can fall through, and
+	-- diffview's keymap lists are asserted to be plain normal-mode callbacks with
+	-- a desc. `init` runs at startup without loading the plugin, and the panel
+	-- filetypes only ever exist once it has. See core/mouse.lock_selection; the
+	-- diff windows themselves (keymaps.view) keep normal drag-selection.
+	init = function()
+		vim.api.nvim_create_autocmd("FileType", {
+			group = vim.api.nvim_create_augroup("nvsinner_diffview_mouse", { clear = true }),
+			pattern = { "DiffviewFiles", "DiffviewFileHistory" },
+			callback = function(args)
+				require("core.mouse").lock_selection(args.buf)
+			end,
+		})
+	end,
 	opts = {
 		-- Brighter, word-level diff highlights so changes stand out clearly.
 		enhanced_diff_hl = true,

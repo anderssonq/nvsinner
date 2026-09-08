@@ -895,6 +895,33 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   so the Post event is required to catch the usual AI edit. A 250ms per-file
   dedup keeps the two events from double-toasting one write. Only loaded
   buffers fire either, so you're notified for files you actually have open.
+- **Focus a terminal → start typing.** A `WinEnter`/`BufEnter` autocmd (augroup
+  `term_focus_startinsert`) drops you into terminal-INSERT when you focus a
+  terminal window — by mouse OR by `<C-h/j/k/l>` — so a click on any AI column or
+  `<leader>t` terminal is immediately typable. **This module is the single
+  authority on terminal focus mode**; `lua/plugins/terminal/toggleterm.lua` sets
+  `persist_mode = false` precisely to stand down (see that file's contract for
+  the fight it was losing).
+- **`M.should_insert(buf)` is the seam, and the gate.** Only terminals whose job
+  is still ALIVE qualify: an AI column runs `close_on_exit = false`, so a column
+  whose CLI exited stays open as a readable log where normal mode is what you
+  want. **`b:terminal_job_id` SURVIVES the job's death** (verified), so its
+  presence proves nothing — `jobwait({id}, 0)[1] == -1` is the liveness probe.
+  It is a seam because headless Neovim cannot enter terminal mode synchronously
+  (`tests/core/ai_sessions_spec.lua`), so the predicate is the only assertable
+  half; the mode itself is pinned by a real-PTY A/B.
+- **The insert is scheduled and re-checked**, not fired inline: `startinsert`
+  from an autocmd only takes effect once the autocmd finishes, and toggleterm
+  shuffles windows on exactly this path (`restore_layout()` runs `wincmd J/H/L`
+  over every open panel; the `ai_side` handler then restores the previously
+  current window). Re-asserting that the same terminal window is still current
+  turns that race into a no-op instead of stray insert mode in a code buffer.
+- **Known duplication**: four other sites carry the same `win valid →
+  nvim_set_current_win + startinsert!` idiom (`ai-sessions.send_to`,
+  `ai-sessions`' `<leader>ja`, `agents.focus`, toggleterm's
+  `focus_and_prime_ai_panel`). They are explicit user-intent focus calls, not
+  reactive ones, and were left alone deliberately — `persist_mode = false` is
+  what unbroke all of them at once.
 
 ## AI edit highlights — `ai-edits.lua` (required from `init.lua`)
 
@@ -1294,6 +1321,30 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   diffview's panels (`diffview/ui/panel.lua`) all run `wrap = false` and
   `foldenable = false`, so screen rows map 1:1 onto buffer lines. A future
   consumer that wraps or folds would need a different approach.
+- **`M.in_text_area(winid, mp)` + `M.lock_selection(buf)`** — the second export
+  pair: "click, never drag-select" for the same two explorers. `lock_selection`
+  installs buffer-local **expr** maps over `M.SELECT_KEYS` (the six
+  selection-starting gestures) that return `""` to swallow a sweep across rows,
+  and the **literal key** otherwise so the BUILTIN still runs. `'mouse'` is
+  global-only, so buffer-local maps are the only lever; a blanket `<Nop>` was
+  rejected because drag keys resolve against the FOCUSED buffer even when the
+  pointer is on the border, which would have killed separator resize-drag.
+- **The predicate's winid clause is the load-bearing half, and it is not the
+  obvious one.** During a separator resize-drag the pointer leaves the panel, so
+  `getmousepos()` reports the NEIGHBOUR's winid with an ordinary line number —
+  `line` is NOT 0. A real-PTY probe (child Neovim driven with SGR mouse escapes)
+  resized 39 → 54 columns with the winid predicate and stayed stuck at 39 with a
+  `line == 0`-only predicate derived from `:h getmousepos()`. The `line == 0`
+  clause is kept for the documented static case (pointer resting on a status line
+  or separator), but it must never be the only test.
+- **`replace_keycodes = true` is load-bearing**, not decorative: without it the
+  returned `"<LeftDrag>"` is fed through as literal text and the fall-through
+  dies silently (verified both ways).
+- **Coupling**: the lock is sufficient only while each consumer's own
+  `<LeftRelease>` stays a plain consuming callback. Vim finalises a mouse
+  selection on the RELEASE, from the remembered press position, so a
+  fall-through `<LeftRelease>` resurrects drag-select despite every drag gesture
+  being locked. Both explorers map it to a plain function; their specs pin it.
 - `mp` (a `getmousepos()`-shaped table) is the test seam — mouse events cannot
   be synthesized headless, the same shape as `neotree-hover`'s `M.update(mp)`.
   Spec: `tests/core/mouse_spec.lua`.
