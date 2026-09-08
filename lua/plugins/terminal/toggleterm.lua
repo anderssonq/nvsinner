@@ -15,6 +15,18 @@ return {
 			size = function()
 				return math.floor(vim.o.lines * 0.20)
 			end,
+			-- core/autoreload.lua owns terminal focus mode; this hands it the key.
+			-- toggleterm defaults persist_mode = TRUE, which snapshots the mode on
+			-- WinLeave and RESTORES it on the next BufEnter via a *scheduled*
+			-- stopinsert -- landing after autoreload's synchronous startinsert and
+			-- winning. One <Esc> (the documented way out, mapped below) therefore
+			-- poisoned every later focus of that column: you had to press `i` to
+			-- type again, and the same scheduled stopinsert also defeated the
+			-- explicit startinsert! in on_panel_open, <leader>jx, <leader>ja,
+			-- ai-sessions.send_to and the :NvSinnerAgents cockpit. Off, the enter
+			-- handler falls through to toggleterm's own start_in_insert instead,
+			-- which agrees with autoreload rather than fighting it.
+			persist_mode = false,
 		})
 		local opts = {}
 		local Terminal = require("toggleterm.terminal").Terminal

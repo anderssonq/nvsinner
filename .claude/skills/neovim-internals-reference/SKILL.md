@@ -183,9 +183,15 @@ buffers:
   in terminal mode, some redraw commands skip the winbar — see §4.
 - **Modes.** A focused terminal is in *terminal mode* (keys go to the process)
   or *terminal-normal mode* (`<C-\><C-n>`). `lua/core/autoreload.lua`
-  auto-`startinsert`s on `WinEnter`/`BufEnter` into terminal buffers so a click
-  is immediately typable; `lua/plugins/terminal/toggleterm.lua` maps `<Esc>`
-  and `jk` back out. Also note Vim has no `CursorHold` in terminal mode, which
+  auto-`startinsert`s on `WinEnter`/`BufEnter` into terminal buffers (gated on a
+  LIVE job, and scheduled + re-checked so the insert cannot land in a code
+  buffer) so a click is immediately typable; `lua/plugins/terminal/toggleterm.lua`
+  maps `<Esc>` back out — **not `jk`**, which was removed (FA-25) and is now
+  actively forbidden by `tests/plugins/terminal_keymaps_spec.lua`. That spec also
+  pins `persist_mode = false`: toggleterm's `true` default restores the mode
+  snapshotted on `WinLeave` through a *scheduled* `stopinsert`, which beats
+  autoreload's synchronous `startinsert`, so one `<Esc>` made every later focus of
+  that column need an `i`. Also note Vim has no `CursorHold` in terminal mode, which
   is why `autoreload.lua` needs its 1s timer to keep running `checktime` while
   you sit in the AI column.
 

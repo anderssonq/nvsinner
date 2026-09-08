@@ -82,4 +82,29 @@ describe("neo-tree spec", function()
 	it("never disables the default mappings", function()
 		assert.is_nil(code:match("use_default_mappings%s*=%s*false"))
 	end)
+
+	-- Click, never drag-select. Sweeping the pointer across tree rows used to
+	-- paint a Visual selection over the filenames — meaningless in an explorer.
+	-- 'mouse' is a GLOBAL option, so buffer-local maps are the only lever, and
+	-- they are installed from a FileType autocmd rather than window.mappings so
+	-- they can be EXPR maps (needed for the resize fall-through).
+	describe("mouse selection lock", function()
+		it("locks the tree's buffers via core.mouse.lock_selection", function()
+			assert.matches('pattern%s*=%s*"neo%-tree"', code)
+			assert.matches('require%("core%.mouse"%)%.lock_selection', code)
+		end)
+
+		-- <LeftRelease> is the click-to-open gesture AND the reason the drag-lock
+		-- is sufficient: Vim finalises a mouse selection on the RELEASE, from the
+		-- remembered press position, so if this ever fell through to the builtin
+		-- a swept click would re-enter Visual mode despite every drag being
+		-- locked. It must stay a plain consuming callback.
+		it("keeps <LeftRelease> a plain consuming callback, never an expr map", function()
+			assert.matches('%["<LeftRelease>"%]%s*=%s*function', code)
+			-- The lock's own expr maps live in core/mouse.lua, so this file must
+			-- declare no expr mapping of its own — an expr <LeftRelease> (or any
+			-- table-form mapping carrying expr) would let the builtin release run.
+			assert.is_nil(code:match("expr"), "neo-tree must declare no expr mapping itself")
+		end)
+	end)
 end)

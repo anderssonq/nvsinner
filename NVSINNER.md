@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.3.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.4.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.3.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.4.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.3.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.4.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -206,6 +206,27 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     not tidiness but a requirement, since the auto-reload's unconditional
     `checktime` reloads on disk without checking `'modified'` and would
     silently discard a buffer left unwritten.
+    **v3.4.0** makes the mouse behave. Focusing an AI column landed you in
+    terminal-*normal* mode, so you had to press `i` before typing at the CLI —
+    and the cause was not the missing feature it looked like: the auto-insert
+    autocmd had been there all along, losing a race. toggleterm's
+    `persist_mode` default snapshots the mode on `WinLeave` and restores it on
+    `BufEnter` through a *scheduled* `stopinsert`, which lands after
+    `core/autoreload.lua`'s synchronous `startinsert`. One `<Esc>` — the
+    documented way out of a column — therefore poisoned every later focus of
+    it, and the same race defeated the explicit `startinsert!` behind
+    `<leader>jx`, `<leader>ja`, the send-to-AI bridge and the `:NvSinnerAgents`
+    cockpit. Turning the persistence off repairs all five at once, and the
+    focus insert is now gated on the terminal's job being alive (a column whose
+    CLI exited stays readable in normal mode) and scheduled behind a
+    same-window re-check, so a layout shuffle can never land insert mode in a
+    code buffer. In the explorers, click-dragging no longer paints a Visual
+    selection over filenames: neo-tree and both diffview panels lock the six
+    selection-starting mouse gestures. The lock is selective rather than a
+    blanket `<Nop>`, because mouse keys resolve against the focused buffer even
+    when the pointer is on the border — so dragging a panel's edge to resize it
+    still works, verified by driving a real terminal with synthetic mouse
+    events rather than trusting what `:h getmousepos()` implies.
 
 ## Status
 

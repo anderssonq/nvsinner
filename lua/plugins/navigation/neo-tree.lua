@@ -76,6 +76,20 @@ return {
 		},
 	},
 	config = function()
+		-- Click, never drag-select. The tree is a picker, not text: a
+		-- press-and-sweep across rows should highlight nothing, the way a GUI
+		-- file explorer behaves. `mouse` is a GLOBAL-only option, so buffer-local
+		-- maps are the only lever — and they cannot live in `window.mappings`,
+		-- which runs its values through neo-tree's own mapping manager and has no
+		-- `expr` support (the drag-lock needs expr to let a separator resize-drag
+		-- fall through). Hence a FileType autocmd. See core/mouse.lock_selection.
+		vim.api.nvim_create_autocmd("FileType", {
+			group = vim.api.nvim_create_augroup("nvsinner_neotree_mouse", { clear = true }),
+			pattern = "neo-tree",
+			callback = function(args)
+				require("core.mouse").lock_selection(args.buf)
+			end,
+		})
 		require("neo-tree").setup({
 			-- Source tabs in the tree's winbar: Files / Buffers. The
 			-- tree's winbar is unowned (ui-touch's SKIP_FT lists "neo-tree",

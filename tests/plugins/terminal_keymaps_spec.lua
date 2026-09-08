@@ -14,11 +14,27 @@ end
 
 describe("toggleterm terminal-mode keymaps", function()
 	local src
+	-- `code` is the same source with LINE COMMENTS STRIPPED, for assertions whose
+	-- subject is also named in the prose above it (the neotree_spec rationale:
+	-- otherwise a comment can satisfy a test whose code was deleted).
+	local code
 	before_each(function()
 		local path = repo_root() .. "/lua/plugins/terminal/toggleterm.lua"
 		local fd = assert(io.open(path, "r"), path .. " must exist")
 		src = fd:read("*a")
 		fd:close()
+		code = src:gsub("%-%-[^\n]*", "")
+	end)
+
+	-- Focusing an AI column must land in terminal-INSERT: the column exists to be
+	-- typed at, and lua/plugins/terminal/CLAUDE.md states the invariant that the
+	-- normal-mode-only <leader>j* maps depend on. toggleterm defaults
+	-- persist_mode = true, which RESTORES the mode snapshotted on WinLeave via a
+	-- vim.schedule'd stopinsert — landing after core/autoreload's synchronous
+	-- startinsert and winning, so a single <Esc> made every later focus of that
+	-- column need an `i`. core/autoreload.lua owns terminal focus mode.
+	it("turns persist_mode off so a focused terminal lands in insert", function()
+		assert.matches("persist_mode%s*=%s*false", code)
 	end)
 
 	it("maps <esc> as the escape to terminal-normal mode", function()

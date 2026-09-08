@@ -138,6 +138,11 @@ line to `init.lua`** or its files will silently never load.
   for review (no trailing `\r`).
 - **Auto-reload means disk wins** — unsaved in-Vim edits to a buffer the AI
   changes are discarded (intended viewer-style workflow).
+- **toggleterm keeps `persist_mode = false`** — its `true` default restores the
+  mode snapshotted on `WinLeave` via a scheduled `stopinsert` that beats
+  `core/autoreload.lua`'s synchronous `startinsert`, so a single `<Esc>` made
+  every later focus of that column need an `i`. `core/autoreload.lua` is the one
+  authority on terminal focus mode.
 - **Don't enable gitsigns `current_line_blame`** — inline blame is
   `lua/core/git-blame.lua`'s job (git-blame.nvim has been a disabled tombstone
   since Wave 1); gitsigns owns the popup.

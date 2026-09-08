@@ -172,7 +172,7 @@ Once `nvsinner` opens, this is the whole loop the distro exists for:
 
 | Press | What happens |
 |-------|--------------|
-| `<leader>e` | File tree. Single click opens a file (`:NvSinnerMenu` → "Explorer click" restores stock double-click) |
+| `<leader>e` | File tree. Single click opens a file (`:NvSinnerMenu` → "Explorer click" restores stock double-click). Click-dragging selects nothing — the tree is a picker, not text; drag its edge to resize |
 | `<leader>f` | Find files · `<leader>sf` greps the project |
 | `<leader>j` | Opens the AI column on the right. **First open asks which CLI to run** — `claude`, `kiro-cli`, `opencode`, or a plain shell. Only CLIs found on your `PATH` are offered |
 | select some code, `<leader>x` | Ask AI about it — Fix / Refactor / Explain / your own question |
