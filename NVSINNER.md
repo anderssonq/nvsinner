@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.4.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.5.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.4.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.5.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.4.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.5.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -227,6 +227,24 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     when the pointer is on the border — so dragging a panel's edge to resize it
     still works, verified by driving a real terminal with synthetic mouse
     events rather than trusting what `:h getmousepos()` implies.
+    **v3.5.0** halves the page. `<PageUp>` / `<PageDown>` travelled `&scroll` —
+    half a window, 28 lines on a full-height split — which read as a teleport
+    rather than a page, and left `<S-Down>` / `<S-Up>` (Vim builtins for
+    `CTRL-F` / `CTRL-B`) as merely a twice-longer version of the same jump. The
+    step is now a **fraction of the window** instead of a line count: a quarter
+    in a code buffer, 0.15 in neo-tree, where a file list is scanned row by row
+    and a page should keep more context on screen. Measured on a 55-row window,
+    three presses from line 1 land on 21 / 35 / 49 where they used to land on
+    35 / 62 / 89. A fraction also means the step scales with whatever split the
+    window is in rather than assuming a height, and the neo-tree case rides a
+    filetype table on the same global map — neo-tree binds nothing to these keys
+    (its stock `<C-f>` / `<C-b>` scroll the *preview*), so no buffer-local
+    override is needed and none can race the spec's own `VeryLazy` load. What
+    did *not* change is the thing that looks like the same complaint: the cursor
+    settling several rows down the screen on the first press is `'scrolloff'`,
+    not the step size — neoscroll pins the cursor to `scrolloff + 1` for the
+    whole animation, so leaving the top of a buffer moves it there once and
+    every later press holds that row.
 
 ## Status
 
