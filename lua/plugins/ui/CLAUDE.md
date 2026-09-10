@@ -73,6 +73,27 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
 - `mini-animate.lua` — `mini.animate`: eases window open/close/resize (the AI
   column slides in) + a short cursor trail. **Scroll is disabled here** —
   that's `neoscroll`'s job (`smooth-scroll.lua`); don't enable both.
+- `smooth-scroll.lua` — `neoscroll.nvim`, the **single** scroll owner (FA-17).
+  It maps only `<PageUp>` / `<PageDown>`: `setup()` is deliberately never
+  called, so neoscroll's default `<C-d>`/`<C-u>`/`<C-f>`/`zz`… set is never
+  installed and those keys stay native. The step is a **window fraction**, not
+  a line count — `STEP = 0.25`, and `STEP_BY_FILETYPE["neo-tree"] = 0.15`
+  because a file list is scanned row by row — so a page scales with the split
+  instead of assuming a height. A quarter window is half of `&scroll` (what the
+  old `ctrl_d`/`ctrl_u` helpers travelled) and a quarter of `<S-Down>`/`<S-Up>`,
+  Vim builtins for `CTRL-F`/`CTRL-B` that stay the long jump: measured on a
+  55-row window, `<PageDown>` moves 14 lines where `ctrl_d` moved 28.
+  The neo-tree step lives in a filetype table on the global map, **not** a
+  buffer-local override — neo-tree binds nothing to these keys (its stock
+  `<C-f>`/`<C-b>` scroll the *preview*), and a table lookup avoids racing this
+  spec's own `VeryLazy` load.
+  Two things that look like the step size but aren't: the cursor settling on
+  window row 7 is `scrolloff = 6` (`core/options.lua`) — neoscroll pins the
+  cursor to `scrolloff + 1` for the whole animation, so the first press off the
+  top of a buffer moves it there once and every later press holds it; and
+  `duration` stays at **10 ms** because neoscroll emits one `WinScrolled` per
+  animation frame, which `colorizer` / `todo` / `markdown` / `indent` /
+  `ui-touch` all debounce on.
 - `diagnostics.lua` lives in `lua/plugins/lsp/` (it owns
   `vim.diagnostic.config`) — see that folder's CLAUDE.md.
 - `scrollbar.lua` — `satellite.nvim`: slim decoration-based right-edge

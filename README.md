@@ -608,7 +608,7 @@ spec; new files in an existing category are picked up automatically.
 | `telescope.lua` | telescope.nvim | `<leader>f` files · `<leader>sf` grep · `<leader>fb` buffers · `<leader>sd/sk/sc/sr/sh/ss/sR` diagnostics/keymaps/commands/resume/help/symbols/references |
 | `neo-tree.lua` | neo-tree.nvim | `<leader>e` toggle file explorer (reveals current file) |
 | `leap.lua` | leap.nvim | `s` forward · `S` backward · `gs` across windows |
-| `smooth-scroll.lua` | neoscroll.nvim | `<PageUp>` / `<PageDown>` smooth scroll |
+| `smooth-scroll.lua` | neoscroll.nvim | `<PageUp>` / `<PageDown>` smooth scroll — a quarter window, smaller in Neo-tree |
 | `nvim-window-picker.lua` | window-picker | **Disabled** — replaced by the native letter-overlay picker (`lua/core/window-picker.lua`, still drives Neo-tree's `w`) |
 
 ### Editing
@@ -662,7 +662,8 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>e` | n | Toggle Neo-tree (reveals the current file; side set in `:NvSinnerMenu`) |
 | Click a tree row | mouse | Open the file / expand the folder — **one click**, not two (switch to stock double-click in `:NvSinnerMenu` → "Explorer click") |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
-| `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down |
+| `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down — a quarter of the window (~8 rows in Neo-tree, where a page should keep more context) |
+| `<S-Down>` / `<S-Up>` | n, v, x | Vim builtins (`CTRL-F` / `CTRL-B`) — a full window, the long jump |
 
 Search pickers adapt to the available space: results and a larger dark preview
 sit side by side on wide screens, then stack vertically on narrow screens. The
