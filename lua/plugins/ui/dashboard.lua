@@ -122,7 +122,7 @@ return {
 		}
 
 		-- ── Footer ───────────────────────────────────────────────────────────
-		-- A dev quote picked fresh on every launch (this config runs once per
+		-- A dev quote or joke picked fresh on every launch (this config runs once per
 		-- VimEnter), sitting above a CONSTANT attribution line — so the rotating
 		-- quote changes but "andersoftware.com" is always shown. The quote area
 		-- doubles as the version-check surface (core/version.lua): a spinner
@@ -138,6 +138,26 @@ return {
 			"The best code is no code at all. — Jeff Atwood",
 			"Simplicity is the soul of efficiency. — Austin Freeman",
 			"Walking on water and developing software from a specification are easy if both are frozen. — Edward V. Berard",
+			-- Programming jokes (one-liners; keep each under ~80 columns).
+			"There are 10 kinds of people: those who understand binary and those who don't",
+			"Two hard things in CS: cache invalidation, naming things, and off-by-one errors",
+			"To understand recursion, you must first understand recursion",
+			"Knock knock. Race condition. Who's there?",
+			"A SQL query walks into a bar, sees two tables and asks: can I join you?",
+			"Be the developer your linter thinks you are",
+			"It's not a bug, it's an undocumented feature",
+			"I've used Vim for years, mostly because I can't figure out how to exit",
+			"It works on my machine. Then we'll ship your machine",
+			-- AI jokes.
+			"AI hallucination: creativity without the burden of accuracy",
+			"You get suspicious when the AI's code works on the first try",
+			"The junior pastes AI code without reading it. The senior pastes it anyway",
+			"A 10x developer prompts the AI ten times before giving up",
+			"The most dangerous phrase in engineering: “Don't worry, I asked the AI”",
+			"Magic 8-ball vs. an LLM: the 8-ball admits when it's not sure",
+			"“Think outside the box.” — “I don't have a box, I have parameters.”",
+			"Finally, someone else to blame for the bug: thanks, AI",
+			"Vibe coding: when the tests pass and nobody knows why",
 		}
 		math.randomseed(vim.uv.hrtime())
 		local quote = "⟡ " .. quotes[math.random(#quotes)] .. " ⟡"

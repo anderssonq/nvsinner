@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.5.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.6.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.5.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.6.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.5.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.6.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -245,6 +245,21 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     not the step size — neoscroll pins the cursor to `scrolloff + 1` for the
     whole animation, so leaving the top of a buffer moves it there once and
     every later press holds that row.
+    **v3.6.0** puts the project in the middle of the bar. On wide terminals
+    (120+ columns) the statusline centres a `‹ NvSinner ▏<project> ›` mark
+    naming the repo root NvSinner was opened in, and the left-hand `󰉋 <project>`
+    component steps aside so the name shows exactly once at any width; below
+    120 columns the mark hides and the name returns to the left. Clicking the
+    mark opens `:NvSinnerHelp`. The bar's gray text — branch, filename, the mark,
+    filetype, progress — now carries a subtle shimmer: one band, no brighter
+    than body text, sweeps it every few seconds, while the mode and location
+    chips, diagnostics and icons keep their semantic colors. It costs almost
+    nothing: each wrapped lualine component hands over a `%{%…%}` expression
+    instead of its text, so an animation frame repaints one row without
+    re-running lualine, and the timer sleeps with zero wakeups between sweeps
+    (and stops entirely when the editor loses focus) — measured in a real PTY,
+    zero evaluations once the loop is parked. The dashboard footer also gained
+    programming and AI one-liner jokes among its quotes.
 
 ## Status
 
