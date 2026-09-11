@@ -13,7 +13,9 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   whose only job is applying `:colorscheme carbon` at startup. The palette
   truth is `lua/core/carbon.lua`; the colorscheme is `colors/carbon.lua`.
 - `dashboard.lua` — alpha-nvim start screen (`event = "VimEnter"`, shows on a
-  bare `nvim`). The footer quote area doubles as the version-check surface
+  bare `nvim`). The footer shows one random line from `quotes` per launch —
+  dev quotes plus programming and AI one-liner jokes, each kept under ~80
+  columns so it centres on a normal terminal. The footer quote area doubles as the version-check surface
   (`lua/core/version.lua`): `footer.val` is a **function** re-resolved on
   every draw — a spinner while the once-per-session check runs (a
   self-stopping `vim.uv` timer drives `alpha.redraw()`), the `:NvSinnerUpdate`
@@ -37,6 +39,40 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   gray-dominant). It obeys the same redraw doctrine as the removed badge: the
   root lookup is cached in `core/project.lua` and only re-resolved on
   `DirChanged`, so the component is a table read per redraw.
+  **That left-hand project component only shows under `MIN_COLUMNS` (120)**:
+  from there up the name moves into the centered mark below, and both `cond`s
+  read `core/statusmark.lua`'s one constant, so the name appears exactly once at
+  any width.
+  `lualine_c` then closes with the **centered identity mark**
+  `‹ NvSinner ▏<project> ›`; a **left click on it opens `:NvSinnerHelp`**
+  (lualine's per-component `on_click` → `statusmark.click`).
+  **The whole bar shimmers**: every gray text component (branch, project,
+  filename, the mark, filetype, progress) carries `fmt = mark.fmt(<id>)` from
+  `lua/core/statusmark.lua` (full contract in `lua/core/CLAUDE.md`
+  §Statusline shimmer), and one subtle band sweeps the bar every few seconds —
+  italic `NvStatusMark*` grays between `base03` and `base04`, peak `base04`, so
+  it never outshines body text. The mode + location chips and diagnostics are
+  NOT wrapped (their colors are semantic; the chips' bg is not `base00`).
+  **The `fmt` ids must ascend left→right** — the module detects each evaluation
+  pass by them; a new wrapped component takes the id that keeps the order.
+  `fmt` hands lualine a `%{%…%}` **expression**, not the text: lualine stores
+  its statusline as a literal string and does not escape it, so Neovim
+  re-evaluates the expression on every repaint and an animation frame repaints
+  one row instead of re-running lualine. The mark is centred by a bare `"%="` string component: lualine
+  emits exactly one `%=` of its own ahead of the first non-empty x/y/z section,
+  so a second one makes **two** separation points and Neovim splits the free
+  space equally between them. That centres the mark in the space the real
+  sections leave — screen-centre only when the two sides weigh the same; with a
+  heavy left side it sits `(left − right) / 2` columns right of true centre
+  (measured: +14 at 160 columns with branch + project + filename). Exact
+  centring is NOT reachable this way — it needs the rendered widths of both
+  sides, which lualine does not expose. A `cond` hides the mark under 120
+  columns so it never crowds a narrow terminal. `NvSinner` is written in
+  **plain letters on purpose**, so the mark reads like the rest of the bar; an
+  earlier draft used superscript modifier letters (`ᴺⱽˢᴵᴺᴺᴱᴿ`), which no
+  FiraCode face carries — they came from font fallback and looked foreign next
+  to the other sections. Every glyph in the mark (`‹ › ▏` included) is in
+  FiraCode itself.
 - `incline.lua` — **disabled** (`enabled = false`): replaced by the native
   winbar badge in `lua/core/filebadge.lua` — incline's float overlapped the
   first buffer line on winbar-less (markdown) windows and its non-focusable

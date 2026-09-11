@@ -445,6 +445,73 @@ the **statusline** (a lualine component in `lua/plugins/ui/lualine.lua`).
   AI badge removed from lualine). Seam: `M._reset()`.
   Spec: `tests/core/project_spec.lua`.
 
+## Statusline shimmer + mark — `statusmark.lua` (NOT required from `init.lua`)
+
+A subtle shimmer over the **whole statusline**: every gray text component
+(branch, project, filename, the centered `‹ NvSinner ▏<project> ›` mark,
+filetype, progress) is one segment, and ONE slightly brighter band sweeps the
+bar left→right, then rests. The mode + location chips and diagnostics keep their
+semantic colors and are not wrapped. A left click on the mark opens
+`:NvSinnerHelp` (`M.click`, wired as the component's lualine `on_click`).
+Required and started by `lua/plugins/ui/lualine.lua`'s `config()` (the shimmer
+only exists when lualine does); layout/centring notes live in
+`lua/plugins/ui/CLAUDE.md`.
+
+- **Components hand lualine an expression, not text.** lualine computes its
+  statusline in Lua and stores the result as a LITERAL string, and it does not
+  escape what `fmt` returns. Each wrapped component gets `fmt = M.fmt(id)`,
+  which stashes the component's text in `M._segs[id]` and returns `M.expr(id)`
+  (`%{%v:lua.require'core.statusmark'.seg(<id>)%}`); Neovim re-evaluates
+  `seg()` on every statusline repaint. An animation frame is then one
+  `nvim__redraw{ statusline = true, flush = true }` (pcall, `redrawstatus`
+  fallback — `:redrawstatus` misses repaints while focus is in a terminal, see
+  *Agent activity*), never a lualine refresh of every component. `fmt` runs
+  BEFORE lualine adds the icon, so icons keep their own colors.
+- **The stash goes through `nvim_eval_statusline` first.** That un-escapes the
+  `%%` lualine's `stl_escape` put into filename/branch AND resolves components
+  that are statusline items rather than text — `progress` is literally `%3P`,
+  which would otherwise print as-is. lualine calls `fmt` inside its
+  `nvim_win_call` on the focused window, so `%3P` resolves for the right one.
+  `seg()` then escapes `%` → `%%` again, because `%{%…%}` re-parses its result
+  (the filebadge `fragment()` rule).
+- **One band across many segments needs a shared coordinate — and the ids
+  carry it.** One evaluation pass calls `seg()` for the visible segments in
+  layout order, so **ids must ascend left→right** (lualine.lua assigns 1…6): an
+  id that does not ascend means a new pass began. The running `offset` stitches
+  the segments into one virtual line; the previous pass's width (`total`) is
+  the sweep length. Gaps (icons, chips, the `%=` fill) are not counted — the
+  band glides over the text and hops them. Hidden segments (a false `cond`)
+  simply drop out of the pass.
+- **Frames are a pure function**, `M._levels(n, t)`: the band travels at
+  `M.SPEED` cells/s from `-BAND` to `n + BAND`, so a sweep lasts
+  `M.sweep_ms(n)` — as long as the bar is wide, and the band's speed stays the
+  same at any width. Intensity falls off linearly over `M.BAND` cells and is
+  smoothstepped into levels `1..M.LEVELS`; outside a sweep everything is level
+  1, so at rest each segment is one `NvStatusMark1` group.
+- **Subtle by construction**: level 1 is `base03` mixed toward `base04` at
+  `M.REST_MIX` (0.6 — near the bar's body gray, so text stays readable), and the
+  peak **is** `base04`, so the band never outshines body text. Every group is
+  italic on `bg = base00` (the surface lualine paints sections b/c and their
+  y/x mirrors on — which is exactly why the `z` location chip is not wrapped),
+  roles only, re-applied on `ColorScheme`.
+- **Cheap by construction**: a sweep runs a `vim.uv` timer every `M.FRAME_MS`;
+  when it ends the timer is re-armed as a **one-shot** `M.REST_MS` sleep, so
+  there are zero wakeups between sweeps. `REST_MS = 0` makes it continuous. A
+  frame is skipped while `mode() == "c"`. `FocusLost` stops the loop,
+  `FocusGained` restarts it. The handle is anchored on `M._timer`.
+- **Measured in a real PTY** (160 columns): the bright cells walked from the
+  branch (col 13) to the progress text (col 158) across sweeps; repaints keep
+  flowing with focus inside a terminal; `seg()` is called **zero** times once
+  the loop is stopped; and a real SGR mouse click on the mark opened
+  `:NvSinnerHelp`.
+- **`M.MIN_COLUMNS` (120) is shared with lualine** — the mark's `cond` and the
+  left-hand project component's inverse `cond` both read it, so the project name
+  shows exactly once at any width.
+- `M.start()` is a no-op headless (`#nvim_list_uis() == 0`, the `health.lua`/
+  `version.lua` bail), so the suite never runs the timer. Seams: `M._levels`,
+  `M.sweep_ms`, `M.fmt`/`M.expr`/`M.seg`, `M._segs`, `M._sweep_t0`, `M.group`,
+  `M.click`, `M._reset()`. Spec: `tests/core/statusmark_spec.lua`.
+
 ## Settings & menu — `settings.lua` + `menu.lua` (required from `init.lua`)
 
 - `settings.lua` persists user choices as JSON in the distro's **`settings/`

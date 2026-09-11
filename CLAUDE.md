@@ -28,6 +28,7 @@ init.lua                     Bootstraps lazy.nvim, requires lua/core/*, imports 
 colors/carbon.lua            The "carbon" colorscheme (oxocarbon/IBM Carbon port, self-contained)
 lua/core/options.lua         Leaders + core vim options (required FIRST, before lazy)
 lua/core/project.lua         Project name (cwd's root folder) behind 'titlestring' + the lualine component (native)
+lua/core/statusmark.lua      Subtle shimmer over the whole statusline (lualine fmt → %{%…%} segment expressions, one band per sweep) + the centered "‹ NvSinner ▏<project> ›" mark; click → :NvSinnerHelp. Loaded by lualine.lua, NOT init.lua (native)
 lua/core/settings.lua        Persistent :NvSinnerMenu settings (JSON in settings/) — seeds the carbon flags at boot (native)
 lua/core/menu.lua            :NvSinnerMenu — Mason-style settings modal over core/settings (native)
 lua/core/prompts.lua         :NvSinnerPrompts — prompt-library modal over settings/prompts.json → OS clipboard (native)
