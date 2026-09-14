@@ -153,6 +153,28 @@ edits files on disk (see *Auto-reload* below).
   `nvim_win_call` instead. `backdrop.attach` takes only the list window, so the
   preview is torn down explicitly in `M.close()` **and** by a `WinClosed`
   autocmd on the list window (a `:q` by any route must not orphan it).
+- **One surface, no end-of-buffer rows.** These are the only NvSinner floats
+  sized to the SCREEN instead of their content, and carbon's `EndOfBuffer`
+  carries an explicit editor-ground `bg` (`colors/carbon.lua`). Remapping only
+  `Normal` therefore painted every row past the last buffer line as a lighter
+  block — a two-tone modal. Both panes share one `WINHL` that also maps
+  `EndOfBuffer:NvMenuNormal` and `FloatTitle:NvAgentTitle` (the stock title
+  sits on `blend`, a separate box on the `shade` border), plus
+  `fillchars = "eob: "`. Any future screen-sized float must do the same or pad
+  its buffer.
+- **The list fills its pane**: rows at the top, then a **details card** for the
+  selected agent (`CLI` / `Status` chip / `Session` / `Column` / `Output` lines,
+  under a muted `─ details ─` rule), blank filler, and a rule + the hint
+  **pinned to the bottom edge** — `render()` pads the buffer to the window's
+  real height. When the pane is too short, the card is dropped first, never a
+  row or the hint. `line_map` stays row-only, so card lines are not clickable.
+- **The preview is bottom-anchored**: short content gets blank lines above it
+  (counted after wrapping with `nvim_win_text_height`) so the newest output sits
+  on the bottom edge like a terminal; a placeholder (`M._preview_lines`' second
+  return) is centred instead. A `foldcolumn = "1"` gutter (`FoldColumn` remapped
+  too, set after the open because `style = "minimal"` zeroes it) keeps text off
+  the border. The pane height is part of the preview signature, so a resize
+  re-anchors.
 - **The status chips REUSE `NvAiBusy` / `NvAiAwait`** from `ai-activity` (the
   same pink/magenta chips the terminal winbar draws), so a row here and the
   winbar read as one component; only the idle chip (`NvAgentIdle`) is new. Rows

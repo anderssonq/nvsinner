@@ -88,6 +88,9 @@ local function apply_hl()
 	set(0, "NvMenuWarn", { fg = c.base10 }) -- an exited session (attention accent)
 	-- Idle chip: muted, non-italic — a chip, not a description.
 	set(0, "NvAgentIdle", { fg = c.base03 })
+	-- Border title on the border's own surface. The stock FloatTitle sits on
+	-- `blend`, which drew the title as a separate box on the `shade` border.
+	set(0, "NvAgentTitle", { fg = c.base04, bg = c.shade, bold = true })
 end
 apply_hl()
 vim.api.nvim_create_autocmd("ColorScheme", {
@@ -104,7 +107,17 @@ local MIN_HEIGHT = 10
 local MIN_PREVIEW_WIDTH = 24 -- below this the preview is dropped, not squeezed
 local TOP_PAD = 1
 local HINT = "j/k · ⏎ focus · d close · q"
+local FOOTER = 2 -- the rule + the hint, pinned to the list pane's bottom edge
+local DETAIL_KEY_W = 10 -- key column of the details card
 local ns = vim.api.nvim_create_namespace("nvsinner_agents")
+
+-- One winhighlight for both panes. EndOfBuffer is the load-bearing entry:
+-- carbon paints it on the EDITOR ground (colors/carbon.lua), and these floats
+-- are screen-sized, not content-sized — without the remap every row past the
+-- last buffer line showed as a lighter block, a two-tone modal. The other
+-- NvSinner modals size height to content, so they never expose it.
+local WINHL = "Normal:NvMenuNormal,FloatBorder:NvMenuBorder,EndOfBuffer:NvMenuNormal,FloatTitle:NvAgentTitle"
+local PREVIEW_WINHL = WINHL .. ",FoldColumn:NvMenuNormal" -- the 1-cell text gutter
 
 local CHIP = {
 	working = " working… ",
@@ -271,16 +284,18 @@ function M._set_items(list)
 end
 
 -- The preview pane's content: the selected agent's chat tail. Trailing blanks
--- are already trimmed by tail(); an empty/dead buffer gets a placeholder.
+-- are already trimmed by tail(); an empty/dead buffer gets a one-line
+-- placeholder, flagged by the second return so the pane centres it instead of
+-- anchoring it to the bottom like chat output.
 function M._preview_lines(it)
 	if not it then
-		return { "", "  no session selected" }
+		return { "no session selected" }, true
 	end
 	local lines = tail(it.bufnr, M.PREVIEW_LINES)
 	if #lines == 0 then
-		return { "", "  " .. (it.alive and "no output yet" or "session exited — press d to clear it") }
+		return { it.alive and "no output yet" or "session exited — press d to clear it" }, true
 	end
-	return lines
+	return lines, false
 end
 
 -- ─── Geometry ────────────────────────────────────────────────────────────────
@@ -356,27 +371,74 @@ local function preview_title(it)
 	return "  " .. it.label .. " · " .. it.kind .. " "
 end
 
+-- A muted rule, exactly `width` cells: " ─ label ────" or a bare " ─────".
+local function rule(width, label)
+	local head = label and (" ─ " .. label .. " ") or " "
+	return head .. string.rep("─", math.max(0, width - vim.fn.strdisplaywidth(head) - 1))
+end
+
+-- The details card under the rows: the selected agent spelled out, so the list
+-- pane spends its height on something instead of a void under the rows.
+-- Each entry is { key, value, value highlight group }.
+local function detail_rows(it)
+	local where = it.alive and (it.open and "column open" or "hidden") or "CLI exited"
+	local out = #tail(it.bufnr, M.PREVIEW_LINES)
+	return {
+		{ "CLI", it.kind, "NvMenuLabel" },
+		{ "Status", CHIP[it.status] or CHIP.idle, CHIP_HL[it.status] or "NvAgentIdle" },
+		{ "Session", it.label, "NvMenuLabel" },
+		{ "Column", where, "NvMenuLabel" },
+		{ "Output", out == 1 and "1 line" or (out .. " lines"), "NvMenuLabel" },
+	}
+end
+
 -- Repaint the preview pane. The buffer is only rewritten when its content
--- actually changed (cheap signature), so a user reading a still chat is not
--- yanked back to the bottom twice a second by the poll timer.
+-- actually changed (cheap signature, which includes the pane height so a
+-- resize re-anchors), so a user reading a still chat is not yanked back to the
+-- bottom twice a second by the poll timer.
 local function render_preview()
 	if not preview_open() then
 		return
 	end
 	local it = items[ui.sel]
-	local lines = M._preview_lines(it)
-	local sig = ui.sel .. "|" .. #lines .. "|" .. (lines[#lines] or "")
+	local lines, placeholder = M._preview_lines(it)
+	local height = vim.api.nvim_win_get_height(ui.pwin)
+	local sig = ui.sel .. "|" .. #lines .. "|" .. (lines[#lines] or "") .. "|" .. height
 	pcall(vim.api.nvim_win_set_config, ui.pwin, { title = preview_title(it), title_pos = "center" })
 	if sig == ui.sig then
 		return
 	end
 	ui.sig = sig
+	if placeholder then
+		-- Minus the foldcolumn gutter, so the text centres on the visible area.
+		local width = vim.api.nvim_win_get_width(ui.pwin) - 1
+		local text = lines[1]
+		lines = { string.rep(" ", math.max(0, math.floor((width - vim.fn.strdisplaywidth(text)) / 2))) .. text }
+	end
 	vim.bo[ui.pbuf].modifiable = true
 	vim.api.nvim_buf_set_lines(ui.pbuf, 0, -1, false, lines)
+	-- Short content is anchored to the BOTTOM edge, like a terminal: the newest
+	-- output sits where a long tail would end. A placeholder is centred. Rows
+	-- are counted after wrapping (nvim_win_text_height), not as buffer lines.
+	local ok, th = pcall(vim.api.nvim_win_text_height, ui.pwin, {})
+	local spare = height - (ok and th.all or #lines)
+	local above = 0
+	if spare > 0 then
+		above = placeholder and math.floor(spare / 2) or spare
+		local blank = {}
+		for _ = 1, above do
+			blank[#blank + 1] = ""
+		end
+		vim.api.nvim_buf_set_lines(ui.pbuf, 0, 0, false, blank)
+	end
 	vim.bo[ui.pbuf].modifiable = false
+	vim.api.nvim_buf_clear_namespace(ui.pbuf, ns, 0, -1)
+	if placeholder then
+		vim.api.nvim_buf_set_extmark(ui.pbuf, ns, above, 0, { end_col = #lines[1], hl_group = "NvMenuMuted" })
+	end
 	if ui.follow then
 		-- Park the view on the tail — the newest turn is the one you want.
-		pcall(vim.api.nvim_win_set_cursor, ui.pwin, { #lines, 0 })
+		pcall(vim.api.nvim_win_set_cursor, ui.pwin, { vim.api.nvim_buf_line_count(ui.pbuf), 0 })
 	end
 end
 
@@ -385,6 +447,9 @@ local function render()
 		return
 	end
 	local g = geometry()
+	-- The window's REAL height, not geometry()'s: the buffer is padded to fill
+	-- exactly what is on screen.
+	local height = vim.api.nvim_win_get_height(ui.win)
 	local lines, spans = {}, {}
 	for l = 1, content_lines do
 		lines[l] = ""
@@ -406,7 +471,28 @@ local function render()
 		local where = it.alive and (it.open and "column open" or "hidden") or "CLI exited"
 		lines[it.line + 1] = "      " .. fit(it.label .. " · " .. where, g.list_w - 7)
 	end
-	table.insert(lines, "")
+	-- Details card, then filler, then the rule + hint pinned to the bottom edge.
+	-- The buffer fills the window so no end-of-buffer row shows; when the pane
+	-- is too short the card is dropped first — never a row, never the hint.
+	local details = items[ui.sel] and detail_rows(items[ui.sel]) or {}
+	local card_at -- 0-based line of the card's header rule
+	if #details > 0 and #lines + 2 + #details + FOOTER <= height then
+		table.insert(lines, "")
+		card_at = #lines
+		table.insert(lines, rule(g.list_w, "details"))
+		for _, d in ipairs(details) do
+			-- A chip carries its own one-space padding; pull its key column one
+			-- cell left so the chip's TEXT lines up with the plain values.
+			local shift = d[2]:sub(1, 1) == " " and 1 or 0
+			local key = "   " .. d[1] .. string.rep(" ", DETAIL_KEY_W - #d[1] - shift)
+			d.key_len = #key -- ASCII, so bytes == cells
+			table.insert(lines, key .. fit(d[2], g.list_w - #key - 1))
+		end
+	end
+	while #lines < height - FOOTER do
+		table.insert(lines, "")
+	end
+	table.insert(lines, rule(g.list_w))
 	local pad = math.max(0, math.floor((g.list_w - vim.fn.strdisplaywidth(HINT)) / 2))
 	table.insert(lines, string.rep(" ", pad) .. HINT)
 
@@ -428,6 +514,15 @@ local function render()
 			ext(ui.buf, ns, row + 1, 0, { line_hl_group = "NvMenuSel" })
 		end
 	end
+	if card_at then
+		ext(ui.buf, ns, card_at, 0, { end_col = #lines[card_at + 1], hl_group = "NvMenuMuted" })
+		for k, d in ipairs(details) do
+			local row = card_at + k
+			ext(ui.buf, ns, row, 0, { end_col = d.key_len, hl_group = "NvMenuMuted" })
+			ext(ui.buf, ns, row, d.key_len, { end_col = #lines[row + 1], hl_group = d[3] })
+		end
+	end
+	ext(ui.buf, ns, #lines - 2, 0, { end_col = #lines[#lines - 1], hl_group = "NvMenuMuted" })
 	ext(ui.buf, ns, #lines - 1, 0, { end_col = #lines[#lines], hl_group = "NvMenuMuted" })
 
 	pcall(vim.api.nvim_win_set_config, ui.win, { title = list_title(), title_pos = "center" })
@@ -646,7 +741,8 @@ function M.open()
 		row = g.row,
 		col = g.col,
 	})
-	vim.wo[ui.win].winhighlight = "Normal:NvMenuNormal,FloatBorder:NvMenuBorder"
+	vim.wo[ui.win].winhighlight = WINHL
+	vim.wo[ui.win].fillchars = "eob: "
 	vim.wo[ui.win].cursorline = false
 
 	if g.has_preview then
@@ -672,7 +768,11 @@ function M.open()
 		})
 		if ok then
 			ui.pwin = pwin
-			vim.wo[ui.pwin].winhighlight = "Normal:NvMenuNormal,FloatBorder:NvMenuBorder"
+			vim.wo[ui.pwin].winhighlight = PREVIEW_WINHL
+			vim.wo[ui.pwin].fillchars = "eob: "
+			-- A 1-cell gutter so chat text never touches the border. `style =
+			-- "minimal"` zeroes it, so it is set after the open.
+			vim.wo[ui.pwin].foldcolumn = "1"
 			-- Wrap, but break on word boundaries: an agent's prose is the
 			-- point, and a mid-word split makes a narrow pane unreadable.
 			vim.wo[ui.pwin].wrap = true

@@ -71,8 +71,41 @@ describe("neo-tree spec", function()
 			assert.matches('source%s*=%s*"buffers"', code)
 			assert.is_nil(
 				code:match('source%s*=%s*"git_status"'),
-				"the Git tab was deliberately removed; diffview owns git"
+				"the git_status tab was deliberately removed; diffview owns git"
 			)
+		end)
+	end)
+
+	-- The Git tab is an ACTION tab: it opens <leader>gd's diff and never becomes
+	-- a neo-tree source, so it never runs the blocking git_status scan.
+	describe("Git tab", function()
+		-- setup() DROPS every selector entry that is not a loaded source, so the
+		-- entry must be appended after it — listing it inside setup() makes the
+		-- tab silently vanish.
+		it("is appended to the selector after setup()", function()
+			local setup_at = code:find('require%("neo%-tree"%)%.setup%(')
+			local merge_at = code:find('require%("neo%-tree"%)%.ensure_config%(%)')
+			local insert_at = code:find("table%.insert%(selector%.sources")
+			assert.is_truthy(setup_at, "neo-tree setup() call must exist")
+			assert.is_truthy(insert_at, "the Git tab must be inserted into the selector sources")
+			assert.is_true(insert_at > setup_at, "the Git tab must be appended AFTER setup()")
+			-- setup() defers the merge (and with it the filter) to ensure_config();
+			-- appending to the raw `.config` hits nil on a fresh boot, or a table
+			-- the deferred merge would later replace.
+			assert.is_truthy(merge_at, "the merge must be forced with ensure_config()")
+			assert.is_true(setup_at < merge_at and merge_at < insert_at, "setup → ensure_config → append")
+		end)
+
+		-- Both ways of reaching a tab would otherwise hand the pseudo-source to
+		-- neo-tree.command.execute: the winbar click global and `<` / `>`.
+		it("intercepts the tab click and the < / > cycling", function()
+			assert.matches("_G%.___neotree_selector_click%s*=%s*function", code)
+			assert.matches('%["<"%]%s*=%s*function', code)
+			assert.matches('%[">"%]%s*=%s*function', code)
+		end)
+
+		it("routes to diffview's one-tab open, not a raw DiffviewOpen", function()
+			assert.matches("_G%.NvDiffview", code)
 		end)
 	end)
 

@@ -609,7 +609,7 @@ spec; new files in an existing category are picked up automatically.
 | File | Plugin | Keys |
 |------|--------|------|
 | `telescope.lua` | telescope.nvim | `<leader>f` files · `<leader>sf` grep · `<leader>fb` buffers · `<leader>sd/sk/sc/sr/sh/ss/sR` diagnostics/keymaps/commands/resume/help/symbols/references |
-| `neo-tree.lua` | neo-tree.nvim | `<leader>e` toggle file explorer (reveals current file) |
+| `neo-tree.lua` | neo-tree.nvim | `<leader>e` toggle file explorer (reveals current file) · Files / Buffers / **Git** tabs — Git opens the `<leader>gd` diff |
 | `leap.lua` | leap.nvim | `s` forward · `S` backward · `gs` across windows |
 | `smooth-scroll.lua` | neoscroll.nvim | `<PageUp>` / `<PageDown>` smooth scroll — a quarter window, smaller in Neo-tree |
 | `nvim-window-picker.lua` | window-picker | **Disabled** — replaced by the native letter-overlay picker (`lua/core/window-picker.lua`, still drives Neo-tree's `w`) |
@@ -663,6 +663,7 @@ spec; new files in an existing category are picked up automatically.
 | `<leader>sr` / `<leader>sh` | n | Telescope resume last search / help tags |
 | `<leader>ss` / `<leader>sR` | n | Telescope document symbols / LSP references |
 | `<leader>e` | n | Toggle Neo-tree (reveals the current file; side set in `:NvSinnerMenu`) |
+| `<` / `>` | n | Neo-tree: previous / next tab (Files · Buffers · Git) — landing on **Git** opens the `<leader>gd` diff |
 | Click a tree row | mouse | Open the file / expand the folder — **one click**, not two (switch to stock double-click in `:NvSinnerMenu` → "Explorer click") |
 | `s` / `S` / `gs` | n, x, o | Leap forward / backward / across windows |
 | `<PageUp>` / `<PageDown>` | n, v, x | Smooth scroll up / down — a quarter of the window (~8 rows in Neo-tree, where a page should keep more context) |
@@ -802,7 +803,7 @@ Three plugins load eagerly: the colorscheme (`theme.lua`, `lazy = false` +
 the plugin must load for the maps to exist). Check the breakdown anytime with
 `:Lazy profile`.
 
-### Neo-tree's Buffers tab and the removed Git tab
+### Neo-tree's Buffers tab and the Git tab
 
 neo-tree computes git state by shelling out to `git status`, and for two of its
 source tabs that call is **synchronous** — it blocks the editor.
@@ -812,11 +813,14 @@ neo-tree's `git_status_async` option does *not* cover them; only the Files
 - **Buffers** used to pay that cost on *every render*. NvSinner disables it
   (`buffers.before_render`), so the tab is instant — at the cost of git symbols
   on buffer rows. Files still shows git state.
-- **Git** blocks while it scans, because the scan *is* the tab's content
-  (**73 ms** measured against 14 ms for a plain `git status` — a ~5× multiplier
-  that grows with the ignored tree), and diffview already owns git. So NvSinner
-  **removes the tab** from the tree's winbar: Files and Buffers only. A
-  deliberate `:Neotree source=git_status` still works if you ever want it.
+- neo-tree's stock **Git** tab (the `git_status` source) blocks while it scans,
+  because the scan *is* the tab's content (**73 ms** measured against 14 ms for
+  a plain `git status` — a ~5× multiplier that grows with the ignored tree), and
+  diffview already owns git. So NvSinner does **not** use that source. The
+  **Git** tab you see instead is a shortcut: clicking it (or reaching it with
+  `<` / `>`) opens the `<leader>gd` diff — the same single Diffview tab — and
+  never scans anything. A deliberate `:Neotree source=git_status` still works
+  if you ever want the stock tree.
 
 If you want that faster today, the lever is your `.gitignore` scope, not
 Neovim. **`core.fsmonitor` / `core.untrackedCache` do not help** — measured A/B,
