@@ -75,6 +75,19 @@ describe("diffview spec", function()
 		assert.are.same(cursor, vim.api.nvim_win_get_cursor(0), "no window may move")
 	end)
 
+	-- neo-tree's Git tab has no key of its own to call: it reaches <leader>gd's
+	-- one-tab open through this global, published when the spec is evaluated
+	-- (i.e. before diffview loads). It must be the very same function, and a
+	-- silent no-op in the unloaded state like every other entry point.
+	it("publishes open_diff as the _G.NvDiffview seam for neo-tree's Git tab", function()
+		assert.are.equal("table", type(_G.NvDiffview))
+		assert.are.equal(by_lhs["<leader>gd"][2], _G.NvDiffview.open)
+		local tabs = #vim.api.nvim_list_tabpages()
+		local ok, err = pcall(_G.NvDiffview.open)
+		assert.is_true(ok, "NvDiffview.open must not error without diffview: " .. tostring(err))
+		assert.are.equal(tabs, #vim.api.nvim_list_tabpages(), "no tab may open")
+	end)
+
 	-- Click-to-preview in the file panels. Unlike neo-tree's window.mappings,
 	-- these are real spec data, so most of it is assertable directly.
 	describe("click-to-preview", function()

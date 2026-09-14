@@ -69,6 +69,15 @@ describe("core.agents", function()
 		return buf, job
 	end
 
+	-- The cockpit's preview float (non-focusable, so never the current window).
+	local function preview_win()
+		for _, w in ipairs(vim.api.nvim_list_wins()) do
+			if vim.bo[vim.api.nvim_win_get_buf(w)].filetype == "nvsinner-agents-preview" then
+				return w
+			end
+		end
+	end
+
 	before_each(function()
 		agents._reset()
 		sessions._reset()
@@ -185,6 +194,49 @@ describe("core.agents", function()
 		assert.are.equal(before, #vim.api.nvim_list_wins(), "backdrop + preview must close with the list")
 	end)
 
+	-- The floats are screen-sized, not content-sized, and carbon paints
+	-- EndOfBuffer on the EDITOR ground — so without the remap every row past the
+	-- last buffer line showed as a lighter block (the "two-tone modal").
+	it("paints one surface: EndOfBuffer + title remapped, the list filled to its height", function()
+		sessions.register(1, fake_term({ cmd = "claude", __open = false }))
+		sessions.register(2, fake_term({ cmd = "opencode", __open = true }))
+		fake_clearer({ [1] = true, [2] = true })
+
+		agents.open()
+		local win = vim.api.nvim_get_current_win()
+		local pwin = preview_win()
+		assert.is_not_nil(pwin, "the preview pane must open")
+		for _, w in ipairs({ win, pwin }) do
+			assert.matches("EndOfBuffer:NvMenuNormal", vim.wo[w].winhighlight, nil, true)
+			assert.matches("FloatTitle:NvAgentTitle", vim.wo[w].winhighlight, nil, true)
+		end
+
+		local lines = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), 0, -1, false)
+		assert.are.equal(vim.api.nvim_win_get_height(win), #lines, "the list must fill its window exactly")
+		assert.matches("⏎ focus", lines[#lines], nil, true) -- the hint is pinned to the bottom edge
+		agents.close()
+	end)
+
+	it("shows a details card for the selected agent that follows the selection", function()
+		sessions.register(1, fake_term({ cmd = "claude", __open = false }))
+		sessions.register(2, fake_term({ cmd = "opencode", __open = true }))
+		fake_clearer({ [1] = true, [2] = true })
+
+		agents.open()
+		local buf = vim.api.nvim_get_current_buf()
+		local function text()
+			return table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+		end
+		agents.move(-99)
+		assert.matches("details", text(), nil, true)
+		assert.matches("CLI%s+claude", text())
+		assert.matches("Column%s+hidden", text())
+		agents.move(1)
+		assert.matches("CLI%s+opencode", text())
+		assert.matches("Column%s+column open", text())
+		agents.close()
+	end)
+
 	it("warns and opens nothing when there is no session at all", function()
 		local warned
 		local orig = vim.notify
@@ -229,6 +281,28 @@ describe("core.agents", function()
 		end
 		agents.close()
 		assert.is_true(shown, "the preview pane must carry the agent's tail")
+		vim.api.nvim_buf_delete(buf, { force = true })
+	end)
+
+	-- A fresh session's tail is a few lines; top-aligned it left most of a tall
+	-- pane empty. It is anchored to the bottom edge instead, like a terminal.
+	it("bottom-anchors a short chat tail in the preview pane", function()
+		local buf = real_terminal("ANCHOR-MARKER")
+		vim.cmd("enew")
+		sessions.register(1, fake_term({ bufnr = buf, cmd = "claude", __open = false }))
+		fake_clearer({ [1] = true })
+
+		agents.open()
+		local pwin = preview_win()
+		assert.is_not_nil(pwin, "the preview pane must open")
+		local lines = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(pwin), 0, -1, false)
+		assert.are.equal("", lines[1], "blank padding must sit above the tail")
+		assert.matches("ANCHOR-MARKER", table.concat(lines, "\n"), nil, true)
+		assert.is_true(
+			vim.api.nvim_win_text_height(pwin, {}).all >= vim.api.nvim_win_get_height(pwin),
+			"the preview must fill its pane"
+		)
+		agents.close()
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 

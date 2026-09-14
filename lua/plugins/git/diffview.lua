@@ -310,6 +310,11 @@ local function open_diff()
 	pcall(vim.cmd, "DiffviewRefresh")
 end
 
+-- The seam neo-tree's Git tab calls (lua/plugins/navigation/neo-tree.lua): the
+-- same one-tab open as <leader>gd. Published when lazy evaluates this spec, so it
+-- exists before diffview itself loads — `open_diff` requires it on demand.
+_G.NvDiffview = { open = open_diff }
+
 ---<leader>gH — the whole-repo history, in AT MOST ONE tab. Same defect as
 ---`open_diff` guards: `lib.file_history` never inspects `lib.views` either, so
 ---every press was another `tab split` over the same log.

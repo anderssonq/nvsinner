@@ -6,16 +6,39 @@
   from the carbon folder packs (`M.folder_colors()` in `lua/core/carbon.lua`).
   The mouse-hover row wash on tree rows is native —
   `lua/core/neotree-hover.lua`, driven from ui-touch's `<MouseMove>` handler.
-  `source_selector` puts **Files / Buffers tabs in the tree's winbar**
+  `source_selector` puts **Files / Buffers / Git tabs in the tree's winbar**
   (that winbar is unowned: ui-touch's `SKIP_FT` lists `neo-tree`, filebadge
   only claims markdown). Tab colors are the carbon `NeoTreeTab*` groups in
   `colors/carbon.lua` — neo-tree defines those groups itself with hardcoded
   near-black hexes, so carbon must override them or the tabs ignore the
   theme; they carry both `fg` and `bg` so neo-tree's own
   `create_highlight_group` skips them. **`window.width` is 38 for the tabs'
-  sake**: `tabs_layout = "equal"` splits the width into fixed halves and
-  `" 󰈚 Buffers "` would truncate in a narrower half (measured) — narrowing
-  the tree re-truncates the labels.
+  sake**: `tabs_layout = "equal"` splits the width into fixed thirds and
+  `" 󰈚 Buffers "` truncates in a narrower third (measured: 38 renders all
+  three labels whole) — narrowing the tree re-truncates the labels.
+- **The Git tab is an ACTION tab, not a neo-tree source.** Clicking it (or
+  reaching it with `<` / `>`) runs `<leader>gd`'s `open_diff()` — through the
+  `_G.NvDiffview` seam published by `lua/plugins/git/diffview.lua` — so it keeps
+  the one-diff-tab contract, and the tree stays on the source it was showing.
+  It never scans git. Load-bearing details (pinned by
+  `tests/plugins/neotree_spec.lua`, verified by a headless probe):
+  - **Appended after the config merge, never listed in `setup()`.** neo-tree's
+    merge drops every `source_selector.sources` entry that is not a loaded
+    source (`neo-tree/setup/init.lua`). And `setup()` itself only *stores* the
+    user config — the merge is deferred to `ensure_config()` — so `config()`
+    forces `require("neo-tree").ensure_config()` and inserts into the returned
+    `source_selector.sources`. Appending to the raw `.config` hits `nil` on a
+    fresh boot. The selector re-reads that table on every winbar redraw.
+  - **Both entry points are intercepted.** A tab click lands in the global
+    `_G.___neotree_selector_click` (winbar `%@…@` regions only call globals);
+    it is wrapped, decoding `index = id % (#sources + 1)` exactly as
+    `neo-tree/ui/selector.lua` does, and every non-Git click goes to the
+    original. `<` / `>` are remapped in `window.mappings` to `cycle_tab`, which
+    mirrors upstream's wrap-around and delegates to
+    `state.commands.prev_source/next_source` for real sources. Unwrapped, both
+    would hand `nvsinner_git` to `neo-tree.command.execute`, which errors.
+  - The Git tab is never "active": it opens a tab page, it is not a view of the
+    tree. So `>` from Buffers always lands on Git (the diff) — `<` goes back.
 - **Click-to-open** — neo-tree's ONLY stock mouse binding is
   `["<2-LeftMouse>"] = "open"` (`neo-tree/defaults.lua`). A top-level
   `window.mappings` adds `<LeftRelease>` (single click opens a file / toggles a
@@ -69,7 +92,8 @@
   Measured on a synthetic 24k-file repo with a 24k-file ignored `node_modules`:
   the call cost **~64 ms per render** before, none after. Files keeps its git
   state (that source uses the genuinely async path).
-- **The Git tab is REMOVED — do not re-add it.** Its scan is the tab's content
+- **The `git_status` source tab is REMOVED — do not re-add it** (the Git tab
+  above is the action tab, which is a different thing). Its scan is the tab's content
   and is NOT fixable from config: `git_status/lib/items.lua` hard-calls the
   same sync `git.status` with `--untracked-files=all` on top of the default
   `--ignored=traditional`, which enumerates every ignored file and then

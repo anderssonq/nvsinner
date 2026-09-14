@@ -83,6 +83,13 @@
     so it is a true "back to where I was reading"); nothing open → the one
     `DiffviewOpen`. Both reuse paths finish with `DiffviewRefresh` so an
     adopted tab is never a stale file list.
+  - **`open_diff` has a second caller: neo-tree's Git tab.** The spec
+    publishes it as `_G.NvDiffview = { open = open_diff }` right after the
+    function (evaluated when lazy reads the spec, so it exists before diffview
+    loads — `open_diff` requires the plugin on demand). Keep `open_diff` a
+    `local function` (the source guard matches that) and keep the seam pointing
+    at the SAME function as `<leader>gd`, so the tab can never stack a second
+    diff tab either. See `lua/plugins/navigation/CLAUDE.md`.
   - **`<leader>gH` carries the same guard, `<leader>gh` deliberately does not.**
     `lib.file_history` never inspects `lib.views` either. But two files are two
     legitimate histories, so `repo_history_view()` adopts only a history view

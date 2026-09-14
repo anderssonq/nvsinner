@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.6.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.7.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.6.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.7.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.6.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.7.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -260,6 +260,16 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     (and stops entirely when the editor loses focus) — measured in a real PTY,
     zero evaluations once the loop is parked. The dashboard footer also gained
     programming and AI one-liner jokes among its quotes.
+    **v3.7.0** gives the tree a Git tab and the agent cockpit a finished face.
+    Neo-tree's winbar now reads Files / Buffers / **Git**: clicking Git (or
+    reaching it with `<` / `>`) opens the `<leader>gd` diff, reusing the Diffview
+    tab already open. It is an action tab, not neo-tree's `git_status` source, so
+    the blocking scan that got that tab removed never runs. `:NvSinnerAgents` was
+    two-tone and half empty: carbon paints `EndOfBuffer` on the editor ground, and
+    the cockpit is the only screen-sized modal, so every row below the text showed
+    a lighter block. Both panes are now one surface; the list carries a details
+    card for the selected agent with the hint pinned to its bottom edge, and a
+    short chat tail sits at the bottom of the preview like a terminal.
 
 ## Status
 

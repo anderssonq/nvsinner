@@ -28,6 +28,54 @@ local function single_click()
 	return require("core.settings").get("tree_click") == "single"
 end
 
+-- ─── The Git tab ─────────────────────────────────────────────────────────────
+-- A third winbar tab that is an ACTION, not a neo-tree source: selecting it runs
+-- the `<leader>gd` diff (diffview.lua's `open_diff`, published as
+-- `_G.NvDiffview`) while the tree stays on the source it was showing. It never
+-- scans git — the stock git_status tab stays removed (see the selector below).
+local GIT_TAB = "nvsinner_git"
+
+local function open_git_diff()
+	local dv = _G.NvDiffview
+	if dv and dv.open then
+		dv.open()
+	else
+		pcall(vim.cmd, "DiffviewOpen")
+	end
+end
+
+--- The selector entry `step` tabs away from the source `state` shows, with the
+--- same wrap-around as neo-tree's own next_source / prev_source
+--- (neo-tree/sources/common/commands.lua).
+local function neighbour_tab(state, step)
+	local sources = require("neo-tree").config.source_selector.sources or {}
+	local n = #sources
+	if n == 0 then
+		return nil
+	end
+	for i, entry in ipairs(sources) do
+		if entry.source == state.name then
+			return sources[(i - 1 + step) % n + 1]
+		end
+	end
+	return sources[step > 0 and 1 or n]
+end
+
+--- `<` / `>`: landing on the Git tab opens the diff; any other tab is the stock
+--- source switch. Needed because the stock commands would hand "nvsinner_git"
+--- to `neo-tree.command.execute`, which knows no such source.
+local function cycle_tab(state, step)
+	local entry = neighbour_tab(state, step)
+	if entry and entry.source == GIT_TAB then
+		open_git_diff()
+		return
+	end
+	local cmd = state.commands and state.commands[step > 0 and "next_source" or "prev_source"]
+	if cmd then
+		cmd(state)
+	end
+end
+
 return {
 	"nvim-neo-tree/neo-tree.nvim",
 	branch = "v3.x",
@@ -135,6 +183,13 @@ return {
 							open_clicked(state)
 						end
 					end,
+					-- Tab cycling that knows the Git tab is an action (cycle_tab).
+					["<"] = function(state)
+						cycle_tab(state, -1)
+					end,
+					[">"] = function(state)
+						cycle_tab(state, 1)
+					end,
 				},
 			},
 			buffers = {
@@ -160,9 +215,9 @@ return {
 				},
 				window = {
 					-- 38: the source_selector's "equal" layout splits the width
-					-- into fixed halves, and " 󰈚 Buffers " (11 cells +
-					-- separator) would truncate in a narrower half.
-					-- Measured — drop this to 32 if you ever switch to "start".
+					-- into fixed thirds (Files / Buffers / Git), and
+					-- " 󰈚 Buffers " (11 cells + separator) truncates in a
+					-- narrower third. Measured: 38 renders all three labels whole.
 					width = 38, -- columns
 					-- Default side for a bare :Neotree; the <leader>e keymap passes
 					-- the side explicitly on every open (persisted via :NvSinnerMenu).
@@ -170,5 +225,32 @@ return {
 				},
 			},
 		})
+
+		-- The Git tab is appended AFTER the config merge on purpose: the merge drops
+		-- every source_selector entry that is not a loaded source
+		-- (neo-tree/setup/init.lua), and the selector re-reads this table on every
+		-- winbar redraw, so the late entry renders like the other two. setup() only
+		-- stores the user config — the merge is deferred until ensure_config(), so
+		-- force it here (later ensure_config() calls are no-ops until the next
+		-- setup()) or the entry would be filtered out on the first open.
+		local selector = require("neo-tree").ensure_config().source_selector
+		table.insert(selector.sources, { source = GIT_TAB, display_name = " 󰊢 Git " })
+
+		-- A tab click reaches neo-tree through this global (winbar `%@…@` regions
+		-- can only call globals), which would hand "nvsinner_git" to
+		-- `neo-tree.command.execute`. Decode the tab index the way
+		-- neo-tree/ui/selector.lua does and intercept the Git tab; every other
+		-- click goes through untouched.
+		require("neo-tree.ui.selector")
+		local selector_click = _G.___neotree_selector_click
+		_G.___neotree_selector_click = function(id, ...)
+			local sources = require("neo-tree").config.source_selector.sources or {}
+			local entry = id >= 1 and sources[id % (#sources + 1)] or nil
+			if entry and entry.source == GIT_TAB then
+				open_git_diff()
+				return
+			end
+			return selector_click(id, ...)
+		end
 	end,
 }
