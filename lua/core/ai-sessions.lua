@@ -27,7 +27,7 @@ local M = {}
 -- order depend on pairs() iteration.
 local registry = {}
 local opener -- injected by toggleterm: function(n) → toggle/open session n
-local clearer -- injected by toggleterm: { list = fn() → sorted {n,…}, clear = fn(n) → bool }
+local clearer -- injected by toggleterm: { list = fn() → sorted {n,…}, clear = fn(n) → bool, hide = fn(n) → bool }
 local mru_clock = 0
 local function stamp()
 	mru_clock = mru_clock + 1
@@ -173,6 +173,30 @@ function M.clear(n)
 		end
 	end)
 	return cleared
+end
+
+-- Hide every open AI column at once (<leader>jh). Hiding, not clearing: each
+-- CLI keeps running and <leader>j / <leader>jN brings its column back. Goes
+-- through the injected clearer's `hide` because a column whose CLI exited is
+-- still a visible window the registry no longer knows. Returns the count hidden.
+function M.hide_all()
+	local hidden = 0
+	if clearer and clearer.hide then
+		for _, n in ipairs(M.panel_numbers()) do
+			if clearer.hide(n) then
+				hidden = hidden + 1
+			end
+		end
+	end
+	if hidden == 0 then
+		vim.notify("No AI session open to hide", vim.log.levels.INFO)
+	else
+		vim.notify(
+			("Hid %d AI session%s — <leader>j brings one back"):format(hidden, hidden == 1 and "" or "s"),
+			vim.log.levels.INFO
+		)
+	end
+	return hidden
 end
 
 -- Most-recently-used entry passing `pred`, or nil.
@@ -403,6 +427,12 @@ end, { desc = "Jump to AI session" })
 vim.keymap.set("n", "<leader>jc", function()
 	M.clear()
 end, { desc = "Clear AI session (kill CLI + forget choice)" })
+
+-- Hide every open AI column (CLIs keep running). <leader>ja was taken by the
+-- session picker; h = hide. Same <leader>j-prefix 'timeoutlen' trade-off.
+vim.keymap.set("n", "<leader>jh", function()
+	M.hide_all()
+end, { desc = "Hide all AI sessions (CLIs keep running)" })
 
 -- :NvSinnerAIClear [n] — the command form (hidden from :NvSinnerHelp like the
 -- other AI commands; it lives in the :NvSinnerIA hub).

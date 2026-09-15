@@ -715,6 +715,7 @@ not.
 | `<leader>jx2` … `<leader>jx9` | n | Same focus-or-open + prime for AI sessions 2–9 |
 | `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
 | `<leader>jc` | n | Clear an AI session — kill the CLI + forget the choice, next open re-asks (`:NvSinnerAIClear`) |
+| `<leader>jh` | n | Hide every open AI column at once — the CLIs keep running; `<leader>j` / `<leader>jN` brings one back |
 | `<leader>x` | x | Ask AI about the selection — Fix / Refactor / Explain / custom question modal (also `:NvSinnerAskAI`) |
 | double-click | n, x | Ask AI about the word under the pointer (or the active selection) — same modal |
 | `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |

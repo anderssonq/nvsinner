@@ -31,6 +31,12 @@
   the picker on later opens; `<leader>jc` / `:NvSinnerAIClear` (the injected
   `set_clearer`, see *Bridge integration*) `shutdown()`s the Terminal and
   drops that memo, so the next open re-runs the picker with a fresh CLI list.
+- **`<leader>jh` hides every open AI column at once** (`ai-sessions.hide_all`
+  → the clearer's `hide(n)` → `term:close()`): window only — the job and the
+  `ai_panels` memo survive, so `<leader>j`/`<leader>jN` re-shows the same CLI.
+  It goes through the clearer, not the registry, so a column whose CLI already
+  exited (still an open window, no longer registered) is hidden too.
+  `<leader>ja` was taken by the session picker; `h` = hide.
 - **First-open CLI picker** — the first time an AI session is toggled, a picker
   opens *in the column's own space* (a full-height side split, not a float)
   listing `claude` / `kiro-cli` / `opencode` (not-installed ones are marked and

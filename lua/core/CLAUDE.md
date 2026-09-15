@@ -57,6 +57,11 @@ edits files on disk (see *Auto-reload* below).
   text, opts)` sends to an EXPLICIT session entry (registry entry or
   `sessions()` row; job_id read live from `e.term`) — `M.send` is now a thin
   auto-target wrapper over it. `M._reset()` / `M._payload()` are test seams.
+- **Hide every session** — `<leader>jh` → `M.hide_all()`: calls the injected
+  clearer's optional `hide(n)` for every `panel_numbers()` entry (toggleterm
+  closes the window; the CLI and memo survive), returns the count hidden, and
+  toasts INFO either way ("Hid N AI sessions" / "No AI session open to hide").
+  No clearer or no `hide` → 0.
 - **Clear a session** — `<leader>jc` / `:NvSinnerAIClear [n]` → `M.clear(n?)`:
   kills the CLI and forgets the chosen agent so the next `<leader>j` open
   re-runs the CLI picker (the counterpart to toggling, which hides without

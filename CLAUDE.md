@@ -184,6 +184,7 @@ is piped in via the send-to-AI bridge (`<leader>as`/`ab`/`ad`, visual
 disk. `<leader>jx<N>` focuses (or opens) a session with the CLI input primed
 with `@`-mentions of every file buffer visible in a window (not the
 merely-listed ones). Toggling hides without killing;
+`<leader>jh` hides every open AI column at once (CLIs keep running);
 `<leader>jc` / `:NvSinnerAIClear` clears a session for good (kills the CLI,
 forgets the chosen agent) so the next open re-runs the CLI picker.
 `:NvSinnerAgents` / `<leader>xa` is the cockpit over all of it: every column
