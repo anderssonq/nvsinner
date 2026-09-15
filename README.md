@@ -104,7 +104,9 @@ any existing `~/.config/nvim` without touching it.
   mark on wide terminals (click it for the `:NvSinnerHelp` palette), or
   `󰉋 myproject` on the left under 120 columns — so a row of nvsinner tabs is
   tellable apart at a glance. A subtle shimmer sweeps the statusline text every
-  few seconds. The name is the repo root, so it stays
+  few seconds. Two clickable icons at the left of the statusline: the terminal
+  toggles the bottom terminal (same as `<leader>t`) and the robot opens the
+  agent cockpit (same as `<leader>xa`). The name is the repo root, so it stays
   put when you `cd` into a subdirectory — and in a monorepo it reports the repo,
   not the package.
 - **Native-first** — focus glow, mouse-hover docs, agent activity, the
@@ -713,6 +715,7 @@ not.
 | `<leader>jx2` … `<leader>jx9` | n | Same focus-or-open + prime for AI sessions 2–9 |
 | `<leader>ja` | n | AI session picker — jump to (or reopen) a session with its status |
 | `<leader>jc` | n | Clear an AI session — kill the CLI + forget the choice, next open re-asks (`:NvSinnerAIClear`) |
+| `<leader>jh` | n | Hide every open AI column at once — the CLIs keep running; `<leader>j` / `<leader>jN` brings one back |
 | `<leader>x` | x | Ask AI about the selection — Fix / Refactor / Explain / custom question modal (also `:NvSinnerAskAI`) |
 | double-click | n, x | Ask AI about the word under the pointer (or the active selection) — same modal |
 | `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |

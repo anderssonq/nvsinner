@@ -393,12 +393,59 @@ describe("core.ai-sessions", function()
 		assert.is_true(dead, "the CLI job must be dead after clear()")
 	end)
 
+	it("hide_all() hides every open panel through the clearer and reports the count", function()
+		local open = { [1] = true, [2] = false, [3] = true }
+		local hidden = {}
+		sessions.set_clearer({
+			list = function()
+				return { 1, 2, 3 }
+			end,
+			clear = function()
+				return false
+			end,
+			hide = function(n)
+				if not open[n] then
+					return false
+				end
+				open[n] = false
+				hidden[#hidden + 1] = n
+				return true
+			end,
+		})
+		local toasts = {}
+		local orig = vim.notify
+		vim.notify = function(msg, level)
+			toasts[#toasts + 1] = { msg = msg, level = level }
+		end
+
+		local first = sessions.hide_all()
+		local second = sessions.hide_all()
+
+		vim.notify = orig
+
+		assert.are.equal(2, first)
+		assert.are.same({ 1, 3 }, hidden)
+		assert.matches("Hid 2 AI sessions", toasts[1].msg, nil, true)
+		assert.are.equal(0, second, "nothing left open")
+		assert.matches("No AI session open", toasts[2].msg, nil, true)
+		assert.are.equal(vim.log.levels.INFO, toasts[2].level)
+	end)
+
+	it("hide_all() is a quiet no-op without an injected clearer", function()
+		sessions.set_clearer(nil)
+		local orig = vim.notify
+		vim.notify = function() end
+		assert.are.equal(0, sessions.hide_all())
+		vim.notify = orig
+	end)
+
 	it("maps the bridge and picker keys", function()
 		assert.are_not.equal("", vim.fn.maparg("<leader>as", "x"), "<leader>as (visual) must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>ab", "n"), "<leader>ab must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>ad", "n"), "<leader>ad must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>ja", "n"), "<leader>ja must exist")
 		assert.are_not.equal("", vim.fn.maparg("<leader>jc", "n"), "<leader>jc must exist")
+		assert.are_not.equal("", vim.fn.maparg("<leader>jh", "n"), "<leader>jh must exist")
 	end)
 
 	it("defines the :NvSinnerAIClear user command", function()

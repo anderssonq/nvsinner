@@ -530,6 +530,15 @@ return {
 				ai_panels[n] = nil
 				return true
 			end,
+			-- <leader>jh: close the column's window only — the job and the memo
+			-- survive, so the next toggle re-shows the same CLI.
+			hide = function(n)
+				local term = ai_panels[n]
+				if not (term and term:is_open()) then
+					return false
+				end
+				return (pcall(term.close, term))
+			end,
 		})
 	end,
 }
