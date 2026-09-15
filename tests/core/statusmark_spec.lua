@@ -125,6 +125,33 @@ describe("core.statusmark", function()
 		assert.are.equal(1, ran)
 	end)
 
+	it("runs the <leader>t mapping on a left click of the terminal icon", function()
+		local ran = 0
+		vim.keymap.set("n", "<leader>t", function()
+			ran = ran + 1
+		end)
+		mark.terminal_click(1, "r", "    ")
+		assert.are.equal(0, ran)
+		mark.terminal_click(1, "l", "    ")
+		assert.are.equal(1, ran)
+		vim.keymap.del("n", "<leader>t")
+		assert.has_no.errors(function()
+			mark.terminal_click(1, "l", "    ")
+		end)
+	end)
+
+	it("runs a <cmd> string map on a left click of the agents icon", function()
+		local ran = 0
+		vim.api.nvim_create_user_command("NvSinnerAgentsProbe", function()
+			ran = ran + 1
+		end, { force = true })
+		vim.keymap.set("n", "<leader>zz", "<cmd>NvSinnerAgentsProbe<cr>")
+		mark.map_click("<leader>zz")(1, "l", "    ")
+		assert.are.equal(1, ran)
+		vim.keymap.del("n", "<leader>zz")
+		assert.is_function(mark.agents_click)
+	end)
+
 	it("paints subtle carbon roles: italic on base00, peak == base04", function()
 		local c = require("core.carbon").colors()
 		local function hl(level)

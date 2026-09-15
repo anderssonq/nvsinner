@@ -187,6 +187,31 @@ function M.click(_, button)
 	end
 end
 
+--- Build a lualine `on_click` that runs the normal-mode map `lhs` on a left
+--- click (the statusline icons: `<leader>t` terminal, `<leader>xa` agents).
+--- The map's callback is called directly — never fed as keys, which would pay
+--- the 'timeoutlen' wait of maps that prefix others (`<leader>t2`..). A `<cmd>`
+--- string rhs is executed too. Silent no-op when the map does not exist.
+function M.map_click(lhs)
+	return function(_, button)
+		if button ~= "l" then
+			return
+		end
+		local map = vim.fn.maparg(lhs, "n", false, true)
+		if type(map.callback) == "function" then
+			map.callback()
+		elseif type(map.rhs) == "string" then
+			local cmd = map.rhs:match("^<[Cc][Mm][Dd]>(.-)<[Cc][Rr]>$")
+			if cmd then
+				vim.cmd(cmd)
+			end
+		end
+	end
+end
+
+M.terminal_click = M.map_click("<leader>t")
+M.agents_click = M.map_click("<leader>xa")
+
 -- ── Loop ─────────────────────────────────────────────────────────────────
 -- Repaint the statusline row only. nvim__redraw, not :redrawstatus — the
 -- latter misses repaints while focus is inside a terminal (ai-activity.lua).

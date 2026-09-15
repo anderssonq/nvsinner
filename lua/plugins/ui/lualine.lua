@@ -64,7 +64,27 @@ return {
 				-- theirs too.
 				sections = {
 					lualine_a = { "mode" },
-					lualine_b = { { "branch", fmt = mark.fmt(1) } },
+					lualine_b = {
+						-- Clickable icons (not shimmer-wrapped): the terminal toggles
+						-- horizontal terminal 1 like <leader>t; the robot opens the
+						-- agent cockpit like <leader>xa. Glyphs as \u escapes so an
+						-- editor can never strip the private-use codepoints.
+						{
+							function()
+								return "\u{f489}" -- nf-oct-terminal
+							end,
+							color = { fg = c.base09 },
+							on_click = mark.terminal_click,
+						},
+						{
+							function()
+								return "\u{f06a9}" -- nf-md-robot
+							end,
+							color = { fg = c.base09 },
+							on_click = mark.agents_click,
+						},
+						{ "branch", fmt = mark.fmt(1) },
+					},
 					-- Project name (the cwd's root folder) ahead of the filename, so
 					-- the bar answers "which project?" before "which file?". The name
 					-- keeps the section's muted base04; only the folder icon carries

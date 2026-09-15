@@ -104,7 +104,9 @@ any existing `~/.config/nvim` without touching it.
   mark on wide terminals (click it for the `:NvSinnerHelp` palette), or
   `󰉋 myproject` on the left under 120 columns — so a row of nvsinner tabs is
   tellable apart at a glance. A subtle shimmer sweeps the statusline text every
-  few seconds. The name is the repo root, so it stays
+  few seconds. Two clickable icons at the left of the statusline: the terminal
+  toggles the bottom terminal (same as `<leader>t`) and the robot opens the
+  agent cockpit (same as `<leader>xa`). The name is the repo root, so it stays
   put when you `cd` into a subdirectory — and in a monorepo it reports the repo,
   not the package.
 - **Native-first** — focus glow, mouse-hover docs, agent activity, the

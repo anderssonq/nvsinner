@@ -33,6 +33,15 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   AI cockpit badge that used to ride `lualine_x` was removed for performance
   (statusline components re-evaluate on every redraw); per-session status
   lives in the terminal winbars and the `<leader>ja` picker.
+  `lualine_b` opens with two **clickable icons** in `base09`: a terminal
+  (`\u{f489}`, left click → `statusmark.terminal_click` = the `<leader>t` map,
+  toggle horizontal terminal 1) and a robot (`\u{f06a9}`, →
+  `statusmark.agents_click` = the `<leader>xa` map, `:NvSinnerAgents`). Both
+  come from `statusmark.map_click(lhs)`, which looks the map up with `maparg`
+  and runs its callback or `<Cmd>…<CR>` rhs — never feedkeys, which would pay
+  the `timeoutlen` wait. They are icons, so NOT shimmer-wrapped. **Write the
+  glyphs as `\u{…}` escapes**: a literal private-use glyph was silently stripped
+  once, leaving an empty string that lualine hides.
   `lualine_c` leads with the **project name** from `lua/core/project.lua`
   (`󰉋` icon in `base09`, name in the section's inherited `base04` — the
   icon-colored/name-muted split `filebadge.lua` uses, so the bar stays

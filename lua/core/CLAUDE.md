@@ -474,7 +474,11 @@ A subtle shimmer over the **whole statusline**: every gray text component
 filetype, progress) is one segment, and ONE slightly brighter band sweeps the
 bar left→right, then rests. The mode + location chips and diagnostics keep their
 semantic colors and are not wrapped. A left click on the mark opens
-`:NvSinnerHelp` (`M.click`, wired as the component's lualine `on_click`).
+`:NvSinnerHelp` (`M.click`, wired as the component's lualine `on_click`), and
+the two icons at the left of the bar run a keymap on a left click —
+`M.terminal_click` (`<leader>t`) and `M.agents_click` (`<leader>xa`), both built
+by `M.map_click(lhs)`: `maparg` lookup, then the callback or a `<Cmd>…<CR>` rhs;
+no-op when the map is absent.
 Required and started by `lua/plugins/ui/lualine.lua`'s `config()` (the shimmer
 only exists when lualine does); layout/centring notes live in
 `lua/plugins/ui/CLAUDE.md`.
