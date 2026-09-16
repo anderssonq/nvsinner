@@ -383,24 +383,26 @@ vim.api.nvim_create_user_command("NvSinnerAskAI", function()
 	end
 end, { desc = "Ask AI about the last visual selection (also <leader>x in visual mode)" })
 
--- Double-click: IDE-style "click a word → ask the AI". The first click of the
--- pair already moved the cursor into the clicked window, so the handler works
--- on the current window/buffer (getmousepos is useless headless anyway). In
--- normal mode it selects the word under the pointer (superset of the default
--- double-click word-select); with a visual selection active it uses that.
--- Special windows are left alone: floats and non-file buftypes bail silently,
--- and plugins that map <2-LeftMouse> buffer-locally (neo-tree, …) win over
--- this global map. Public (not local) as the test seam — mouse events can't
--- be synthesized headless.
-function M.double_click()
+-- Triple-click: IDE-style "click a word → ask the AI". THREE clicks, not two,
+-- so an ordinary double-click keeps Vim's stock word-select and the modal only
+-- opens when it was actually asked for. The earlier clicks of the sequence
+-- already moved the cursor into the window and left the word selected
+-- (visual), so the handler works on the current window/buffer (getmousepos is
+-- useless headless anyway) and simply reuses that selection; if nothing is
+-- selected it falls back to selecting the word under the pointer. Special
+-- windows are left alone: floats and non-file buftypes bail silently, and
+-- plugins that map <3-LeftMouse> buffer-locally (core/mouse's explorer
+-- drag-lock, …) win over this global map. Public (not local) as the test seam
+-- — mouse events can't be synthesized headless.
+function M.triple_click()
 	if vim.api.nvim_win_get_config(0).relative ~= "" or vim.bo.buftype ~= "" then
 		return
 	end
 	if vim.api.nvim_buf_get_name(0) == "" then
-		return -- casual double-clicks in scratch buffers shouldn't toast
+		return -- casual clicks in scratch buffers shouldn't toast
 	end
 	if not vim.fn.mode():match("[vV\22]") then
-		vim.cmd("normal! viw") -- select the clicked word (like the default double-click)
+		vim.cmd("normal! viw") -- nothing selected yet: take the word under the pointer
 	end
 	local c = capture_visual()
 	vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "nx", false)
@@ -409,7 +411,12 @@ function M.double_click()
 	end
 end
 
-vim.keymap.set({ "n", "x" }, "<2-LeftMouse>", M.double_click, { desc = "Ask AI about the word under the pointer" })
+vim.keymap.set(
+	{ "n", "x" },
+	"<3-LeftMouse>",
+	M.triple_click,
+	{ desc = "Ask AI about the word under the pointer (triple-click)" }
+)
 
 -- Test seams.
 function M._reset()
