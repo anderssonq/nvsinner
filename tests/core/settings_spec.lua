@@ -33,6 +33,9 @@ describe("core.settings", function()
 		assert.are.equal("minimax-m2.5", settings.get("ai_model"))
 		assert.are.equal(300, settings.get("key_timeout"))
 		assert.is_false(settings.get("quiet"))
+		-- Off by default on purpose: the minimap pane covers a strip of text
+		-- at the window's right edge, so it is opt-in.
+		assert.is_false(settings.get("minimap"))
 	end)
 
 	-- FA-25: the prefix wait on <leader>t/j/jx/f is the one core option a user

@@ -195,18 +195,18 @@ describe("core.ai-ask", function()
 		assert.are.equal(vim.log.levels.WARN, toasts[1].level)
 	end)
 
-	it("double_click() selects the word under the cursor and opens the modal", function()
+	it("triple_click() selects the word under the cursor and opens the modal", function()
 		local buf = vim.api.nvim_create_buf(true, false)
 		vim.api.nvim_buf_set_name(buf, vim.fn.getcwd() .. "/dblclick.lua")
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "local answer = 42" })
 		vim.api.nvim_set_current_buf(buf)
 		vim.api.nvim_win_set_cursor(0, { 1, 7 }) -- inside "answer"
 
-		ask.double_click()
+		ask.triple_click()
 
 		assert.are.equal("n", vim.fn.mode(), "must be back in normal mode")
 		local c = ask._ctx()
-		assert.is_not_nil(c, "double-click must capture the word")
+		assert.is_not_nil(c, "triple-click must capture the word")
 		assert.are.equal("answer", c.text)
 		assert.are.equal("dblclick.lua", c.path)
 		assert.are.equal(1, c.l1)
@@ -217,7 +217,7 @@ describe("core.ai-ask", function()
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 
-	it("double_click() uses the active visual selection when there is one", function()
+	it("triple_click() uses the active visual selection when there is one", function()
 		local buf = vim.api.nvim_create_buf(true, false)
 		vim.api.nvim_buf_set_name(buf, vim.fn.getcwd() .. "/dblsel.lua")
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "one two", "three four" })
@@ -225,7 +225,7 @@ describe("core.ai-ask", function()
 		vim.api.nvim_win_set_cursor(0, { 1, 0 })
 		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("Vj", true, false, true), "x", false)
 
-		ask.double_click()
+		ask.triple_click()
 
 		local c = ask._ctx()
 		assert.are.equal("one two\nthree four", c.text)
@@ -236,7 +236,7 @@ describe("core.ai-ask", function()
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
 
-	it("double_click() bails silently in special buffers and on whitespace", function()
+	it("triple_click() bails silently in special buffers and on whitespace", function()
 		local toasts = 0
 		local orig = vim.notify
 		vim.notify = function()
@@ -246,7 +246,7 @@ describe("core.ai-ask", function()
 		-- Terminal buffer (buftype ~= "") → no modal, no toast.
 		vim.cmd("terminal cat")
 		local term = vim.api.nvim_get_current_buf()
-		ask.double_click()
+		ask.triple_click()
 		assert.is_nil(ask._ctx())
 		vim.api.nvim_buf_delete(term, { force = true })
 
@@ -256,7 +256,7 @@ describe("core.ai-ask", function()
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "x   y" })
 		vim.api.nvim_set_current_buf(buf)
 		vim.api.nvim_win_set_cursor(0, { 1, 2 }) -- on the spaces
-		ask.double_click()
+		ask.triple_click()
 		assert.are_not.equal("nvsinner-ai-ask", vim.bo.filetype, "no modal on whitespace")
 
 		vim.notify = orig
@@ -267,8 +267,11 @@ describe("core.ai-ask", function()
 	it("maps visual <leader>x and registers :NvSinnerAskAI", function()
 		assert.are_not.equal("", vim.fn.maparg("<leader>x", "x"), "<leader>x (visual) must exist")
 		assert.are.equal("", vim.fn.maparg("<leader>x", "n"), "no bare normal-mode <leader>x map expected")
-		assert.are_not.equal("", vim.fn.maparg("<2-LeftMouse>", "n"), "double-click map must exist")
-		assert.are_not.equal("", vim.fn.maparg("<2-LeftMouse>", "x"), "visual double-click map must exist")
+		assert.are_not.equal("", vim.fn.maparg("<3-LeftMouse>", "n"), "triple-click map must exist")
+		assert.are_not.equal("", vim.fn.maparg("<3-LeftMouse>", "x"), "visual triple-click map must exist")
+		-- Two clicks are Vim's own word-select again: the modal must not steal them.
+		assert.are.equal("", vim.fn.maparg("<2-LeftMouse>", "n"), "double-click must stay stock")
+		assert.are.equal("", vim.fn.maparg("<2-LeftMouse>", "x"), "visual double-click must stay stock")
 		assert.is_not_nil(vim.api.nvim_get_commands({})["NvSinnerAskAI"])
 	end)
 end)

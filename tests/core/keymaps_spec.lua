@@ -48,6 +48,7 @@ describe("core.keymaps", function()
 			xh = "NvSinnerHelp",
 			xp = "NvSinnerPrompts",
 			xo = "NvSinnerSymbols",
+			xn = "NvSinnerMinimap",
 			xi = "NvSinnerIA",
 			xa = "NvSinnerAgents",
 			xu = "NvSinnerUpdate",
