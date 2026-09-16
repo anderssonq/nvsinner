@@ -34,6 +34,7 @@ describe("core.menu", function()
 			"Neo-tree side",
 			"AI column side",
 			"AI completion",
+			"Minimap",
 			"Key timeout",
 			"Notifications",
 		}

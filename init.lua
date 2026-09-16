@@ -54,6 +54,7 @@ require("core.colorizer") -- native #hex color chips on the visible range (repla
 require("core.todo") -- native TODO/FIXME keyword chips (replaces todo-comments.nvim)
 require("core.window-picker") -- native letter-overlay window picker; serves neo-tree's require("window-picker") (replaces nvim-window-picker)
 require("core.markdown") -- native markdown reading view: <leader>m / winbar "Open view" chip (replaces render-markdown.nvim)
+require("core.minimap") -- native code minimap: braille overview on the right edge (:NvSinnerMinimap, <leader>xn)
 -- Setup lazy.nvim
 require("lazy").setup({
 	spec = {

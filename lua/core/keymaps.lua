@@ -75,6 +75,7 @@ local nvsinner_maps = {
 	{ "<leader>xh", "NvSinnerHelp", "NvSinner command palette" },
 	{ "<leader>xp", "NvSinnerPrompts", "Prompt library → clipboard" },
 	{ "<leader>xo", "NvSinnerSymbols", "Document symbols modal" },
+	{ "<leader>xn", "NvSinnerMinimap", "Code minimap (right edge)" },
 	{ "<leader>xi", "NvSinnerIA", "AI hub (completion, model, Ask-AI, prompts)" },
 	{ "<leader>xa", "NvSinnerAgents", "Agent cockpit (status, chat preview, focus, close)" },
 	{ "<leader>xu", "NvSinnerUpdate", "NvSinner update (pinned restore)" },

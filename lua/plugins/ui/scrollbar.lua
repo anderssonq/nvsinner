@@ -20,6 +20,7 @@ return {
 				"toggleterm",
 				"lazy",
 				"mason",
+				"nvsinner-minimap",
 			},
 			handlers = {
 				cursor = { enable = true },

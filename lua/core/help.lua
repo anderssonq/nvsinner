@@ -48,6 +48,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 local DESCS = {
 	NvSinnerIA = "AI hub — completion on/off, model, Ask-AI, prompts (<leader>xi)",
 	NvSinnerMenu = "Settings modal — theme, accent, panel sides (<leader>xm)",
+	NvSinnerMinimap = "Code minimap — braille overview on the right edge (<leader>xn)",
 	NvSinnerReplace = "Replace a word — this file, one by one, or the whole project (<leader>rw)",
 	NvSinnerSymbols = "Document symbols — jump to one (<leader>cs / <leader>xo)",
 	NvSinnerSync = "Float plugins + Mason to latest — rewrites lockfile (<leader>xS)",
@@ -71,6 +72,7 @@ local SECTIONS = { "ai", "editor", "settings", "maintenance", "other" }
 local SECTION_OF = {
 	NvSinnerIA = "ai",
 	NvSinnerReplace = "editor",
+	NvSinnerMinimap = "editor",
 	NvSinnerSymbols = "editor",
 	NvSinnerMenu = "settings",
 	NvSinnerSync = "maintenance",
