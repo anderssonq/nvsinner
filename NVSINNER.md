@@ -270,6 +270,22 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     a lighter block. Both panes are now one surface; the list carries a details
     card for the selected agent with the hint pinned to its bottom edge, and a
     short chat tail sits at the bottom of the preview like a terminal.
+    **v3.8.0** gives the file a map. `:NvSinnerMinimap` (`<leader>xn`, or the
+    Minimap row in `:NvSinnerMenu`) draws the buffer as braille dots on the right
+    edge of the focused window — two source lines and two source columns per cell
+    — with the viewport and the cursor row riding it as bands; a click or a sweep
+    jumps there. It is a non-focusable float rather than a split, so it never
+    touches the window layout the AI columns keep rearranging, and it leaves a
+    gutter at the very edge so satellite's hunk/diagnostic ruler sits beside the
+    map instead of under it. Three things were measured in a real PTY rather than
+    assumed: the vertical zoom (four lines per row fills ~70% of the cells and
+    reads as a smear, two drops it to ~57% and the indentation shows), the pane's
+    height (it must come from `getwininfo()` — `nvim_win_get_height()` counts the
+    winbar row every code window here carries, and a pane sized from it lands on
+    the statusline), and the click, which had to survive textlock: an expr mapping
+    cannot move the cursor, so the jump is scheduled. Ask AI's mouse gesture moved
+    with it — three clicks, not two, so an ordinary double-click is Vim's own
+    word-select again instead of opening the modal.
 
 ## Status
 

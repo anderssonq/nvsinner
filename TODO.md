@@ -47,6 +47,10 @@ Migrated plugins keep their spec as an `enabled = false` one-line-revert stub.
       `core/filebadge.lua` (unifies winbar ownership).
 - [ ] **satellite.nvim** → native decoration-provider scrollbar (lowest
       priority of the tier).
+      Note: `lua/core/minimap.lua` (the braille code map) does NOT replace it —
+      the minimap shows the file's shape, satellite shows positions (hunks,
+      diagnostics, search); the minimap pane leaves a gutter so both render
+      side by side.
 
 ### Pending — Wave 3 (flagships, future goals)
 

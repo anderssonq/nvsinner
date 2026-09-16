@@ -92,13 +92,17 @@ edits files on disk (see *Auto-reload* below).
   `vim.ui.select` (same label formula as `<leader>ja`) asks which; with 0,
   `send()`'s opener fallback applies. `:NvSinnerAskAI` reruns on the last
   selection (`'<`/`'>` marks).
-- **Double-click** also opens it: a global `<2-LeftMouse>` map (n+x) selects
-  the word under the pointer (`normal! viw` — a superset of the default
-  double-click word-select) or uses the active visual selection, then runs the
-  same capture→Esc→open flow. It bails silently in floats, non-file buftypes,
-  unnamed buffers, and on whitespace-only words; buffer-local `<2-LeftMouse>`
-  maps (neo-tree, …) win over it. `M.double_click()` is public because mouse
-  events can't be synthesized headless. Ctx lives in module state (vim.ui.*
+- **Triple-click** also opens it: a global `<3-LeftMouse>` map (n+x) uses the
+  active visual selection — by the third click Vim's own double-click has
+  already selected the word — or falls back to `normal! viw` when nothing is
+  selected, then runs the same capture→Esc→open flow. **Three clicks, not
+  two**, on purpose: the modal used to claim `<2-LeftMouse>`, which swallowed
+  Vim's stock word-select and opened on every casual double-click. Two clicks
+  are now stock again, and `tests/core/ai_ask_spec.lua` pins `<2-LeftMouse>`
+  staying unmapped. It bails silently in floats, non-file buftypes, unnamed
+  buffers, and on whitespace-only words; buffer-local `<3-LeftMouse>` maps
+  (`core/mouse`'s explorer drag-lock, …) win over it. `M.triple_click()` is
+  public because mouse events can't be synthesized headless. Ctx lives in module state (vim.ui.*
   callbacks are async), cleared after dispatch/cancel. `M.build(key, ctx,
   question)` / `M._reset()` / `M._ctx()` are the test seams; NvMenu* styling
   re-declared locally like the other modals.
@@ -1534,3 +1538,67 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   installed and cost one `M.on` boolean while off (guard first in the
   callbacks — no call, no timer churn). Seams: `M._ns`,
   `M.refresh(buf, win)`, `M.MAX_SCAN`.
+
+## Code minimap — `minimap.lua` (required from `init.lua`)
+
+`:NvSinnerMinimap` / `<leader>xn` / the *Minimap* row in `:NvSinnerMenu`. A VS
+Code-style overview of the file on the right edge of the focused window, drawn
+with braille dots. **Off by default** — it covers `WIDTH` columns of text, so it
+is opt-in. State lives in the persisted `minimap` setting: `M.toggle()` writes
+through `core/settings`, whose applier calls `M.set_enabled()`, so the command
+and the menu row can never disagree (the `<leader>lh` / `inlay_hints` pattern).
+
+- **A float, not a split — deliberately.** `relative = "win"`, `focusable =
+  false`, anchored to the host window. A real right-hand split was rejected:
+  `toggleterm.lua`'s `restore_layout()` runs `wincmd L` on **every** AI-panel
+  open and would shove it around, and a split would have to be denylisted in
+  `window-picker` (`FT_IGNORE`), `ui-touch` (`SKIP_FT`), `indent`, `illuminate`
+  and satellite. A float needs none of that — every one of those guards already
+  skips floats or non-`""` buftypes, and `tests/core/minimap_spec.lua` pins
+  `window-picker._editable(pane) == false`.
+- **Sizing is `getwininfo().height`, NOT `nvim_win_get_height()`.** The API call
+  counts the winbar row (measured: 28 vs 27 on a window carrying
+  `filebadge`'s badge), and every code window here has a winbar — a pane sized
+  from it hangs one row past the text area, straight over the statusline. This
+  was a reported bug, not a theoretical one.
+- **`GUTTER` columns stay free at the edge** so satellite's hunk/diagnostic
+  ruler renders *beside* the map instead of under it (minimap + overview ruler,
+  as an IDE does it). `ZINDEX = 35` sits below `backdrop.lua`'s dimming layer
+  (modal zindex − 10 = 40), so the NvSinner modals still dim the pane.
+- **Vertical zoom was measured, not guessed.** `ROWS_PER_CELL = 2` (each source
+  line lights two of the cell's four dot rows). At 4 the OR of four lines fills
+  ~70% of the cells and the map reads as a heat smear; at 2 it drops to ~57%
+  and indentation blocks and line-length falloff are legible. `SPAN = 100`
+  source columns map across the width, and anything past it is **clipped, not
+  clamped** — clamping paints a fake solid right edge on any file with long
+  lines.
+- **The pane follows the editor group, not the focus.** A window that is not
+  itself a code window — a cmdline/telescope/hover float, neo-tree, the AI
+  terminal column — leaves the pane where it is as long as its host is still a
+  live code window; only a dead or ineligible **host** hides it. Measured: with
+  a plain "hide when the focused window is ineligible" rule, every `:` command
+  in a noice session tore the pane down for good.
+- **Click to jump** — `<LeftMouse>` / `<LeftDrag>` / `<LeftRelease>` are claimed
+  by GLOBAL expr maps, installed on enable and deleted on disable, using
+  `mouse.lua`'s fallthrough idiom (return `""` over the pane, return the literal
+  key everywhere else, `replace_keycodes = true`). Two findings from the PTY
+  probe behind this, both load-bearing:
+  1. **The jump must be `vim.schedule`d.** An expr mapping is evaluated under
+     textlock; moving the cursor or switching windows inside it raises E565 and
+     the mapping dies silently — the click kept landing on the text *under* the
+     pane.
+  2. **The press must be claimed too.** With only `<LeftRelease>` mapped, Vim's
+     builtin press has already moved the cursor under the pane before the
+     release is delivered.
+  The hit test (`M._clicked_line(mp, rect)`) goes through **screen**
+  coordinates via `win_screenpos()`, not `getmousepos().winid`: a non-focusable
+  float is not guaranteed to be reported as the mouse window.
+- **Cheap by construction**: only the visible slice is encoded (≈ `2 × height`
+  lines, never the whole file), one module-wide `vim.uv` debounce timer
+  (`M.DEBOUNCE_MS`, anchored on `M._timer` against luv GC), and indent.lua's
+  same-position early-exit key. Every callback guards on `M.on` FIRST, so while
+  the minimap is off a scroll or keystroke costs one boolean — no call, no
+  timer, no mouse map.
+- Seams: `M._ns`, `M._encode(lines, { width, span, tabstop, per })`,
+  `M._slice(total, w0, ws, rows, per)`, `M._eligible(win)`, `M._win()`,
+  `M._clicked_line(mp, rect)`, `M.jump(line)`, `M._reset()`.

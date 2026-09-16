@@ -44,7 +44,7 @@ any existing `~/.config/nvim` without touching it.
   auto-submitted. And `<leader>jx` (sessions 2–9 via `<leader>jx2`…) focuses —
   or opens — an AI session with the input pre-primed with `@path` mentions of
   **every file you have on screen**, so you just type the question.
-- **Ask AI modal** — select code and hit `<leader>x` (or just **double-click
+- **Ask AI modal** — select code and hit `<leader>x` (or just **triple-click
   a word**) for the IDE-style quick-action menu: **Fix / Refactor / Explain /
   Ask custom question**. The chosen prompt (with the file path and line
   range) plus the selection lands in the AI column's input; with more than
@@ -112,6 +112,12 @@ any existing `~/.config/nvim` without touching it.
 - **Native-first** — focus glow, mouse-hover docs, agent activity, the
   send-to-AI bridge, health checks, and the updater are zero-dependency core
   modules, not plugins.
+- **Code minimap** — an opt-in braille overview of the file on the right edge
+  of the focused window (`:NvSinnerMinimap`, `<leader>xn`, or the *Minimap* row
+  in `:NvSinnerMenu`). Click or sweep it to jump to that part of the file. It
+  is a float, so it never disturbs your window layout, and it leaves the edge
+  free for satellite's hunk/diagnostic ruler — minimap and overview ruler side
+  by side, the way an IDE does it.
 - **Distro table stakes** — Trouble diagnostics panel (`<leader>x*`), LSP
   rename (`<leader>rn`) alongside the Neovim 0.11 builtins, Telescope pickers
   for diagnostics/keymaps/commands/resume (`<leader>s*`), which-key group
@@ -276,9 +282,10 @@ file's path and line range (`Fix this code in lua/core/foo.lua:10-25:`),
 followed by the selected code, and lands in the AI column's input like every
 other bridge send. With more than one AI session registered, a picker asks
 which session to send to. `:NvSinnerAskAI` reruns it on the last selection,
-and **double-clicking a word** in a code pane opens the same modal over that
+and **triple-clicking a word** in a code pane opens the same modal over that
 word (an active visual selection is used instead when there is one; special
-panes like the tree and terminals are left alone).
+panes like the tree and terminals are left alone). Three clicks, not two, so an
+ordinary double-click stays Vim's own word-select.
 
 > [!WARNING]
 > Auto-reload is **disk-wins** by design: when the AI CLI edits a file on
@@ -572,6 +579,7 @@ lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems toast
 lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
 lua/core/image-open.lua        Image files open in macOS Quick Look
+lua/core/minimap.lua           Code minimap pane (:NvSinnerMinimap, <leader>xn) — braille overview + click to jump
 lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
 settings/prompts.json          The prompt library (committed, hand-editable)
 fonts/                         Bundled FiraCode Nerd Font .ttf files
@@ -602,7 +610,7 @@ spec; new files in an existing category are picked up automatically.
 | `identmini.lua` | indentmini.nvim | **Disabled** — replaced by the native current-scope indent guide (`lua/core/indent.lua`) |
 | `notify.lua` | nvim-notify | Pretty notifications (replaces `vim.notify`) |
 | `illuminate.lua` | vim-illuminate | **Disabled** — replaced by the native occurrence highlight (`lua/core/illuminate.lua`) |
-| `scrollbar.lua` | satellite.nvim | Slim right-edge scrollbar with hunk/diagnostic/search marks |
+| `scrollbar.lua` | satellite.nvim | Slim right-edge scrollbar with hunk/diagnostic/search marks (sits beside the minimap, not under it) |
 | `mini-animate.lua` | mini.animate | Window open/close/resize easing + cursor trail |
 | `cursorline.lua` | nvim-cursorline | **Disabled** — the cursor-word highlight it provided is covered by the native occurrence highlight (`lua/core/illuminate.lua`) |
 
@@ -717,7 +725,7 @@ not.
 | `<leader>jc` | n | Clear an AI session — kill the CLI + forget the choice, next open re-asks (`:NvSinnerAIClear`) |
 | `<leader>jh` | n | Hide every open AI column at once — the CLIs keep running; `<leader>j` / `<leader>jN` brings one back |
 | `<leader>x` | x | Ask AI about the selection — Fix / Refactor / Explain / custom question modal (also `:NvSinnerAskAI`) |
-| double-click | n, x | Ask AI about the word under the pointer (or the active selection) — same modal |
+| triple-click | n, x | Ask AI about the word under the pointer (or the active selection) — same modal. A double-click is left alone: it is Vim's stock word-select |
 | `<leader>as` | x | Send visual selection to the AI column (lands in the CLI input, not submitted) |
 | `<leader>ab` | n | Send an `@path` mention of the current buffer to the AI column |
 | `<leader>ad` | n | Send the current line's diagnostics to the AI column |
@@ -745,6 +753,7 @@ Ask-AI modal.
 | `<leader>xh` | n | `:NvSinnerHelp` — command palette |
 | `<leader>xp` | n | `:NvSinnerPrompts` — prompt library (same as `<leader>p`) |
 | `<leader>xo` | n | `:NvSinnerSymbols` — document symbols modal (same as `<leader>cs`; `xo` = outline, Trouble owns `xs`) |
+| `<leader>xn` | n | `:NvSinnerMinimap` — code minimap on the right edge (`xm` is the menu, so mi**n**imap takes `n`); click or drag it to jump |
 | `<leader>xu` | n | `:NvSinnerUpdate` — update to the pinned plugin set |
 | `<leader>xS` | n | `:NvSinnerSync` — float plugins to latest (**rewrites `lazy-lock.json`**; capital on purpose) |
 | `<leader>xc` | n | `:checkhealth nvsinner` — external-tools health check |
