@@ -128,7 +128,7 @@ tidies them away.
   identity, and the intelligence (`ai-sessions`, `ai-activity`, the CLI
   picker, winbar labels) is already native — toggleterm only contributes
   window/id plumbing and layout restore. Risks: the layout-restore matrix and
-  the terminal-UX fragility campaign (see `nvsinner-terminal-ux-campaign`);
+  the terminal-UX fragility campaign (see `nvsinner-frontier`);
   reserved-id semantics (100+) must survive the migration. Do this only
   behind the campaign's edge-case reproduction matrix.
 - **lualine → native statusline.** The winbar-expression expertise

@@ -7,7 +7,7 @@ description: >
   change needs its documentation synced (new plugin, keymap, core module,
   behavior change), when writing a commit message or PR description, or when
   authoring/maintaining a skill in .claude/skills/. Do NOT load it to decide
-  WHETHER docs must be updated for a change (nvsinner-change-control gates
+  WHETHER docs must be updated for a change (nvsinner-contract gates
   that) or for the technical content itself (the subsystem skills own facts).
 ---
 
@@ -15,8 +15,8 @@ description: >
 
 ## When NOT to use this skill
 
-- Deciding what gates a change must pass → `nvsinner-change-control`.
-- Looking up a technical value to write about → `nvsinner-config-catalog` or
+- Deciding what gates a change must pass → `nvsinner-contract`.
+- Looking up a technical value to write about → `nvsinner-contract` or
   the code itself; never write a doc claim you did not verify.
 - Test documentation conventions → `nvsinner-testing-and-qa`.
 
@@ -26,16 +26,40 @@ description: >
 |---|---|---|---|
 | `CLAUDE.md` (root) | **The lean per-session manifest.** Identity, layout map, conventions, one-line non-negotiables, leader-namespace map, validation/test commands, index of the nested docs. Deliberately small — it loads in EVERY session. | AI agents working on the repo | A convention/non-negotiable changes, the layout map changes, or a nested doc is added/moved |
 | Nested `CLAUDE.md` (`lua/core/`, `lua/plugins/<category>/`, `tests/`, `colors/`) | **The per-directory contracts.** Full subsystem deep-dives, load-bearing warnings with rationale, spec inventory. Loaded lazily — only when working under that directory. | AI agents editing that directory | That directory's subsystem behavior, tunables, or tests change |
+| `docs/ARCHITECTURE.md` | The system overview for humans: layers, key abstractions, design decisions and what they cost. | Humans reading the codebase | The layering or a load-bearing decision changes |
+| `docs/CONTRIBUTING.md` | Contributor-facing conventions and the gate list. | Outside contributors | A convention or gate changes |
+| `docs/releasing.md` | The release runbook — semver source, the update check, cutting a release. | Owner + `nvim-release` agent | The release flow changes |
+| `docs/native-roadmap.md` | The plugin→native migration analysis and its wave plan. | Owner + agents planning waves | A wave lands or a candidate is re-scoped |
 | `docs/installation.md` | Agent-executable install runbook (7 steps, `[manual]` tags), external requirements, `install.sh`/`uninstall.sh` anatomy. Read on demand, not auto-loaded. | AI agents installing from scratch | The install flow or scripts change |
 | `README.md` | User-facing distro docs: pitch, requirements, plugin tables, **the single full keybindings reference**, install/update/health/uninstall guides. | Humans installing NvSinner | Anything user-visible changes |
 | `NVSINNER.md` | Distro plan + status log, ✅-checklist style ("What's missing… → ✅ Done — …"). | Owner + agents tracking distro maturity | A distro milestone lands |
 | `TODO.md` | Open items only. Completed items move to a short "Done" summary pointing at NVSINNER.md for detail. | Same | An item opens or completes |
 | `.claude/agents/*.md` | Per-category Sonnet owner-agent contracts (files owned, hard constraints, validation commands). | Claude Code subagents | That category's rules change |
 | `.claude/skills/*/SKILL.md` | This library. | Sonnet-class agents | Facts drift (see each skill's Provenance section) |
+| `settings/prompts.json` | The committed, user-editable prompt library behind `:NvSinnerPrompts`. | Users + agents | A prompt is added or reworded |
 | `.tmp/*-PR-DESCRIPTION.md` | Archived PR descriptions, named `MM-DD-YY_NN_<topic>-PR-DESCRIPTION.md`. Rich engineering history — treat as read-only archive. | History mining | New PR written |
 
 Rule: **all markdown is English** (a written CLAUDE.md convention). Code
 comments are English too, and explain *why*/constraints, not *what*.
+
+### The anti-drift rule (learned the hard way — FA-27)
+
+**Never freeze in prose a value a command could produce.** Write where the
+value lives and the one-liner that reads it, not a copy of it. Hex colors,
+line numbers, spec counts, tunable constants and lazy-trigger tables are all
+copies that rot silently; a `grep` next to the claim does not.
+
+Concretely, in any `.md` under this repo:
+
+- **No hex literals.** Name the role and the file. `palette-audit.sh` enforces
+  the code side; docs have no such guard, so the rule has to hold by hand.
+- **No line-number citations** as the only anchor — cite the symbol or the
+  grep, and treat `file:line` as a convenience that will drift.
+- **No frozen inventories** (specs, plugins, triggers, counts). Ship the
+  command.
+- Every skill carries a **`Facts verified: <date>`** line, and anything stated
+  under it is a claim you re-checked on that date. If you did not re-check it,
+  do not re-date it.
 
 ## 2. House style (derived from the real artifacts)
 
@@ -77,7 +101,7 @@ stragglers: `grep -rn '<leader>x' CLAUDE.md README.md lua/ tests/ docs/ .claude/
 
 | Change | root CLAUDE.md | nested CLAUDE.md | README.md | NVSINNER.md | TODO.md | agents/ | skills/ |
 |---|---|---|---|---|---|---|---|
-| New plugin | Layout table if new category | subsystem note in the category's file | plugin table row (+ keys row) | — | — | category agent if constraints change | `nvsinner-config-catalog` trigger map |
+| New plugin | Layout table if new category | subsystem note in the category's file | plugin table row (+ keys row) | — | — | category agent if constraints change | `nvsinner-contract` trigger map |
 | New/changed keymap | namespace map only if a namespace changes | owning subsystem prose | Full keybindings | — | — | — | catalog if terminal/AI axis |
 | New core module | Layout block | subsystem section in `lua/core/CLAUDE.md` | folder-structure block | — | — | nvim-core.md | architecture-contract + catalog |
 | Behavior change | non-negotiables list if a rule changes | affected subsystem section | if user-visible | — | — | owning agent | affected skill(s) |

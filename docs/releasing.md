@@ -26,7 +26,11 @@ runbook it follows — and the reference for cutting a release by hand.
    (`git log -p --follow -- lua/nvsinner/init.lua` shows the last bump):
    patch = fixes only, minor = features, major = breaking changes to the
    user-facing contract (keymaps, commands, install layout).
-2. **Edit `lua/nvsinner/init.lua`**, keeping `version = "X.Y.Z"` on one line.
+2. **Edit `lua/nvsinner/init.lua`**, keeping `version = "X.Y.Z"` on one line,
+   **and update the pin in `tests/core/version_spec.lua`** in the same commit —
+   that spec asserts the exact current version (both the literal and the test
+   name say it), so every bump fails it until you do. It is deliberate: it
+   makes a half-finished release impossible to merge green.
 3. **Run the gates** (all must pass): `make test` ·
    `stylua --check lua/ tests/` · headless boot check
    (`nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"`).

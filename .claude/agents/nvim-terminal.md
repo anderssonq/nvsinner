@@ -1,64 +1,52 @@
 ---
 name: nvim-terminal
-description: Use for any change under lua/plugins/terminal/ — toggleterm (horizontal terminals + the persistent AI columns on the right) and persistence (session save/restore). Delegate here for the AI terminal-column workflow, terminal ids/sizing/keymaps, and session management.
+description: Use for any change under lua/plugins/terminal/ — toggleterm: the horizontal terminals (<leader>t, ids 1-9) and the persistent AI columns on the right (<leader>j, ids 100-108), their CLI picker, sizing and keymaps. Delegate here for the AI terminal-column workflow. NOT for sessions — persistence.nvim is a tombstone and lua/core/sessions.lua owns them — and NOT for the send-to-AI bridge or the activity spinner, which are lua/core/ai-sessions.lua and lua/core/ai-activity.lua.
 model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/terminal/` — terminals and sessions for a personal Neovim 0.12+
-config. The AI workflow is **a CLI agent running in a terminal column** (there are no
-in-editor AI plugins). Each file returns a lazy.nvim spec.
+You own `lua/plugins/terminal/` — terminals for NvSinner (Neovim 0.12+). The AI
+workflow is **a CLI agent running in a terminal column**; there is no in-editor
+AI plugin.
 
-**Before editing, read `lua/plugins/terminal/CLAUDE.md`** — it carries the full
-per-file contracts (reserved ids, CLI picker, bridge integration) for this
-directory.
+**Read first:** `lua/plugins/terminal/CLAUDE.md` (reserved ids, CLI picker,
+bridge integration, and the only explanation of the `persist_mode` race) and the
+Non-negotiables in the root `CLAUDE.md`.
 
-## Files & their jobs
-- `toggleterm.lua` — the heart of the AI workflow.
-  - **Horizontal terminals**: `<leader>t` → terminal 1 (forced
-    `direction=horizontal`, ~20% of `vim.o.lines`). `<leader>t2`…`<leader>t9` toggle
-    independent horizontal terminals (ids 2–9) via
-    `exe "<N>ToggleTerm direction=horizontal"`. `<leader>t` is a prefix of
-    `<leader>t2`…, so a bare `<leader>t` waits one `timeoutlen` (which-key menu) then
-    falls back to terminal 1 — 300 ms, set in `lua/core/options.lua` and tunable in
-    `:NvSinnerMenu` → "Key timeout". (Moved off `<C-t>` to avoid a conflict.)
-  - **No `jk` in terminal mode**: `<esc>` is the only escape to terminal-normal mode.
-    A `jk` map makes every literal `j` a prefix, withholding the keystroke one
-    `timeoutlen` before it reaches the CLI. Do not re-add it.
-  - **AI columns**: multiple persistent vertical columns on the right, each an
-    independent AI CLI session; toggling hides without killing the process. Session 1
-    → `<leader>j`, `<M-J>` (iTerm2 Cmd+Opt+J via Send Escape Sequence = `J`), or
-    `<D-M-j>` (GUI). Sessions 2–9 → `<leader>j2`…`<leader>j9`.
-  - Panels are created **lazily and memoised by session number** (`get_ai_panel`) —
-    a session spawns its shell only the first time it's opened.
-  - **Reserved ids are critical**: each AI panel gets `id = 99 + N` (session 1→100 …
-    9→108), kept clear of ids 1–9 used by the horizontal terminals. Without reserved
-    ids, opening an AI panel first would claim id 1 and `<leader>t` would just
-    re-toggle that panel. **Do not change this id scheme casually.**
-- `persistence.lua` — `persistence.nvim` sessions: `<leader>SQ` quit no-save,
-  `<leader>Sc` restore cwd, `<leader>Sl` restore last.
+## Live spec
+`toggleterm.lua` — horizontal terminals `<leader>t` / `<leader>t2…t9` (ids 1-9)
+and the AI columns `<leader>j` / `<leader>j2…j9` (ids 100-108), created lazily
+and memoised per session by `get_ai_panel`. Toggling hides without killing.
+Also `<leader>jx<N>` (focus-or-open primed with `@`-mentions), `<leader>jh`
+(hide all), `<leader>jc` / `:NvSinnerAIClear`.
 
-## Hard constraints
-- Keep horizontal-terminal ids (1–9) and AI-panel ids (100–108) disjoint.
-- Resize is handled by the global split-resize keymaps in `core/keymaps.lua`
-  (`<C-,>`/`<C-.>` width, `<C-;>`/`<C-'>` height, working in terminal mode) — don't
-  duplicate resize maps here; if resize behavior needs changing, flag the orchestrator
-  (it belongs to the nvim-core agent).
-- The config does NOT read `ANTHROPIC_API_KEY`; the CLI handles its own auth. Don't
-  add API-key handling.
-- Focused terminals get the winbar focus cue from `core/ui-touch.lua` — keep
-  toggleterm's window options compatible with that (don't hard-set `winbar`).
+## Tombstone — `enabled = false`, keeps its `lazy-lock.json` entry
+`persistence.lua` → replaced by `lua/core/sessions.lua` (`:mksession` per cwd,
+same `<leader>Sc/Sl/SQ`, plus `:NvSinnerSession*`).
 
-## Conventions
-- All Lua, comments in English, one plugin per file, lazy-load via `keys`/`cmd`.
-  New file in this folder is auto-imported.
+## Traps — rationale lives in `lua/plugins/terminal/CLAUDE.md`
+- **Reserved ids are critical**: AI panels are `id = 99 + N`, disjoint from the
+  horizontal terminals' 1-9. Without them an AI panel opened first claims id 1
+  and `<leader>t` just re-toggles it.
+- **Keep `persist_mode = false`.** Its `true` default restores the mode
+  snapshotted on `WinLeave` via a scheduled `stopinsert` that beats
+  `core/autoreload.lua`'s synchronous `startinsert` — one `<Esc>` then made
+  every later focus of that column need an `i`. `core/autoreload.lua` is the one
+  authority on terminal focus mode.
+- **No `jk` in terminal mode.** It makes every literal `j` a prefix, holding the
+  keystroke back one `timeoutlen` before it reaches the CLI. `<Esc>` is the
+  escape. Do not re-add it.
+- **Don't hard-set `winbar`** — the focus cue comes from `core/ui-touch.lua` and
+  the activity spinner from `core/ai-activity.lua`.
+- Resize belongs to `core/keymaps.lua`; don't duplicate resize maps here.
+- The config never reads `ANTHROPIC_API_KEY`; the CLI owns its auth.
 
-## Validate before reporting done
+## Validate
 ```bash
 nvim --headless -c "lua assert(loadfile('lua/plugins/terminal/<file>.lua'))" -c "qa"
-nvim --headless "+Lazy! sync" +qa
 nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
+make test
 ```
+Never `+Lazy! sync` — it rewrites `lazy-lock.json`. Use `+Lazy! restore`.
 
-Report what changed, the validation output, and any new keymap or id-scheme change
-(so the orchestrator can update README/CLAUDE.md).
+Report what changed, the validation output, and any keymap or id-scheme change.

@@ -31,11 +31,11 @@ empirically by this repo's own development (labeled as such).
 - **You want to re-run the experiments that established a fact** →
   `nvsinner-empirical-verification` (probe recipes live there).
 - **You want the repo's design rules and layering rationale** →
-  `nvsinner-architecture-contract`.
-- **You want to know what a plugin/option is set to** → `nvsinner-config-catalog`.
+  `nvsinner-contract`.
+- **You want to know what a plugin/option is set to** → `nvsinner-contract`.
 - **You're installing, building, or running the distro** → `nvsinner-build-and-run`.
 - **You're writing or running tests** → `nvsinner-testing-and-qa`.
-- **You're about to edit files and need the process rules** → `nvsinner-change-control`.
+- **You're about to edit files and need the process rules** → `nvsinner-contract`.
 
 ## Quick reference: trap → rule → repo anchor
 
@@ -259,13 +259,13 @@ All autocmd wiring in this repo is Lua (`nvim_create_autocmd`) under named
   both and lets `TermOpen` correct the classification.
 - **`ColorScheme` as the re-apply hook (the `apply_hl` pattern)**: every
   `:colorscheme` load rebuilds highlights, wiping ad-hoc `nvim_set_hl` groups.
-  The repo's convention: define groups in a local `apply_hl()`/`glass_hl()`
-  function, call it once at load, and register it on a `ColorScheme` autocmd so
-  it survives kanagawa reloads and lazy-loaded plugins that re-trigger
-  colorscheme application. Instances: `lua/core/ui-touch.lua`,
-  `lua/core/ai-activity.lua`, `lua/plugins/ui/theme.lua` (pattern
-  `"kanagawa*"`), `lua/plugins/ui/noice.lua`. Keep the palettes in these files
-  in sync — that is a CLAUDE.md rule.
+  The repo's convention: define groups in a local `apply_hl()` function, call
+  it once at load, and register it on a `ColorScheme` autocmd so it survives
+  colorscheme reloads and lazy-loaded plugins that re-trigger colorscheme
+  application. Thirteen core modules follow it —
+  `grep -ln 'apply_hl' lua/core/*.lua`. Every one of them pulls its values from
+  `require("core.carbon")`: **never duplicate a hex into a consumer**, which is
+  the inverse of the old "keep the palettes in sync" rule.
 - **`User VeryLazy`**: lazy.nvim's own synthetic event, fired once after
   startup + UI. `lua/core/health.lua` uses it (with `once = true` and an 800ms
   `vim.defer_fn`) so the first-run toast waits until nvim-notify (itself
@@ -316,7 +316,7 @@ option remapping builtin highlight groups to substitutes, format
 feedback this way:
 - Focused code pane: `Normal:NvFocusNormal,NormalNC:NvFocusNormal,WinSeparator:NvFocusSeparator`
   plus window-local `cursorline`.
-- Focused terminal: same glass Normal + `WinSeparator:NvTermFocusSeparator` +
+- Focused terminal: same focused Normal + `WinSeparator:NvTermFocusSeparator` +
   `WinBar:NvTermFocusBar` (the bright top bar).
 - Unfocused terminal: only `WinBar:NvTermBarDim` — the bar is *always present*
   so the terminal never reflows; focus only changes its colour.
@@ -327,15 +327,16 @@ feedback this way:
 
 **Winbar/statusline inline highlighting.** Inside the format string,
 `%#Group#…%*` switches to `Group` and back. `ai-activity.lua` wraps the busy
-state in `%#NvAiBusy#…%*` — a crimson chip — precisely so it overrides whatever
+state in `%#NvAiBusy#…%*` — an accent chip — precisely so it overrides whatever
 the bar's base WinBar mapping is and stays visible on an *unfocused/dim* bar.
 Idle text carries no group and inherits the focus-aware WinBar colour.
 
 **The `fg == bg` pitfall (found the hard way here).** `NvTermBarDim` originally
-had fg = bg = `#16161d`; any text in the unfocused bar was invisible, so the
-idle/working label seemed "missing". The fix: a readable muted fg (`#7a7f8d`)
-on the dim bg. `tests/core/ui_touch_spec.lua` asserts fg ≠ bg for that group.
-When you define any bar/chip group, check contrast in *both* focus states.
+had fg = bg; any text in the unfocused bar was invisible, so the idle/working
+label seemed "missing". The fix was a readable muted fg role on the dim bg —
+read the current roles out of `lua/core/ui-touch.lua`, don't quote a hex here.
+`tests/core/ui_touch_spec.lua` asserts fg ≠ bg for that group. When you define
+any bar/chip group, check contrast in *both* focus states. (FA-06.)
 
 ## 8. lazy.nvim loading model
 
@@ -457,25 +458,27 @@ or auto-enable path bypasses the semantic-token surgery.
   for the non-blocking `git pull --ff-only` with a `vim.schedule_wrap`ped
   completion callback (§1: the callback isn't main-loop code). Prefer it over
   `vim.fn.system` (blocking) and `jobstart` (legacy) for new code.
-- **The "0.12.x markdown treesitter crash" (misdiagnosed, now fixed)**: on 0.12.3 the markdown highlighter
-  calls `node:range()` on a nil node (`runtime/treesitter.lua:197`) and crashes
-  the buffer — a known upstream 0.12.x issue, hit and verified in this repo.
-  Mitigations, all deliberate and all removable once upstream fixes land:
-  `after/ftplugin/markdown.lua` (runs after the runtime ftplugin that
-  unconditionally starts treesitter; `pcall(vim.treesitter.stop, 0)` + regex
-  `syntax`), highlight-disable entries for markdown in the treesitter and
-  telescope specs, LSP hover/signature kept OFF in `lua/plugins/ui/noice.lua`,
-  and the plain-text hover float in `ui-touch.lua`. Do not route anything
-  through markdown-treesitter rendering of transient floats until this is
-  fixed upstream. (`after/ftplugin/*` ordering — user files run after
-  `$VIMRUNTIME` ftplugins — is itself the arcana making the workaround
-  possible.)
+- **The "0.12.x markdown treesitter crash" — misdiagnosed, and the diagnosis
+  was overturned.** The symptom was real: `node:range()` on a nil node crashing
+  a markdown buffer. The cause was **not** Neovim. It was nvim-treesitter's
+  pinned `branch = "master"`, which predates 0.12's query API and whose
+  directives mis-handle the list-valued `match[id]`. `lua/core/ts-compat.lua`
+  re-registers them and fixed it.
+
+  Everything built on the wrong diagnosis is **gone**: there is no
+  `after/ftplugin/markdown.lua`, no markdown highlight-disable in the
+  treesitter or telescope specs. Do not reintroduce them, and do not cite this
+  crash as the reason for anything. noice's LSP hover/signature are still off,
+  but *pending their own evaluation* — a different reason. The probe that
+  overturned the original claim, which was carried in ~18 files, is recipe 7 in
+  `nvsinner-empirical-verification`.
 
 ---
 
 ## Provenance and maintenance
 
-**Facts verified: 2026-07-02** on Neovim 0.12.3 (dev machine), against this
+**Facts verified: 2026-07-02** on Neovim 0.12.3 (dev machine); palette, `apply_hl`
+and markdown-crash sections re-verified **2026-09-19**, against this
 repo's working tree at that date. Facts marked "verified empirically by this
 repo" were established during NvSinner development (recorded in code comments,
 CLAUDE.md, and `.tmp/*.md` PR descriptions) and are asserted by the test suite

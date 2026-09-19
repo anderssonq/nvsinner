@@ -1,61 +1,45 @@
 ---
 name: nvim-core
-description: Use for any change under lua/core/ — core vim options, leaders, global keymaps, the AI-workflow disk auto-reload, and the native active-window/mouse-hover touch layer. Delegate here for options.lua, keymaps.lua, autoreload.lua, ui-touch.lua. NOT for plugin specs (those live in lua/plugins/<category>/ — use the matching plugin agent).
+description: Use for any change under lua/core/ — the 39 zero-dependency native modules required directly from init.lua. Covers vim options and leaders, global keymaps, the AI layer (send-to-AI bridge, Ask-AI, inline completion, agent cockpit, AI hub, activity spinner, disk auto-reload, AI-edit underlines), the NvSinner modals (menu, prompts, help, symbols, replace, backdrop), the carbon palette module, native replacements for retired plugins (filebadge, git-blame, illuminate, sessions, indent, colorizer, todo, window-picker, markdown, minimap, statusmark, neotree-hover), and the distro shell (health, update, sync, version, project, image-open, mouse, ts-compat). NOT for plugin specs — those live in lua/plugins/<category>/, use the matching plugin agent.
 model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own the **core (non-plugin) layer** of a personal Neovim 0.12+ config:
-`lua/core/`. These modules are `require`d directly from `init.lua` (before
-lazy.nvim) — they are NOT lazy.nvim specs.
+You own `lua/core/` — 39 native Lua modules, no plugin dependencies, `require`d
+directly from `init.lua` before lazy.nvim. They are NOT lazy specs.
 
-**Before editing, read `lua/core/CLAUDE.md`** — it carries the full
-per-subsystem contracts and load-bearing warnings for this directory.
+**Read first:** `lua/core/CLAUDE.md` (per-module contracts) and the
+Non-negotiables in the root `CLAUDE.md`. This file is a routing map, not a
+second copy of them.
 
-## Files you own
-- `lua/core/options.lua` — leaders (`<leader>`=Space, `<localleader>`=`\`) + core
-  vim options. **Required FIRST in init.lua** so leaders exist before lazy reads
-  any `keys` spec. Contains the only allowed `vim.cmd([[ ... ]])` block — do not
-  grow it; everything else stays Lua.
-- `lua/core/keymaps.lua` — global keymaps: save/undo/redo (`<C-y>`/`<C-u>`/`<C-r>`),
-  folds, split-resize (`<C-,>`/`<C-.>` width ±20%, `<C-;>`/`<C-'>` height ±5%, must
-  also work in terminal mode), buffers.
-- `lua/core/autoreload.lua` — AI workflow: `autoread` + a `FileChangedShell`
-  handler setting `v:fcs_choice = "reload"`, `checktime` on focus/window-enter, and
-  a 1s `vim.uv` timer. **Trade-off: disk wins** — unsaved in-Vim edits to a buffer
-  the AI changed are discarded (viewer-style workflow). Preserve this behavior
-  unless explicitly told otherwise.
-- `lua/core/ui-touch.lua` — native active-window border/glow + accent separator +
-  subtle CursorLine, focused-terminal full-width winbar, and debounced
-  `<MouseMove>` LSP-doc hover (`relative="mouse"`, non-focusable). An `eligible()`
-  guard skips neo-tree/telescope/dashboard/floats. Highlights live in `apply_hl()`
-  re-applied on `ColorScheme` — **all values are carbon roles pulled from
-  `lua/core/carbon.lua`** (the single palette source and design doc).
+## Boot order
+`init.lua:24-57` requires them in a load-bearing order — `options` first (leaders
+before lazy reads any `keys` spec), then `settings` (seeds the carbon flags
+before the theme). Add a new module to `init.lua` at the right position, or it
+never loads. Two are NOT required from `init.lua`: `statusmark` (loaded by
+`lualine.lua`) and `mouse` / `ts-compat` (required on demand).
 
-## Hard constraints
-- LSP hover/signature markdown floats are off pending re-evaluation (the 0.12.x crash that justified it was nvim-treesitter's frozen master, fixed in core/ts-compat.lua) — that's why
-  `ui-touch.lua` renders hover as plain text. Do not switch it to a markdown float.
-- Palette: carbon roles from `lua/core/carbon.lua` (bg `base00 #161616`, panels
-  `base01`, body `base04 #d0d0d0`, muted `base03`; accents by meaning — `base09`
-  blue identity, `base10` magenta attention, `base11` terminal focus, `base12`
-  pink busy). Never hardcode a hex in a core module — `require("core.carbon")`
-  and reference a role.
-- **Anything that writes files in bulk must write inside the same step that
-  edits them** (`:cfdo … | update`, never a modify-now-save-later split), and
-  must never shell out to `sed`. `autoreload.lua`'s unconditional 1s
-  `checktime` reloads on `FileChangedShell` without checking `'modified'`, so a
-  buffer left modified-but-unwritten loses its edits silently; an external
-  writer additionally storms the `🤖 AI · edited` toast and washes every open
-  file via `ai-edits.lua`. `lua/core/replace.lua`'s project path is the worked
-  example — read its section in `lua/core/CLAUDE.md` before writing another.
-- All Lua, comments in English. If you add a new `require` to a core module, add it
-  to `init.lua` in the right order.
+## Traps — rationale lives in `lua/core/CLAUDE.md`
+- **Never hardcode a hex.** `require("core.carbon")` and reference a role.
+  There are 10 themes × 4 accent packs — a literal is right for at most one.
+- **Auto-reload: disk wins.** `autoreload.lua` reloads without checking
+  `'modified'`, so unsaved in-Vim edits are discarded. Intended; preserve it.
+- **Bulk writes must write in the same step that edits** (`:cfdo … | update`),
+  never shell out to `sed` — otherwise the 1s `checktime` eats the edits and
+  storms the toast. `replace.lua` is the worked example.
+- **The send-to-AI bridge never auto-submits** — no trailing `\r`.
+- **`ai-complete.lua` is OpenCode Zen only**, reading `$OPENCODE_API_KEY` at
+  request time. The config never reads `ANTHROPIC_API_KEY`.
+- **LSP hover renders as plain text** in `ui-touch.lua`. Markdown floats stay
+  off *pending their own evaluation* — NOT because of the old 0.12 crash, which
+  was nvim-treesitter's frozen master and is fixed by `ts-compat.lua`.
 
-## Validate before reporting done
+## Validate
 ```bash
 nvim --headless -c "lua assert(loadfile('lua/core/<file>.lua'))" -c "qa"
 nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
+make test
 ```
 
-Report back: what you changed, why, and the validation output. Flag anything that
-touches `theme.lua`'s palette or other categories so the orchestrator can route it.
+Report what changed, why, and the validation output. Flag anything that touches
+the palette or another category so the orchestrator can route it.

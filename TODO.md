@@ -105,7 +105,7 @@ each with its rationale.
       `lazy-lock.json` for reproducible plugin versions (the lazy-lock story:
       ship pinned, `restore` on install/update, `:Lazy sync` to float on latest).
 - [x] `NVIM_APPNAME=nvsinner` launcher (`bin/nvsinner`) + dev symlink.
-- [x] `install.sh` (clone → launcher → `Lazy! sync`).
+- [x] `install.sh` (clone → launcher → `Lazy! restore`).
 - [x] First-boot Mason auto-install of LSP servers (including the Vue 3
       `vtsls` + `vue_ls` hybrid stack).
 - [x] NvSinner branding (dashboard + README).

@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.7.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.8.1).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.7.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.8.1"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.7.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.8.1` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -286,6 +286,26 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     cannot move the cursor, so the jump is scheduled. Ask AI's mouse gesture moved
     with it — three clicks, not two, so an ordinary double-click is Vim's own
     word-select again instead of opening the modal.
+    **v3.8.1** is a documentation release: the agent-facing docs under
+    `.claude/` had drifted four releases behind the code, and the drift was
+    load-bearing rather than cosmetic. Six of the eight owner agents instructed
+    `nvim --headless "+Lazy! sync" +qa` as their validation step — the command
+    the restore-not-sync non-negotiable forbids — so a subagent following its
+    own contract rewrote `lazy-lock.json`. `palette-audit.sh` carried a
+    hand-written kanagawa whitelist: run against carbon it failed every role
+    while its own skill documented it as printing "palette clean". Nine
+    tombstoned plugins were described as the live implementation, including in
+    the `description:` frontmatter that routes the agent, and `nvim-core.md`
+    claimed 4 of the 39 modules it owns. The root cause was one day wide: 12 of
+    the 13 skills carried `Facts verified: 2026-07-02`, and the carbon
+    migration landed 2026-07-03. The skill set is now 9 instead of 13 and 3,777
+    lines instead of 4,761, with no fact lost — the three contract skills
+    stated the same eleven invariants three times and drifted independently.
+    The rule that came out of it is that a skill never freezes a value a
+    command could produce; it states where the value lives and the one-liner
+    that reads it. `palette-audit.sh` now derives its whitelist from
+    `lua/core/carbon.lua`, and `tests/docs/claude_docs_spec.lua` turns the
+    mechanical half of the drift into a red test.
 
 ## Status
 

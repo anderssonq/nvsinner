@@ -2,187 +2,194 @@
 name: nvsinner-frontier
 description: >
   NvSinner's external positioning and research frontier: what is genuinely
-  novel here vs standard practice, the discipline for public claims (what must
-  be measured before it may be stated), and the open problems where this
-  project can advance the state of the art with concrete first steps and
-  falsifiable milestones. Load when planning new features or direction, writing
-  public-facing text (README pitch, release notes, comparisons to
-  NvChad/LazyVim/AstroNvim/Cursor), or picking the next high-leverage project.
-  Do NOT load it to execute terminal-UX work (nvsinner-terminal-ux-campaign),
-  for current values (nvsinner-config-catalog), or for the docs mechanics
-  (nvsinner-docs-and-style).
+  novel here versus standard practice, the discipline for public claims (what
+  must be measured before it may be stated), and the open problems where this
+  project can advance the state of the art — each with concrete first steps and
+  a falsifiable milestone. Also holds the ranked solution menu for the hardest
+  live problem, agent busy/idle detection. Load when planning new features or
+  direction, when choosing the next improvement to the terminal/agent UX, or
+  when writing public-facing text (README pitch, release notes, comparisons to
+  NvChad/LazyVim/AstroNvim/Cursor). Do NOT load it for current values or the
+  rules of changing them (nvsinner-contract), for docs mechanics
+  (nvsinner-docs-and-style), or to debug a live failure
+  (nvsinner-debugging-playbook).
 ---
 
 # NvSinner frontier — positioning and open problems
 
-The owner's definition of "beyond state of the art" for this project, all
-three at once: (a) the deepest AI-agent/terminal integration of any Neovim
-distro — beat Cursor at its own game inside a terminal; (b) native-first —
-prove how much IDE polish zero-dependency core modules can deliver instead of
-plugins; (c) distro-engineering rigor NvChad/LazyVim don't hold themselves to.
+The owner's definition of "beyond state of the art", all three at once:
+(a) the deepest AI-agent/terminal integration of any Neovim distro; (b)
+native-first — prove how much IDE polish zero-dependency core modules can
+deliver instead of plugins; (c) distro-engineering rigor NvChad/LazyVim don't
+hold themselves to.
 
 ## When NOT to use this skill
 
-- Executing the hardening work → `nvsinner-terminal-ux-campaign`.
-- Whether a change is allowed → `nvsinner-change-control`.
-- What the system IS today → `nvsinner-architecture-contract`.
+- Whether a change is allowed, or what the system IS today → `nvsinner-contract`.
+- A live symptom → `nvsinner-debugging-playbook`.
+- Was it already tried? → `nvsinner-failure-archaeology`.
+- Designing a probe for unsettled behavior → `nvsinner-empirical-verification`.
 
 ## 1. Positioning (honesty first)
 
-Repo-side facts below are verified; **every comparative cell about other
-distros is "believed, unverified (as of 2026-07-02)"** — verify against their
-current repos before publishing any comparison.
+Repo-side facts are verified. **Every comparative cell about other distros is
+"believed, unverified"** — check their current repos before publishing.
 
 | Axis | NvSinner (verified in-repo) | Other distros (believed, unverified) |
 |---|---|---|
-| AI integration | CLI-agent-in-terminal with native busy/idle winbar spinner, per-session labels, disk-wins autoreload + edit toast | Most ship an in-editor AI plugin or nothing; no known distro ships terminal-agent activity awareness |
-| Native vs plugins | 7 zero-dep core modules (`lua/core/`, `lua/nvsinner/health.lua`) carry focus UX, activity, autoreload, updater, health | Chrome is typically all plugins |
-| Test suite | plenary busted suite over core behavior incl. a real streaming-terminal spec (`make test`, green 2026-07-02) | Distro configs rarely have behavioral test suites |
-| Update reproducibility | committed `lazy-lock.json` + `restore`-not-`sync` on install AND update | Lockfile committed varies; update flows often float to latest |
+| AI integration | CLI-agent-in-terminal with a native busy/idle/awaiting winbar spinner, per-session labels, an agent cockpit, disk-wins autoreload + edit toast | Most ship an in-editor AI plugin or nothing; no known distro ships terminal-agent activity awareness |
+| Native vs plugins | 39 zero-dep core modules carry focus UX, activity, autoreload, the modals, updater and health — and have replaced 9 plugins outright | Chrome is typically all plugins |
+| Test suite | plenary busted suite over core behavior including a real streaming-terminal spec | Distro configs rarely have behavioral test suites |
+| Update reproducibility | committed `lazy-lock.json` + `restore`-not-`sync` on install AND update; tombstones keep their lockfile entry | Lockfile committed varies; update flows often float to latest |
 | Install isolation | `NVIM_APPNAME=nvsinner`, four XDG dirs, symlink-safe uninstaller | NvChad/LazyVim conventionally install INTO `~/.config/nvim` |
-| Health | `:checkhealth nvsinner` + one-time first-run toast | checkhealth providers exist in some (e.g. LazyVim); first-run toast less common |
 
 ## 2. Genuinely novel vs standard (label correctly in public text)
 
 **Plausibly novel** (no known equivalent; verify before claiming "first"):
-the native terminal-agent activity detector (`lua/core/ai-activity.lua`:
-`nvim_buf_attach` → fast-context state → uv timer → `nvim__redraw` winbar
-chip) and its pairing with per-session labels + the disk-wins/toast loop —
-i.e. the editor is a *viewer cockpit* for CLI agents.
+the native terminal-agent activity detector (`nvim_buf_attach` → fast-context
+state → uv timer → `nvim__redraw` winbar chip), its OSC-133 "awaiting input"
+refinement, and the pairing with per-session labels, the cockpit and the
+disk-wins/toast loop — i.e. the editor as a *viewer cockpit* for CLI agents.
 
 **Standard practice** (never claim as novel): lazy.nvim category structure,
-Mason `ensure_installed`, glassmorphism/monochrome theming, toggleterm
-side columns, alpha dashboards, plenary tests *as a technique*.
+Mason `ensure_installed`, monochrome theming, toggleterm side columns, alpha
+dashboards, plenary tests *as a technique*.
 
-**Differentiating discipline** (novel-ish as a standard, not a mechanism):
-empirical-verification culture with regression specs for editor arcana
-(`nvsinner-empirical-verification`), and restore-not-sync update
-reproducibility as a hard rule.
+**Differentiating discipline**: the empirical-verification culture with
+regression specs for editor arcana, and restore-not-sync as a hard rule.
 
 ## 3. Claim discipline
 
-No public claim without a dated re-measurement. Current README claims and
-their re-verification:
+No public claim without a dated re-measurement.
 
-| Claim (README.md) | Status | Re-measure before repeating |
-|---|---|---|
-| "cold start ≈ 60 ms" | ⚠️ 2026-07-02 headless measurements ranged 62–113 ms (±2× run variance) | median of 3 × `.claude/skills/nvsinner-diagnostics-toolkit/scripts/startup-time.sh`; note that a real TUI start differs from headless |
-| "only ~12 of 42 plugins load at startup" | unverified count | `nvim` → `:Lazy` shows loaded/total; or count `lazy = false` + no-trigger specs in `nvsinner-config-catalog` §4 (none-ls, leap, toggleterm, theme, dashboard are the startup set + deps) |
-| "coexists with any ~/.config/nvim" | verified by design (`NVIM_APPNAME`) | `nvsinner-build-and-run` §3 |
+| Claim | Re-measure before repeating |
+|---|---|
+| README's cold-start number | median of 3 × `.claude/skills/nvsinner-testing-and-qa/scripts/startup-time.sh`; a real TUI start differs from headless, and the README number must be re-stated in the same commit that changes it |
+| "N of M plugins load at startup" | `:Lazy` shows loaded/total; the eager set is whatever carries an explicit `lazy = false` |
+| "coexists with any ~/.config/nvim" | verified by design (`NVIM_APPNAME`) — see `nvsinner-build-and-run` |
 
-Rule: comparative statements ("only distro that…", "unlike NvChad…") require a
-dated check of the competitor's current repo, recorded in the PR that adds the
-claim.
+Comparative statements ("only distro that…", "unlike NvChad…") require a dated
+check of the competitor's current repo, recorded in the PR that adds the claim.
 
 ## 4. Open frontier problems
 
-Each: why SOTA fails → NvSinner's asset → first three steps IN THIS REPO →
+Each: why SOTA fails → NvSinner's asset → first steps in this repo →
 falsifiable milestone. All are **open**; none is promised.
 
 ### F1 — Semantic agent-state awareness (beyond output heuristics)
-- **Gap:** every known busy indicator (including ours) infers from output;
-  none knows "agent is waiting for MY input" vs "thinking" vs "done".
-- **Asset:** `ai-activity.lua` already owns the attach/render pipeline;
-  `TermRequest` is available (verified 0.12.3); tests can drive scripted PTYs.
-- **First steps:** (1) probe what OSC sequences claude/opencode emit
-  (campaign S1 obligation); (2) prototype a `TermRequest` listener recording
-  sequences per session; (3) add a third winbar state (`awaiting input`) behind
-  the existing render path.
-- **Result when:** a scripted session shows the bar distinguishing
-  working/awaiting-input/idle with zero false "idle" during a >1.2 s silent
-  think, pinned by a spec.
+- **Gap:** most busy indicators infer from output alone and cannot tell
+  "waiting for MY input" from "thinking" from "done".
+- **Partially shipped.** `ai-activity.lua` has a third state (`awaiting`) and
+  `M._on_osc` handles OSC 133 B/C plus OSC 9 / OSC 777 notifications. Its
+  documented honest limit: it only lights up for emitters, and a CLI that emits
+  nothing falls back to the quiet-timer heuristic, which stays the primary
+  signal.
+- **What remains:** probe what the actual AI CLIs emit (unverified for claude),
+  and drive the false-idle rate down for silent thinking.
+- **Result when:** a scripted session distinguishes working / awaiting-input /
+  idle with zero false "idle" during a long silent think, pinned by a spec.
 
 ### F2 — Edit attribution and agent-diff UX
-- **Gap:** today the toast names the file (`autoreload.lua`); nobody shows
-  *which agent session* changed *what*, reviewable without leaving the editor.
-- **Asset:** per-session labels (`b:nv_term_label`), gitsigns + diffview
-  already integrated.
-- **First steps:** (1) correlate toast events with the busy session(s) at
-  write time (state already in `ai-activity.lua`); (2) extend the toast with
-  the session label; (3) add a "diff last AI edit" keymap driving diffview
-  against the pre-reload buffer content.
+- **Gap:** the toast names the file; nobody shows *which agent session* changed
+  *what*, reviewable without leaving the editor.
+- **Asset:** per-session labels, the cockpit, gitsigns + diffview integrated.
+- **First steps:** correlate toast events with the busy session at write time
+  (the state is already in `ai-activity.lua`); extend the toast with the
+  session label; add a "diff last AI edit" keymap driving diffview against the
+  pre-reload buffer content.
 - **Result when:** an AI edit produces a toast naming session + file, and one
-  keymap opens the exact hunk diff; spec pins the correlation logic.
+  keymap opens the exact hunk diff; a spec pins the correlation.
 
-### F3 — Multi-agent orchestration cockpit
-- **Gap:** 9 AI columns exist but there is no aggregate view; SOTA (Cursor
-  et al.) is single-agent-centric.
-- **Asset:** per-buffer busy state for ALL sessions already lives in one
-  `state` table.
-- **First steps:** (1) expose an `M.sessions()` summary from `ai-activity.lua`;
-  (2) render an aggregate widget (lualine component or incline badge — palette
-  rules apply); (3) a which-key-visible picker jumping to the busiest session.
-- **Result when:** with 3 sessions running, one glance shows each session's
-  state without visiting it; spec pins `M.sessions()`.
-
-### F4 — Native-first expansion
+### F3 — Native-first expansion
 - **Gap:** distro chrome is plugin-heavy everywhere; unclear how far native
   modules can go.
-- **Asset:** ui-touch/ai-activity prove the pattern (zero-dep, ColorScheme
-  re-apply, spec-covered).
-- **Honest candidates** (survey of `lua/plugins/`): indent guides
-  (identmini is tiny; native `listchars`/extmarks could replace),
-  cursor-word illumination (illuminate → `vim.lsp.buf.document_highlight` +
-  treesitter fallback), the scrollbar (satellite → decoration provider) —
-  each only if the native version stays smaller than the plugin it replaces.
-  NOT candidates: telescope, treesitter, cmp, gitsigns (too deep).
-- **Result when:** one plugin is replaced by a ≤150-line core module with
-  specs and no palette/startup regression, and the plugin spec is kept as
-  `enabled = false` for revert.
+- **Shipped 9 times already** — filebadge, illuminate, colorizer, indent, todo,
+  window-picker, markdown, git-blame and sessions each replaced a plugin, and
+  each plugin spec survives as a tombstone. The milestone this section
+  originally set has been met nine times over.
+- **Remaining honest candidate:** the scrollbar (satellite → decoration
+  provider). **Not candidates:** telescope, treesitter, cmp, gitsigns.
+- **Result when:** the replacement stays smaller than the plugin it replaces,
+  with specs and no palette or startup regression.
 
-### F5 — Distro-engineering rigor (CI depth, script tests)
-- **Shipped since this was written:** CI exists
-  (`.github/workflows/ci.yml`, 2026-07-04 — boot check + `make test` on push
-  to `main` and every PR) and versioned releases exist (semver in
-  `lua/nvsinner/init.lua` + the once-per-session remote update check; see
-  `docs/releasing.md`). Both were listed here as gaps; both are done.
-- **Gap that remains:** CI is `ubuntu-latest` × `{v0.12.0, stable}` — the
-  0.12 baseline move made the declared floor a tested one, but it is still one
-  platform. No macOS — the dev platform, and where `image-open.lua`'s
-  `qlmanage`/`sips` path lives — and no nightly, which is precisely where the
-  markdown-treesitter crash class lives, so the build that bites is the one CI
-  never exercises. `stylua --check` is not a step either. And
-  `install.sh` / `uninstall.sh` still have zero automated coverage
-  (`nvsinner-testing-and-qa` known gaps).
-- **Asset:** the suite is already headless-runnable (`make test`) and now
-  wired into Actions, so widening it is editing a matrix, not building a
-  pipeline; scripts are POSIX bash.
-- **First steps:** (1) the ubuntu × {v0.12.0, stable} matrix landed with the
-  0.12 baseline move; widen it to {macOS, ubuntu} × {v0.12.0, stable, nightly}
-  and add a `stylua --check` step;
-  (2) bats or bash-based tests for install.sh/uninstall.sh against a
-  sandboxed `$HOME`/`$XDG_*`.
-- **Result when:** the matrix + a `stylua` step are on the existing workflow,
-  a green CI badge sits in the README on a tagged release, and the 0.12.x
-  markdown workaround is exercised by the matrix (it should FAIL loudly when
-  upstream fixes land and the workaround can be retired). None of those three
-  exist yet — the workflow does.
+### F4 — Distro-engineering rigor (CI depth, script tests)
+- **Shipped:** CI (`.github/workflows/ci.yml` — boot check + `make test` on
+  every PR and push to `main`) and versioned releases with a remote update
+  check.
+- **Gaps that remain:** CI is `ubuntu-latest` × `{v0.12.0, stable}` — one
+  platform, no macOS (the dev platform, and where `image-open.lua`'s
+  `qlmanage`/`sips` path lives), no nightly (precisely where the crash class
+  lives). `stylua --check` is not a CI step, only a local opt-in hook. CI
+  symlinks the checkout to `~/.config/nvim`, so the `NVIM_APPNAME` path is
+  never exercised. `install.sh` / `uninstall.sh` have zero automated coverage.
+- **First steps:** widen the matrix to {macOS, ubuntu} × {v0.12.0, stable,
+  nightly}; add a `stylua --check` step; bats-style tests for the install
+  scripts against a sandboxed `$HOME`/`$XDG_*`.
+- **Result when:** the widened matrix and a formatting step are green on a
+  tagged release, with the badge in the README.
 
-## 5. Proof-before-claim table
+## 5. The busy/idle solution menu (ranked, for F1)
+
+The detector is an output heuristic: any output = busy, `IDLE_MS` of quiet =
+idle. It cannot distinguish "thinking silently" from "done", nor the agent's
+own spinner repaints from real work.
+
+**S1 — OSC prompt-marker detection. LANDED** (`M._on_osc`). Semantic "shell is
+at prompt" beats any quiet-timer where it is available. The fallback design
+obligation was met: no markers → the heuristic still runs.
+
+**S2 — measured idle threshold.** Before ever tuning `IDLE_MS`, record real
+output-cadence data: instrument `on_lines` timestamps (plain-table append —
+fast-context safe) across a real agent session; the gap histogram tells you
+whether the current value sits in a gap-free zone. **Obligation: data first,
+tune second** — predict the false-idle rate before changing the constant.
+Accept when false idle flips measurably drop without busy-lag exceeding ~2 s.
+
+**S3 — process-tree busy detection.** Poll the terminal job's child processes
+(`vim.bo[buf].channel` → `jobpid` → `ps`). Obligations: measure poll cost,
+prove macOS/Linux portability, and define behavior for TUI agents that idle
+*inside* one long-lived process — which likely breaks this for claude. Verify
+that before building; it is ranked last for that reason.
+
+**S4 — event-driven idle (per-buffer timer reset from `on_lines`).**
+**PARTIALLY LANDED** (2026-07-15): the single sweep is now busy-gated —
+`on_lines` starts `M._timer` from the fast context (that obligation is proven
+by the real-PTY spec) and `tick()` stops it when nothing is busy, so idle costs
+zero wakeups. The full per-buffer-timer variant remains a candidate, and must
+show lower CPU than the current sweep before adding complexity.
+
+**Promotion protocol:** new behavior gets a spec; `make test` green;
+`boot-check.sh` clean; the interactive QA matrix in `nvsinner-testing-and-qa`
+re-run and recorded with date + Neovim version; any new empirical finding gets
+a dated note plus an archaeology entry.
+
+## 6. Proof-before-claim table
 
 | Ambition | May be claimed publicly when |
 |---|---|
 | "Deepest AI-terminal integration" | F1 or F2 shipped + a dated feature-matrix check against ≥3 named distros |
 | "Beat Cursor in-terminal" | A written task-level comparison (agent visibility, edit review, multi-session) with dates and versions |
-| "Native-first" | F4's first replacement shipped; count of native modules vs chrome plugins published with the counting rule |
-| "Distro rigor" | F5's matrix CI is green on a tagged release, with the badge in the README. CI exists but is one OS × one Neovim and skips formatting — that is not yet "rigor" in public |
-| "≈60 ms startup" | Median-of-3 re-measure documented in the same commit that states it |
+| "Native-first" | The count of native modules vs chrome plugins published with the counting rule (9 replacements already justify the claim; publish the rule, not just the number) |
+| "Distro rigor" | F4's widened matrix is green on a tagged release, with the badge in the README. CI exists but is one OS × two Neovims and skips formatting — that is not yet "rigor" in public |
+| Any startup number | Median-of-3 re-measure documented in the same commit that states it |
 
 ## Provenance and maintenance
 
-Facts verified: 2026-07-02 at commit `a65af7f` — repo-side rows of §1, the
-startup measurements (62–113 ms headless), `TermRequest` availability, suite
-green, TODO.md open items. **F5 re-verified 2026-07-28:** CI and versioned
-releases shipped after that date (2026-07-04 and v1.0.0), so the TODO.md
-"open items" reading above is stale for those two — re-run `cat TODO.md`
-rather than trusting the 07-02 snapshot. All statements about other distros/Cursor are
-**believed, unverified (as of 2026-07-02)** — no web verification was
-performed; verify before publishing.
+**Facts verified: 2026-09-19** — repo-side rows of §1, the shipped status of
+S1/S4 and F3's nine replacements, and the CI matrix, all by direct file read.
+All statements about other distros and Cursor remain **believed, unverified** —
+no web verification was performed; verify before publishing.
 
-Re-verification one-liners:
+This skill absorbed `nvsinner-terminal-ux-campaign`'s solution menu (§5). That
+skill's interactive reproduction matrix moved to `nvsinner-testing-and-qa`; its
+"fenced wrong paths" were already a third copy of FA-01…FA-08 and now live only
+in `nvsinner-failure-archaeology`.
 
-- TODO still open: `cat TODO.md`
-- Startup claim: median of 3 × `scripts/startup-time.sh` (diagnostics-toolkit)
-- Suite: `make test`
-- Competitor claims: check the NvChad / LazyVim / AstroNvim repos' READMEs and
-  date-stamp what you find.
+Re-verification:
+```bash
+cat TODO.md
+grep -n '_on_osc\|LABEL_AWAIT\|_ticking' lua/core/ai-activity.lua   # F1/S1/S4 status
+grep -lE '^\s{0,2}enabled = false' lua/plugins/*/*.lua              # F3 replacements
+sed -n '1,40p' .github/workflows/ci.yml                             # F4 matrix
+make test
+```
