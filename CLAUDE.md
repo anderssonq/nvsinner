@@ -268,16 +268,32 @@ specs live in `tests/CLAUDE.md`.
 
 ## Skill library (`.claude/skills/`)
 
-Ground-truth-verified runbooks (debugging playbook, failure archaeology,
-architecture contract, Neovim-internals reference, testing/QA, docs/style, …)
-that auto-load from their trigger-rich descriptions — nothing needs to be
-invoked by name, and each skill self-describes. Each ends with a **Provenance
-and maintenance** section (`Facts verified: <date>` + re-verification
-commands) — facts drift, re-run those before trusting a value under active
-development. Note: the skills were authored against the previous
-kanagawa-dragon "glass" palette; the theme is now **carbon**, so any specific
-hex a skill quotes is historical — current values live in
-`lua/core/carbon.lua`.
+Nine ground-truth-verified runbooks that auto-load from their trigger-rich
+descriptions — nothing needs to be invoked by name, and each skill
+self-describes:
+
+| Skill | Load it for |
+|---|---|
+| `nvsinner-contract` | What the system is, where every value lives, the invariants, and the gates a change must pass. **Read before editing anything.** |
+| `nvsinner-debugging-playbook` | A live symptom → the discriminating probe → the pointer |
+| `nvsinner-failure-archaeology` | The `FA-nn` incident registry: what was tried, what was rejected, and why |
+| `nvsinner-testing-and-qa` | Running/writing specs, the four diagnostic scripts, the evidence bar |
+| `nvsinner-empirical-verification` | Designing a probe before claiming any Neovim runtime behavior |
+| `neovim-internals-reference` | Platform theory: fast contexts, winbar evaluation, terminal buffers |
+| `nvsinner-build-and-run` | Install, launch, update, uninstall |
+| `nvsinner-docs-and-style` | Writing any markdown here, including the anti-drift rule |
+| `nvsinner-frontier` | What to build next, and what may be claimed in public |
+
+Each ends with a **Provenance and maintenance** section (`Facts verified:
+<date>` + re-verification commands) — re-run those before trusting a value
+under active development.
+
+**The skills deliberately hold no frozen value tables.** They state where a
+value lives and the one-liner that reads it. That rule exists because the
+opposite failed: 12 of 13 skills carried `Facts verified: 2026-07-02`, the
+carbon migration landed 2026-07-03, and dead hexes survived in the docs for
+months (FA-27). If you find a fact in a skill that a command could have
+produced, replace the fact with the command.
 
 See [NVSINNER.md](NVSINNER.md) for the original distro-packaging plan,
 [docs/installation.md](docs/installation.md) for setup, and

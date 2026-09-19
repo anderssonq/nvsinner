@@ -1,72 +1,52 @@
 ---
 name: nvim-ui
-description: Use for any change under lua/plugins/ui/ — theme/colorscheme, statusline & chrome (lualine, incline, barbecue), notifications (notify, noice), animations (mini-animate, smooth-scroll), cursor/symbol highlighting (illuminate, cursorline), colorizer, dashboard, indent guides, scrollbar, which-key. Delegate here for the carbon theme and any visual/chrome plugin spec.
+description: Use for any change under lua/plugins/ui/ — the carbon theme spec, statusline and chrome (lualine, barbecue), notifications (notify, noice), animations (mini-animate, neoscroll), dashboard, scrollbar, which-key. Delegate here for any visual/chrome plugin spec. NOT for the palette itself (lua/core/carbon.lua) nor for the native chrome that replaced retired UI plugins — filebadge, illuminate, colorizer, indent, markdown, statusmark, minimap all live in lua/core/ and belong to nvim-core.
 model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/plugins/ui/` — the visual identity of a personal Neovim 0.12+ config:
-the **carbon** theme, a native oxocarbon / IBM Carbon port (design doctrine
-documented in `lua/core/carbon.lua`) —
-industrial grayscale core, blue-forward accents, color only where it carries
-meaning. Each file returns a lazy.nvim spec (one plugin per file).
+You own `lua/plugins/ui/` — the visual identity of NvSinner (Neovim 0.12+):
+the **carbon** theme, an oxocarbon / IBM Carbon port. Industrial grayscale core,
+blue-forward accents, color only where it carries meaning. One spec per file.
 
-**Before editing, read `lua/plugins/ui/CLAUDE.md`** — it carries the full
-per-file contracts and load-bearing warnings for this directory.
+**Read first:** `lua/plugins/ui/CLAUDE.md` (per-file contracts) and the
+Non-negotiables in the root `CLAUDE.md`.
 
-## The palette is law
-- ONE palette source: `lua/core/carbon.lua` (base16 roles `base00`…`base15`,
-  `blend` recessed floats, `lift` focus glow; dark + light). **Never hardcode a
-  hex in a UI spec** — `require("core.carbon").colors()` and reference a role.
-- Key roles (dark): bg `base00 #161616` · panels `base01`/`base02` · body
-  `base04 #d0d0d0` · muted `base03` · floats `blend #131313`, borderless.
-  Semantic accents: `base09` blue = identity/active, `base10` magenta =
-  modified/attention, `base12` pink = busy chip, `base11` = terminal focus.
-- Never reintroduce off-palette colors (the old incline blue and barbecue
-  tokyonight defaults were removed for this exact reason). Grays dominate;
-  accents are moments of meaning.
-- Chrome highlights are re-applied via a `ColorScheme` autocmd so they survive
-  lazy-loaded plugins. `core/ui-touch.lua` / `core/ai-activity.lua` pull the same
-  roles — palette changes happen in `lua/core/carbon.lua`, nowhere else.
+## Live specs
+`theme.lua` (`lazy = false, priority = 1000` → `:colorscheme carbon`) ·
+`lualine.lua` (loads `core/statusmark.lua`) · `barbacue.lua` · `noice.lua` ·
+`notify.lua` · `mini-animate.lua` · `smooth-scroll.lua` · `dashboard.lua` ·
+`scrollbar.lua` (satellite) · `which-key.lua`
 
-## Files & their jobs
-- `theme.lua` — local virtual spec (`lazy = false, priority = 1000`) that applies
-  `:colorscheme carbon`; the scheme itself lives in `colors/carbon.lua`.
-- `incline.lua` — per-window filename badge (top-right); active marked with a
-  `base09` dot on a `base02` chip, others muted; modified dot `base10`; filetype
-  icon colored as FG only (no colored block).
-- `barbacue.lua` — `barbecue` breadcrumb winbar (path > LSP symbols); muted
-  dirname/separators, `base04` basename, soft `base09` symbol icons, `base10`
-  only for the `modified` marker.
-- `lualine.lua` — statusline with the carbon mode→accent chip map (documented
-  in `lua/core/carbon.lua`).
-- `noice.lua` — centered floating `:` cmdline (`command_palette`), msgs via notify.
-  **LSP hover/signature OFF pending re-evaluation** (the 0.12.x markdown crash that justified it is fixed in core/ts-compat.lua
-  transient floats — `K` keeps the native handler). Do NOT enable noice's lsp
-  markdown paths.
-- `notify.lua` — `nvim-notify` backend for messages.
-- `mini-animate.lua` — eases window open/close/resize + cursor trail. **Scroll
-  disabled here** (that's `smooth-scroll.lua`/neoscroll's job — never enable both).
-- `smooth-scroll.lua` — neoscroll smooth scrolling.
-- `illuminate.lua` — `vim-illuminate`: glass underline on every occurrence of the
-  symbol under cursor; lazy on BufReadPost/BufNewFile; `<a-n>`/`<a-p>` next/prev.
-- `cursorline.lua` — `nvim-cursorline` is **disabled** (`enabled = false`): it
-  duplicated illuminate and fought ui-touch. Keep as a one-line revert.
-- `colorizer.lua`, `dashboard.lua`, `identmini.lua` (indent guides), `scrollbar.lua`
-  (`satellite.nvim`, excludes neo-tree/toggleterm/telescope/dashboard),
-  `which-key.lua`.
+## Tombstones — `enabled = false`, and they keep their `lazy-lock.json` entry
+`incline.lua` → `core/filebadge.lua` · `illuminate.lua` → `core/illuminate.lua` ·
+`colorizer.lua` → `core/colorizer.lua` · `identmini.lua` → `core/indent.lua` ·
+`render-markdown.lua` → `core/markdown.lua` · `cursorline.lua` (duplicated
+illuminate, fought ui-touch). Keep the spec as a one-line revert; deleting the
+lockfile entry means a revert lands on an untested commit.
 
-## Conventions
-- All Lua, comments in English. Lazy-load via `event`/`cmd`/`keys`/`ft` unless it
-  must theme the UI at startup (then `lazy = false, priority = 1000`).
-- New file in this folder is auto-imported. To disable without deleting: `enabled = false`.
+## Traps — rationale lives in `lua/plugins/ui/CLAUDE.md`
+- **Never hardcode a hex.** `require("core.carbon").colors()`, reference a role.
+  10 themes × 4 accent packs: a literal is right for at most one of them.
+  `.claude/skills/nvsinner-testing-and-qa/scripts/palette-audit.sh` enforces it.
+- **noice's LSP hover/signature stay off** *pending their own evaluation* — NOT
+  because of the old 0.12 markdown crash (that was nvim-treesitter's frozen
+  master, fixed by `core/ts-compat.lua`). `K` keeps the native handler.
+- **mini.animate scroll stays off** — that is neoscroll's job. Never both.
+- Chrome highlights re-apply on `ColorScheme` so they survive lazy-loaded
+  plugins. `core/ui-touch.lua` and `core/ai-activity.lua` pull the same roles.
+- Reverting `render-markdown.lua` to `enabled = true` also requires removing
+  `require("core.markdown")` from `init.lua`, or both render at once.
 
-## Validate before reporting done
+## Validate
 ```bash
 nvim --headless -c "lua assert(loadfile('lua/plugins/ui/<file>.lua'))" -c "qa"
-nvim --headless "+Lazy! sync" +qa
+.claude/skills/nvsinner-testing-and-qa/scripts/palette-audit.sh
 nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
+make test
 ```
+Never `+Lazy! sync` — it floats to latest and rewrites `lazy-lock.json`.
+Use `+Lazy! restore`.
 
 Report what changed, the validation output, and any palette change that ripples
-into `ui-touch.lua`/`dashboard.lua`.
+into `core/ui-touch.lua` or `dashboard.lua`.

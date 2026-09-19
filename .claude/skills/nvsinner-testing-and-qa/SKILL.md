@@ -1,36 +1,38 @@
 ---
 name: nvsinner-testing-and-qa
 description: >
-  NvSinner's test suite and evidence standards. Load this when you are about to
-  run the tests (make test / make test-file), write or modify a spec under
-  tests/, decide what evidence a change needs before calling it "done", or when
-  a spec fails and you need to triage it. Covers the plenary busted harness
+  NvSinner's test suite, measurement instruments and evidence standards. Load
+  this when you are about to run the tests (make test / make test-file), write
+  or modify a spec under tests/, decide what evidence a change needs before
+  calling it "done", when a spec fails and you need to triage it, or when you
+  need to VERIFY editor state instead of guessing — boot errors, startup time,
+  keymap presence, palette drift. Covers the plenary busted harness
   (tests/minimal_init.lua, PlenaryBustedDirectory sequential mode, failure
-  rendering), the golden inventory of every spec and the hard-won behavior it
-  pins, spec-writing conventions (real-Neovim-over-mocking, vim.wait, test
-  seams, notify capture), a complete new-spec template, the acceptance evidence
-  bar, what CI does and does not enforce, and the suite's known gaps (no
-  formatting check in CI, single-platform matrix, shell scripts untested).
+  rendering), which specs pin hard-won behavior, spec-writing conventions
+  (real-Neovim-over-mocking, vim.wait, test seams, notify capture), a complete
+  new-spec template, the four shipped diagnostic scripts, the interactive QA
+  matrix for terminal/agent UX, the acceptance evidence bar, what CI does and
+  does not enforce, and the suite's known gaps. Do NOT load it for experiment
+  DESIGN on unsettled Neovim behavior (nvsinner-empirical-verification) or for
+  symptom-driven debugging flow (nvsinner-debugging-playbook).
 ---
 
 # NvSinner testing and QA
 
-The test suite is this repo's **regression armor**. Most of what it pins was won
-empirically — behaviors that looked fine, silently broke, and got fixed only
-after real-PTY verification (frozen spinners, invisible winbar labels, toasts
-that never fired). A green suite is what lets anyone refactor the terminal/agent
-UX without re-losing those fights.
+The test suite is this repo's **regression armor**. Most of what it pins was
+won empirically — behaviors that looked fine, silently broke, and got fixed
+only after real-PTY verification (frozen spinners, invisible winbar labels,
+toasts that never fired). A green suite is what lets anyone refactor the
+terminal/agent UX without re-losing those fights.
 
 ## When NOT to use this skill
 
-| You are trying to... | Use instead |
+| You are trying to… | Use instead |
 |---|---|
-| Classify a change / pass pre-merge gates / know the non-negotiable rules | `nvsinner-change-control` |
+| Classify a change, pass the pre-merge gates, look up a current value | `nvsinner-contract` |
 | Debug a live failure (broken editor, plugin error, weird rendering) | `nvsinner-debugging-playbook` |
 | Design a new empirical experiment to verify Neovim behavior | `nvsinner-empirical-verification` |
-| Run quick measurement/inspection one-liners (startup time, hl dumps, etc.) | `nvsinner-diagnostics-toolkit` |
-| Install, bootstrap, or update the distro; lazy-lock.json mechanics | `nvsinner-build-and-run` |
-| Understand why the architecture is shaped this way | `nvsinner-architecture-contract` |
+| Install, bootstrap or update the distro; lazy-lock.json mechanics | `nvsinner-build-and-run` |
 | Look up the history behind a specific past failure | `nvsinner-failure-archaeology` |
 
 ## 1. Running the suite
@@ -116,43 +118,42 @@ Tests Failed. Exit: 1
 
 Both `PlenaryBustedFile` and `PlenaryBustedDirectory` make **nvim exit with
 code 1** on any failure, so `make test` fails properly in scripts (verified
-2026-07-02).
+2026-09-19).
 
-### Current suite size (counted from a real run, 2026-07-02)
+## 2. Spec inventory
 
-**8 spec files, 64 tests, 0 failed, 0 errors** on Neovim 0.12.3:
+**Do not keep a frozen table of specs and counts here** — the last one said
+"8 spec files, 64 tests" long after the suite had grown past six times that.
+Read the current shape instead:
 
-| File | Tests |
+```bash
+find tests -name '*_spec.lua' | sort          # every spec
+make test 2>&1 | sed 's/\x1b\[[0-9;]*m//g' \
+  | awk '/^Success: /{s+=$2} /^Failed : /{f+=$3} /^Errors : /{e+=$3} \
+         END{printf "tests=%d failed=%d errors=%d\n", s, f, e}'
+```
+
+Specs are discovered automatically: adding `tests/<area>/<name>_spec.lua` is
+enough — do NOT edit `Makefile` or `tests/minimal_init.lua`.
+
+### The specs worth knowing about before you refactor
+
+Most specs assert the obvious. These pin something non-obvious that was **paid
+for in debugging**; read the spec before changing the module it covers.
+
+| Spec | Pins |
 |---|---|
-| `tests/core/options_spec.lua` | 4 |
-| `tests/core/keymaps_spec.lua` | 4 |
-| `tests/core/autoreload_spec.lua` | 3 |
-| `tests/core/ui_touch_spec.lua` | 4 |
-| `tests/core/ai_activity_spec.lua` | 6 |
-| `tests/core/update_spec.lua` | 3 |
-| `tests/core/health_spec.lua` | 5 |
-| `tests/plugins/plugin_specs_spec.lua` | 35 (1 discovery + 1 generated per plugin file; grows automatically when plugin files are added) |
-
-## 2. Spec inventory (golden inventory)
-
-Each spec pins specific, mostly **empirically-won** behavior. Know what you are
-protecting before you touch a module or "simplify" a test.
-
-| Spec | Module covered | Hard-won behaviors it pins |
-|---|---|---|
-| `tests/core/options_spec.lua` | `lua/core/options.lua` | Space/`\` leaders set; 2-space expandtab; number/relativenumber/termguicolors; splitbelow/right + mouse. Leaders matter: they must be set before lazy reads any `keys` spec. |
-| `tests/core/keymaps_spec.lua` | `lua/core/keymaps.lua` | Save/undo/redo maps; `<leader>fb`; split-resize maps exist in **both normal and terminal mode** (`<C-,>` in `t` mode is how you resize the AI column from inside it); the four `_G.Increase/DecreaseWidth/Height` helpers are global. |
-| `tests/core/autoreload_spec.lua` | `lua/core/autoreload.lua` | `autoread` on; **both** `FileChangedShell` and `FileChangedShellPost` registered in the `auto_reload_on_disk_change` augroup; the edit toast actually fires when an OPEN file is rewritten externally. Pins the empirical finding that with `autoread` + unmodified buffer Neovim fires **only `FileChangedShellPost`** — hooking only `FileChangedShell` would never toast the common AI-edit case. |
-| `tests/core/ui_touch_spec.lua` | `lua/core/ui-touch.lua` | Focus/terminal-bar highlight groups exist; **`NvTermBarDim` fg ≠ bg** (the original fg == bg made the idle label invisible on unfocused bars); `mousemoveevent` + fillchars; a real `:terminal` window's winbar **bakes its own buffer number** into `...ai-activity'.winbar(<buf>)` — because `g:statusline_winid` is populated for `'statusline'` but NOT `'winbar'` evaluation. |
-| `tests/core/ai_activity_spec.lua` | `lua/core/ai-activity.lua` | Timer handle pinned on `M._timer` (unreferenced active luv handles get GC'd and the spinner silently dies); `NvAiBusy` chip defined with a bg; `winbar(buf)` empty for nil/invalid, idle-without-chip for quiet buffers, `b:nv_term_label` prefix; and the crown jewel: a **real streaming terminal** flips `working` → `idle` — which only works because the signal is `nvim_buf_attach on_lines`, not changedtick polling (terminal ticks freeze when nothing is attached). |
-| `tests/core/update_spec.lua` | `lua/core/update.lua` | `:NvSinnerUpdate` command exists; `is_git_repo` detects a `.git` **directory** (worktree `.git` files also accepted per the module); the **not-a-git-clone path warns exactly once and does not pull** (dev-machine symlink / manual-copy installs). Happy path (pull + restore) is deliberately NOT exercised — network + plugins-on-rtp, see the spec header comment. |
-| `tests/core/health_spec.lua` | `lua/core/health.lua` + `lua/nvsinner/health.lua` | `check_tools` present/absent and minimum-version compatibility (Node 20 floor, via swapped `M.tools` / `M._run_version` seams); first-run toast **warns exactly once** for missing or incompatible tools then the marker silences it; marker written **even when nothing is wrong** (greet-once, never nags); the `:checkhealth nvsinner` provider resolves and renders. |
-| `tests/plugins/plugin_specs_spec.lua` | every `lua/plugins/**/*.lua` | Each file `dofile`s without error and returns a structurally valid lazy.nvim spec (string-headed table, dir/url/name/import spec, or list thereof). Catches syntax errors and "returned nothing" bugs in every plugin file without loading any plugin. |
-
-One-liner on plugins: `lazy-lock.json` is the pinned **golden plugin set** — the
-suite is only known-green against those commits, and install/update use
-`Lazy! restore` (not `sync`) to reproduce it. Details live in
-`nvsinner-build-and-run`.
+| `core/ai_activity_spec.lua` | The detector against a **real streaming terminal**: busy→idle transitions, the GC-pinned timer, and that `uv_timer:start` from a fast event context is legal. The single most load-bearing spec in the repo. |
+| `core/ui_touch_spec.lua` | The winbar expression **bakes the buffer number in** (`g:statusline_winid` is absent during winbar evaluation), and `NvTermBarDim` keeps fg ≠ bg. |
+| `core/autoreload_spec.lua` | **Both** `FileChangedShell` and `FileChangedShellPost` are registered, and the toast fires on a real external rewrite. The empirical finding: with `autoread` and an unmodified buffer, Neovim fires **only** the Post event — hooking the first alone would never toast the common AI-edit case. |
+| `core/options_spec.lua` | Leaders are set, and `timeoutlen` is the calibrated value — leaders must exist before lazy reads any `keys` spec. |
+| `core/keymaps_spec.lua` | Split-resize maps exist in **both** normal and terminal mode — `<C-,>` in `t` mode is how you resize the AI column from inside it. |
+| `core/health_spec.lua` | Headless runs never consume the first-run marker. |
+| `core/carbon_spec.lua` | The theme/accent/folder/slot resolution, including `vim.g` winning over the env. |
+| `core/ts_compat_spec.lua` | The query-directive shim that makes the `branch = "master"` pin survivable on 0.12. |
+| `plugins/tombstone_lock_spec.lua` | **A tombstoned plugin keeps its `lazy-lock.json` entry**, so flipping `enabled = true` lands on the tested commit instead of latest. This house rule is documented nowhere else in the repo. |
+| `plugins/lsp_capabilities_spec.lua` | Semantic tokens stay nilled, and `<leader>zl` folding stays opt-in (`'foldmethod'` is exclusive, so `expr` makes `:fold` raise E350). |
+| `plugins/plugin_specs_spec.lua` | Every file under `lua/plugins/**` loads and returns a valid lazy spec. Grows automatically with the plugin set. |
 
 ## 3. Conventions for new specs
 
@@ -242,17 +243,17 @@ not generic busted lore.
 
 ## 4. How to add a spec — worked template
 
-Suppose you added a hypothetical native module `lua/core/idle-guard.lua` that
+Suppose you added a hypothetical native module `lua/core/example-guard.lua` that
 (a) sets an option, (b) registers an autocmd in an augroup, (c) notifies via a
 function with a `{ marker = ... }` test seam, and (d) flips an async state you
-must wait for. Create `tests/core/idle_guard_spec.lua` (do NOT edit
+must wait for. Create `tests/core/example_guard_spec.lua` (do NOT edit
 `Makefile` or `tests/minimal_init.lua` — discovery is automatic):
 
 ```lua
--- Tests for the idle guard (lua/core/idle-guard.lua).
+-- Tests for the idle guard (lua/core/example-guard.lua).
 
-describe("core.idle-guard", function()
-	local guard = require("core.idle-guard") -- module under test, top of describe
+describe("core.example-guard", function()
+	local guard = require("core.example-guard") -- module under test, top of describe
 
 	-- If a test swaps module state (tables, config), restore it in after_each so
 	-- a mid-test failure can't poison later tests (see health_spec.lua).
@@ -266,7 +267,7 @@ describe("core.idle-guard", function()
 	end)
 
 	it("registers its autocmd in its augroup", function()
-		local aus = vim.api.nvim_get_autocmds({ group = "idle_guard", event = "CursorHold" })
+		local aus = vim.api.nvim_get_autocmds({ group = "example_guard", event = "CursorHold" })
 		assert.is_true(#aus > 0)
 	end)
 
@@ -314,7 +315,7 @@ Run it alone first, then the whole suite (your spec must not break its
 neighbors — shared instance within a file, real timing across files):
 
 ```bash
-make test-file FILE=tests/core/idle_guard_spec.lua
+make test-file FILE=tests/core/example_guard_spec.lua
 make test
 ```
 
@@ -325,7 +326,7 @@ Finally, add a row to the spec table in `CLAUDE.md`'s **Tests** section
 
 A change to this repo is not "done" when the code looks right. Minimum
 evidence, in order (this is the testing slice — the full pre-merge gate list
-lives in `nvsinner-change-control`):
+lives in `nvsinner-contract` §5):
 
 1. **Loadfile check** on every touched Lua file (syntax, no network):
    ```bash
@@ -361,7 +362,8 @@ lives in `nvsinner-change-control`):
 automatically: `.github/workflows/ci.yml` re-runs the headless boot check and
 `make test` on every pull request and every push to `main`, on a clean machine
 against the pinned lockfile — so a green PR is stronger evidence than "it
-passed locally". The `.githooks/pre-push` hook (wired by `install.sh`) catches
+passed locally". The `.githooks/pre-push` hook — which you must opt into with
+`git config core.hooksPath .githooks`; nothing wires it for you — catches
 both plus `stylua --check` before the push even lands. Neither covers items 1,
 4 and 5, nor formatting once someone passes `--no-verify`: those stay yours.
 See §6 for what CI still misses.
@@ -382,69 +384,79 @@ See §6 for what CI still misses.
    reading the inventory row in section 2 — most assertions pin an incident.
 5. Still stuck → `nvsinner-debugging-playbook`.
 
-## 6. Known gaps — plainly
+## 6. Instruments — measure, don't eyeball
 
-- **CI runs the suite, but not everything the gates ask for.**
-  `.github/workflows/ci.yml` (added 2026-07-04) runs on every push to `main`
-  and every pull request: stable Neovim, plugin cache keyed on
-  `lazy-lock.json`, `Lazy! restore` against the pinned set, a headless boot
-  check that fails on startup errors, then `make test`. So a green PR means
-  the suite passed on a clean machine — stronger evidence than "it passed
-  locally". Two gaps remain:
-  - **`stylua --check` is not a CI step.** Formatting is enforced only by
-    whoever remembers to run it before committing. Run it yourself; nothing
-    downstream will catch you.
-  - **One platform, two Neovims.** `ubuntu-latest` × `{v0.12.0, stable}` — the
-    declared floor and current stable, so "Neovim 0.12+" is a tested claim
-    (added with the 0.12 baseline move). Still no macOS (the dev platform, and
-    where `image-open.lua`'s `qlmanage`/`sips` path lives) and no nightly,
-    which is where the markdown-treesitter crash class lives. A green CI does
-    not mean "works on the dev machine".
-- **Not covered by the suite:**
-  - **Visual rendering** — highlights are asserted as *defined* (group exists,
-    fg ≠ bg), never as *looking right* on screen. Theme regressions that keep
-    the groups defined pass silently.
-  - **Real PTY winbar repaint** — the `nvim__redraw{winbar=true}` fix (spinner
-    frozen while focused inside a terminal) was verified manually in a real PTY
-    and is documented in CLAUDE.md, but headless children can't assert screen
-    repaints. The *state* flip is tested; the *paint* is not.
-  - **`install.sh` / `uninstall.sh`** — zero automated coverage of the shell
-    scripts (clone/update, launcher, PATH hint, XDG dir removal, the
-    symlink-unlink-don't-follow safety property).
-  - **Cross-platform** — everything is verified on macOS (dev machine, Neovim
-    0.12.3). Linux paths in the scripts and docs are untested.
-  - **Plugin runtime behavior** — `plugin_specs_spec` proves specs load and are
-    well-shaped; it does not start plugins (`--noplugin` harness). Whether
-    telescope actually greps is out of scope.
-  - **`update.lua` happy path** — pull + `Lazy restore` needs network and
-    plugins on the rtp; only the guard/warning path is tested (spec header says
-    so explicitly).
-  - **`health.setup()` interactive path** — the `User VeryLazy` + 800ms-defer
-    first-run wiring bails in headless (`#nvim_list_uis() == 0`), so only
-    `first_run_notify` itself is testable; the autocmd timing is not.
-- Ambitions to close these (widening the CI matrix, script tests, screenshot/
-  PTY harnesses) belong in `nvsinner-frontier` — do not bolt them onto the
-  suite ad hoc. CI itself is no longer an ambition: it shipped 2026-07-04.
+Four tested scripts live in `.claude/skills/nvsinner-testing-and-qa/scripts/`.
+All are read-only and run from the repo root.
+
+| Script | Answers | Pass condition |
+|---|---|---|
+| `boot-check.sh` | Does the config boot without writing to the message log? | exit 0, `boot clean, no messages` |
+| `keymap-audit.sh` | Do the load-bearing keymaps exist in a real instance? | exit 0, `ALL KEYMAPS PRESENT` |
+| `palette-audit.sh` | Is there a hex in `lua/` that is not a carbon role? | exit 0, `palette clean` |
+| `startup-time.sh` | How long is cold start, and what dominates it? | informational — report a median of 3, never one run |
+
+`palette-audit.sh` **derives** its whitelist from `lua/core/carbon.lua` at run
+time and skips Lua comments, so it cannot go stale the way its predecessor did
+(that one froze on the kanagawa/glass palette and flagged every carbon role as
+a violation). Literals that are deliberately not roles live in a short `allow`
+list inside the script, each with a reason.
+
+Startup numbers carry ±2× run variance on a loaded machine. Any public
+startup claim needs a median re-measured in the same commit that states it.
+
+## 7. Interactive QA matrix (terminal/agent UX)
+
+Headless cannot verify repaint. These rows need a real terminal running
+`nvim` or `nvsinner`; record date, Neovim version and pass/fail per row in the
+PR when you touch `ai-activity`, `ui-touch`, `autoreload` or `toggleterm`.
+
+| # | Case | Expected | If broken |
+|---|---|---|---|
+| 1 | Fresh instance → `<leader>j` | The bar appears immediately on first open | The `TermOpen` re-run of `focus()` regressed (scratch→terminal transition) |
+| 2 | (a) `<leader>t` only; (b) `<leader>j` only; (c) both | Every terminal window has a bar; horizontals at the bottom, AI column full-height on the right | `restore_layout()` ordering — columns must be forced `wincmd L` LAST |
+| 3 | `<leader>j`, `<leader>j2`, `<leader>t`, `<leader>t2` | Labels `AI · 1`, `AI · 2`, `term 1`, `term 2` | `term.bufnr` nil at `on_panel_open`. A bare `:ToggleTerm` showing no label is correct |
+| 4 | Cycle terminal ↔ code ↔ neo-tree ↔ dashboard | Terminal bars brighten/dim but never disappear (no reflow); neo-tree/dashboard/floats untouched | A special window got restyled → its filetype is missing from `SKIP_FT` |
+| 5 | `<leader>t`, then a command that streams output for a while | The bar shows the spinner and `working…` in the busy chip | The `TermOpen` attach failed |
+| 6 | Let case 5 finish, stop typing | Flips to `idle` after the quiet threshold | Check `_timer` non-nil (GC pin) and `_ticking` — the timer is busy-gated and idle-by-design when nothing is busy |
+| 7 | Two rapid external writes to one open file | ONE toast | The dedup window or the file-name key changed |
+| 8 | Modify a buffer without saving, overwrite the file externally, refocus | Buffer reloads; unsaved edits gone — **by design** | A `W12` prompt means the `FileChangedShell` handler regressed |
+| 9 | Case 5 while staying in terminal-insert mode | The spinner animates | Someone replaced `nvim__redraw` with `:redrawstatus` |
+
+## 8. Known gaps — plainly
+
+- **CI does not check formatting.** `stylua --check` runs only in
+  `.githooks/pre-push`, which is **opt-in** (`git config core.hooksPath
+  .githooks` — nothing wires it for you, and `install.sh` does not) and
+  skippable with `--no-verify`. Formatting drift can reach `main`.
+- **One platform, no nightly.** CI is `ubuntu-latest` × `{v0.12.0, stable}`.
+  macOS is the dev platform and hosts `image-open.lua`'s `qlmanage`/`sips`
+  path; nightly is where the crash class lives. Neither is exercised.
+- **The `NVIM_APPNAME` path is never tested.** CI symlinks the checkout to
+  `~/.config/nvim`, so the distro's own launch mode is untested in CI.
+- **`install.sh` and `uninstall.sh` have zero automated coverage** — the
+  highest-blast-radius scripts in the repo, since they run on other people's
+  machines.
+- **Headless cannot verify rendering.** Anything about what a bar *looks* like
+  needs §7's interactive matrix.
 
 ## Provenance and maintenance
 
-**Facts verified: 2026-07-02** by direct inspection of `Makefile`,
-`tests/minimal_init.lua`, all 8 spec files, `lua/core/update.lua`,
-`lua/core/health.lua`, `TODO.md`, and CLAUDE.md, plus live runs of `make test`
-(64/64 green on Neovim 0.12.3), `make test-file FILE=tests/core/update_spec.lua`,
-and a deliberately failing spec (confirmed `Fail ||` rendering + nvim exit
-code 1 in both file and directory modes).
+**Facts verified: 2026-09-19** — suite run green on this machine:
+**512 tests, 0 failed, 0 errors** across 50 spec files. The previous version of
+this skill claimed "8 spec files, 64 tests" and credited `install.sh` with
+wiring the pre-push hook, which it does not do.
 
-Re-verify with:
+This skill absorbed `nvsinner-diagnostics-toolkit` (its scripts now live under
+`scripts/` here) and the interactive QA matrix from
+`nvsinner-terminal-ux-campaign`.
 
+Re-verification:
 ```bash
-make test                                            # expect 8 files, 64 total, 0 Failed/Errors
-make test-file FILE=tests/core/options_spec.lua      # single-file path still works
-ls tests/core tests/plugins                          # spec inventory unchanged?
-grep -n "sequential" Makefile                        # sequential mode still on
-grep -rn "test seam" lua/core/                       # seams: update.lua {dir}, health.lua {marker}
+make test
+find tests -name '*_spec.lua' | wc -l
+for s in boot-check keymap-audit palette-audit; do \
+  .claude/skills/nvsinner-testing-and-qa/scripts/$s.sh >/dev/null && echo "$s OK"; done
+grep -n 'hooksPath\|githooks' install.sh || echo "install.sh wires no hook (correct)"
+sed -n '1,40p' .github/workflows/ci.yml
 ```
-
-If a spec file is added/removed or its pinned behaviors change, update the
-inventory table (section 2) AND the spec table in CLAUDE.md's Tests section in
-the same change.

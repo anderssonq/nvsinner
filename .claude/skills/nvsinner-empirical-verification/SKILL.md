@@ -10,7 +10,7 @@ description: >
   deciding whether an idea is proven enough to adopt. Do NOT load it to look up
   already-settled findings (nvsinner-failure-archaeology), for platform theory
   (neovim-internals-reference), or for routine measurement one-liners
-  (nvsinner-diagnostics-toolkit).
+  (nvsinner-testing-and-qa).
 ---
 
 # Empirical verification — the NvSinner method
@@ -26,7 +26,7 @@ current Neovim before building on a recorded claim.
 
 - You want the settled finding, not the method → `nvsinner-failure-archaeology`.
 - You want the platform rules behind a finding → `neovim-internals-reference`.
-- You want a routine health/perf/keymap measurement → `nvsinner-diagnostics-toolkit`.
+- You want a routine health/perf/keymap measurement → `nvsinner-testing-and-qa`.
 - You want spec-writing mechanics → `nvsinner-testing-and-qa`.
 
 ## The probe pattern
@@ -258,7 +258,7 @@ Re-probe when: the treesitter pin moves, the Neovim floor moves, or any
    `nvsinner-failure-archaeology` if an approach was rejected, and a
    regression spec if the behavior is load-bearing (`nvsinner-testing-and-qa`).
 4. **Adoption routes through change control.** A proven finding becomes a code
-   change only via the gates in `nvsinner-change-control`. A disproven idea
+   change only via the gates in `nvsinner-contract`. A disproven idea
    becomes a documented rejection so nobody retries it.
 5. Historically, every major finding here started as a *failing UI
    observation* (frozen spinner, empty bar, missing toast) that was then

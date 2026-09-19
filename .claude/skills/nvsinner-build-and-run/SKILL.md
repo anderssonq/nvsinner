@@ -23,11 +23,11 @@ line-by-line, 2026-07-02), not just what the README says.
 
 | You are actually doing… | Use instead |
 |---|---|
-| Editing config code (plugins, core modules, keymaps, colors) or deciding whether a change is allowed | `nvsinner-change-control` |
+| Editing config code (plugins, core modules, keymaps, colors) or deciding whether a change is allowed | `nvsinner-contract` |
 | Debugging a live in-editor failure (broken highlight, dead keymap, plugin error) | `nvsinner-debugging-playbook` |
-| Understanding *why* the design is shaped this way (rejected approaches, incidents) | `nvsinner-architecture-contract`, `nvsinner-failure-archaeology` |
+| Understanding *why* the design is shaped this way (rejected approaches, incidents) | `nvsinner-contract`, `nvsinner-failure-archaeology` |
 | Writing/running the plenary test suite | `nvsinner-testing-and-qa` |
-| Looking up what a specific plugin/module configures | `nvsinner-config-catalog` |
+| Looking up what a specific plugin/module configures | `nvsinner-contract` |
 | Neovim API arcana (stdpath internals, autocmd semantics, winbar evaluation) | `neovim-internals-reference` |
 | Verifying a claimed behavior empirically | `nvsinner-empirical-verification` |
 
@@ -201,7 +201,7 @@ Ordered by what actually happens on the first interactive launch:
    the error, waits for a keypress, and `os.exit(1)`. Then prepends the path to
    `rtp` and `require("lazy").setup{}` imports the six category folders
    explicitly (lazy's `import` does not recurse — see
-   `nvsinner-architecture-contract`).
+   `nvsinner-contract`).
 2. **Mason LSP auto-install** (`lua/plugins/lsp/lsp-config.lua`):
    `mason-lspconfig` runs at `event = "VeryLazy"` (fires even when you land on
    the dashboard with no file open) with `dependencies = { mason.nvim }`, and
@@ -289,10 +289,28 @@ prefer it by hand too so a diverged clone fails loudly instead of merging.)
   commits the distro was tested with. Install (`install.sh`) and update
   (`:NvSinnerUpdate`, by-hand) all use **`Lazy! restore`** against it:
   reproducible, never floats.
-- **`:Lazy sync` is the opt-in float**: it updates plugins to latest and
-  **rewrites your local `lazy-lock.json`**. On a user install that's a
-  deliberate departure from the tested set; in the dev repo it's how you *bump*
-  the golden set (then commit the new lock — see `nvsinner-change-control`).
+- **`:NvSinnerSync` (`lua/core/sync.lua`) is the opt-in float** and the only
+  sanctioned way to take one: it runs `:Lazy sync` plus Mason package updates,
+  and therefore **rewrites your local `lazy-lock.json`**. On a user install
+  that is a deliberate departure from the tested set; in the dev repo it is how
+  you *bump* the golden set — then retest and commit the new lock (see
+  `nvsinner-contract`). Incident FA-24 is what this costs when it goes wrong:
+  a sync jumped nvim-treesitter onto the `main` rewrite.
+- **Never put `Lazy! sync` in a validation step.** Checking that a change works
+  must not rewrite the lockfile as a side effect. Six of the eight owner-agent
+  files used to instruct exactly that; it was corrected in 2026-09 (FA-27).
+- **A tombstoned plugin keeps its lockfile entry** so that flipping
+  `enabled = true` lands on the tested commit. `tests/plugins/tombstone_lock_spec.lua`
+  pins it.
+
+### 5e. How a client learns an update exists
+
+`lua/core/version.lua` fetches `lua/nvsinner/init.lua` raw from `main` once per
+session and compares its `version = "X.Y.Z"` line against the local one,
+surfacing the prompt in the dashboard footer and the `:NvSinnerHelp` title.
+That one-line shape is load-bearing — the parse is a Lua pattern. Cutting a
+release is `docs/releasing.md` and the `nvim-release` agent; merging the bump
+to `main` **is** the release.
 
 ---
 
@@ -377,18 +395,19 @@ For the repo's own test suite (`make test`) see `nvsinner-testing-and-qa`.
 
 ## Provenance and maintenance
 
-**Facts verified: 2026-07-02** — by reading every line of `install.sh`,
+**Facts verified: 2026-07-02; §5d/5e re-verified 2026-09-19** — by reading every line of `install.sh`,
 `uninstall.sh`, `bin/nvsinner`, `lua/core/update.lua`, `lua/core/health.lua`,
 `lua/nvsinner/health.lua`, `init.lua`, `lua/plugins/lsp/lsp-config.lua`, and
 `lazy-lock.json` (50 lines), plus safe probes (`bash -n` on all three scripts;
 live `stdpath` resolution under `NVIM_APPNAME=nvsinner`; `readlink
-~/.config/nvsinner`; `nvim --version` = v0.12.3). Known doc drift at
-verification time: TODO.md's done-list still says install.sh ends in
-`Lazy! sync` (it's `restore`); README's by-hand update omits `--ff-only`;
-CLAUDE.md's step 3 uses `Lazy! sync` where the installer pins with `restore`.
+~/.config/nvsinner`; `nvim --version` = v0.12.3). The doc drift recorded here
+in 2026-07 is **resolved**: root `CLAUDE.md` and `docs/installation.md` both
+use `Lazy! restore` now. Re-check with the grep below rather than trusting
+this paragraph.
 
 Re-verify each section with one command:
 
+- No doc prescribes `sync`: `grep -rn 'Lazy! sync' CLAUDE.md docs/ README.md || echo clean`
 - Installer behavior: `sed -n '1,90p' install.sh` (clone/pull/unshallow, launcher, PATH advice, `Lazy! restore`)
 - Uninstaller behavior: `sed -n '1,91p' uninstall.sh` (five targets, TTY/--yes, symlink `rm -f`)
 - Launcher: `cat bin/nvsinner` (one `exec env NVIM_APPNAME=nvsinner nvim "$@"`)

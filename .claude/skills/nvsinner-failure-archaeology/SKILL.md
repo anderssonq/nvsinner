@@ -38,13 +38,13 @@ richest narrative source and are cited by filename.
 
 ## When NOT to use this skill
 
-- **Making a change now and need the rules/checklist** → `nvsinner-change-control`.
+- **Making a change now and need the rules/checklist** → `nvsinner-contract`.
 - **Debugging a live failure step-by-step** → `nvsinner-debugging-playbook` (this skill tells you which paths are dead; that one tells you how to walk the live ones).
-- **Why the architecture is shaped this way (positive design rationale)** → `nvsinner-architecture-contract`. This skill covers what was *rejected*; that one covers what was *chosen*.
+- **Why the architecture is shaped this way (positive design rationale)** → `nvsinner-contract`. This skill covers what was *rejected*; that one covers what was *chosen*.
 - **Underlying Neovim theory** (fast event contexts, winbar vs statusline evaluation, terminal buffer internals) → `neovim-internals-reference`. Entries here state the empirical finding; the reference explains the mechanism.
-- **Current/ongoing terminal-UX work** → `nvsinner-terminal-ux-campaign`. This skill is the settled past; that one is the active front.
+- **Current/ongoing terminal-UX work** → `nvsinner-frontier`. This skill is the settled past; that one is the active front.
 - **How to reproduce a finding empirically** → `nvsinner-empirical-verification`.
-- **What a plugin/option is set to today** → `nvsinner-config-catalog`.
+- **What a plugin/option is set to today** → `nvsinner-contract`.
 
 ## Index
 
@@ -86,7 +86,7 @@ approaches failed for non-obvious Neovim-internals reasons, all verified
 empirically. All landed together in commit `8f90d92` (branch
 `feat/nvsinner-distro`); full narrative in
 `.tmp/06-29-26_01_ai-activity-indicator-and-tests-PR-DESCRIPTION.md`.
-Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
+Ongoing work in this area: see `nvsinner-frontier`. Theory:
 `neovim-internals-reference`.
 
 ### FA-01 — changedtick polling REJECTED for terminal activity detection
@@ -188,14 +188,16 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
 
 - **Symptom:** The unfocused terminal bar looked like an empty black strip;
   the `● idle` / label text was invisible.
-- **Root cause:** `NvTermBarDim` was defined with `fg == bg` (`#16161d` on
-  `#16161d`) — the bar was meant to be a "subtle strip", but once it carried
-  text, the text vanished.
-- **Evidence:** `.tmp/06-29-26_01_...md`; fix visible at
-  `lua/core/ui-touch.lua:22-23,36` (`BAR_DIM_FG = "#7a7f8d"`); regression test
+- **Root cause:** `NvTermBarDim` was defined with `fg == bg` — the bar was
+  meant to be a "subtle strip", but once it carried text, the text vanished.
+- **Evidence:** `.tmp/06-29-26_01_...md`; regression test
   `tests/core/ui_touch_spec.lua` asserts `NvTermBarDim` fg ≠ bg; commit `8f90d92`.
-- **Resolution:** fg set to muted palette `#7a7f8d`; the *busy* state
-  additionally renders in the `NvAiBusy` crimson chip so it survives any dim bar.
+- **Resolution:** fg set to a muted role distinct from the bg; the *busy* state
+  additionally renders in the `NvAiBusy` accent chip so it survives any dim bar.
+  The original fix used a glass-era literal and a `BAR_DIM_FG` constant; both
+  are gone — the group is now built from `core/carbon.lua` roles in
+  `lua/core/ui-touch.lua`. The *invariant* (fg ≠ bg) is what survived, not the
+  value. Superseded by FA-26.
 - **Status:** settled.
 - **Do not retry:** styling a text-bearing bar with fg==bg for "subtlety".
 
@@ -262,7 +264,7 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
   this architecture.
 - **Status:** settled — this is the project's identity, not a temporary state.
 - **Do not retry:** proposing avante/codecompanion/copilot-chat or any
-  in-editor AI plugin. `nvsinner-architecture-contract` owns the positive
+  in-editor AI plugin. `nvsinner-contract` owns the positive
   rationale; the history above is why the door closed.
 
 ### FA-22 — AI column width: 30% proportional → fixed 50 columns
@@ -283,7 +285,7 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
   (`26947f9` commit message; CLAUDE.md *Auto-reload*).
 - **Status:** by-design trade-off.
 - **Do not "fix":** adding a W11/W12-style prompt would break the AI workflow
-  this exists for. Any change here goes through `nvsinner-change-control`.
+  this exists for. Any change here goes through `nvsinner-contract`.
 
 ### FA-25 — "NvSinner feels slow": the 1000 ms prefix wait (2026-07-28)
 
@@ -313,7 +315,7 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
   classified *NOT A BUG*, which is why it survived so long. Re-reading those
   carefully was the unlock: the only fix ever **forbidden** was "removing the
   numbered maps". Lowering `timeoutlen` had never been tried, tested, or
-  vetoed, and `nvsinner-architecture-contract` already listed the lag as a
+  vetoed, and `nvsinner-contract` already listed the lag as a
   known **weak point** — an acknowledged cost, not a defended design.
 - **Rejected:** (a) *removing or relocating the numbered maps* — still
   forbidden, it is the one veto that predates this work; (b) *a which-key
@@ -424,17 +426,18 @@ Ongoing work in this area: see `nvsinner-terminal-ux-campaign`. Theory:
 ### FA-13 — Off-palette colors purged: the single-accent doctrine
 
 - **Symptom:** plugin default themes leaked foreign colors into the
-  monochrome glass UI — incline's old blue badge, barbecue's tokyonight
-  defaults.
-- **Resolution:** both were explicitly recolored to the glass palette
-  (bg `#0a0a0f`, glass `#111118`, FG `#c5c9d5`, muted `#7a7f8d`) with exactly
-  **one** accent, kanagawa dragonRed `#c4746e`. The restructure PR's reviewer
-  notes state this was enforced as a hard constraint across all seven
-  subagent prompts (`.tmp/06-28-26_01_...md`; commit `b0cf66f`; CLAUDE.md
-  *UI chrome — one palette, one accent*).
+  monochrome UI — incline's old blue badge, barbecue's tokyonight defaults.
+- **Resolution:** both were explicitly recolored to the then-current
+  kanagawa-dragon "glass" palette with exactly **one** accent, enforced as a
+  hard constraint across all seven subagent prompts
+  (`.tmp/06-28-26_01_...md`; commit `b0cf66f`).
+- **Superseded by FA-26:** the specific palette is history — the theme is
+  carbon and there are now 10 themes × 4 accent packs. What survived is the
+  *doctrine*: grays dominate, each colored pixel means one thing, and no
+  consumer carries a literal. Do not quote this entry's hexes as current.
 - **Status:** settled — doctrine, not preference.
 - **Do not retry:** accepting any new plugin's default colors. Theme it or
-  don't add it. Palette specifics: `nvsinner-config-catalog`.
+  don't add it. Palette specifics: `nvsinner-contract`.
 
 ### FA-17 — mini.animate scroll vs neoscroll: one owner per animation
 
@@ -578,7 +581,7 @@ description with root causes.
 - **Status:** settled.
 - **Do not retry / general lesson:** never leave a stub `config = function()
   end` in a lazy spec alongside `opts` — it is not a no-op, it is a kill
-  switch. Spec rules: `nvsinner-change-control`.
+  switch. Spec rules: `nvsinner-contract`.
 
 ### FA-19 — eslint_d bogus "failed to decode json" diagnostic
 
@@ -633,6 +636,73 @@ description with root causes.
 
 ---
 
+## The carbon era (FA-26 … FA-29)
+
+### FA-26 — The kanagawa "glass" → carbon migration (2026-07-03)
+
+- **Symptom:** the palette was duplicated across roughly seven files, so every
+  color change was a manual multi-file sync that drifted.
+- **Resolution:** the theme became **carbon**, an oxocarbon / IBM Carbon port,
+  with ONE base16 role table in `lua/core/carbon.lua` and every consumer
+  pulling roles from it. `colors/carbon.lua` is the colorscheme. The palette
+  has since grown to 10 background themes, 4 accent packs, 7 folder packs and
+  4 single-role slots — which is exactly why a hex literal is now wrong for at
+  least nine of the ten themes.
+- **Status:** settled. Code-side duplication is structurally retired.
+- **Do not retry:** hardcoding a hex anywhere outside `lua/core/carbon.lua`,
+  or "keeping palettes in sync" across files — that rule is inverted now.
+
+### FA-27 — The documentation drift this migration caused
+
+- **Symptom:** for months the agent-facing docs quoted dead kanagawa hexes
+  (`#7a7f8d`, `#c4746e`, `#16161d`, `#0a0a0f`…) as current, described nine
+  tombstoned plugins as the live implementation, and told six of the eight
+  owner agents to validate with `nvim --headless "+Lazy! sync" +qa` — the one
+  command the repo's second non-negotiable forbids, because it rewrites
+  `lazy-lock.json`.
+- **Root cause:** 12 of the 13 skills carried `Facts verified: 2026-07-02`.
+  The carbon migration landed **2026-07-03**. A single day of difference
+  invalidated every palette claim, and nothing re-checked them. The
+  `palette-audit.sh` instrument that should have caught it had a hand-written
+  whitelist which itself froze on the glass palette — run against carbon it
+  failed every role, and its own skill documented it as printing "palette
+  clean".
+- **Resolution (2026-09-19):** the audit script now **derives** its whitelist
+  from `lua/core/carbon.lua` and skips Lua comments; the docs were rewritten to
+  state *where a value lives and how to read it* instead of freezing copies;
+  13 skills merged down to 9.
+- **Status:** settled, structurally.
+- **Do not retry:** pasting a value into a doc when a one-liner could produce
+  it. That is the whole mechanism of this failure.
+
+### FA-28 — Nine plugins replaced by native core modules (Waves 1+)
+
+- **Context:** incline → `filebadge`, vim-illuminate → `illuminate`,
+  nvim-colorizer → `colorizer`, indentmini → `indent`, todo-comments → `todo`,
+  nvim-window-picker → `window-picker`, render-markdown → `markdown`,
+  git-blame.nvim → `git-blame`, persistence.nvim → `sessions`. Comment.nvim was
+  additionally retired in favour of Neovim's builtin `gc`.
+- **The rule that came out of it:** a replaced plugin keeps its spec with
+  `enabled = false` **and** keeps its `lazy-lock.json` entry, so flipping it
+  back lands on the tested commit rather than whatever is latest. Pinned by
+  `tests/plugins/tombstone_lock_spec.lua`.
+- **Two revert traps:** `window-picker` registers itself as
+  `require("window-picker")` via `package.preload`, so neo-tree depends on the
+  *native* module, not just the picker feature; and re-enabling
+  `render-markdown.lua` also requires removing `require("core.markdown")` from
+  `init.lua`, or both render at once.
+- **Status:** settled.
+
+### FA-29 — incline's float overlapped line 1 → the winbar badge
+
+- **Symptom:** the per-window filename badge, drawn as a float, covered the
+  first line of content on windows without a winbar.
+- **Resolution:** replaced by `lua/core/filebadge.lua`, a real winbar segment,
+  which also hosts the markdown "Open view" chip. See
+  `lua/plugins/ui/incline.lua:7-11` for the tombstone's own note.
+- **Status:** settled.
+- **Do not retry:** a floating window as persistent per-window chrome.
+
 ## Provenance and maintenance
 
 **Sources:** archived PR descriptions in `.tmp/*.md` (richest narratives);
@@ -643,8 +713,11 @@ line — e.g. parts of FA-05's GC rationale); and direct code reads of the cited
 files. FA-15's disjoint-history claim was verified by an empty
 `git merge-base`.
 
-**Facts verified: 2026-07-02** (dev machine: NVIM v0.12.3; `make test` green
-per `.tmp/07-02-26_01_...md`).
+**Facts verified: 2026-07-02** for FA-01…FA-25 (dev machine: NVIM v0.12.3).
+**FA-26…FA-29 added and the palette-bearing entries corrected 2026-09-19**:
+FA-06 and FA-13 stated their glass-era *resolutions* as the current state, and
+FA-06 cited a `BAR_DIM_FG` constant that no longer exists. Entries below the
+carbon line are history — read their invariants, never their hexes.
 
 **Keymap-timeout facts re-verified: 2026-07-28** — `timeoutlen = 300` set in
 `lua/core/options.lua`, retunable via `key_timeout` in `lua/core/settings.lua`,
@@ -656,11 +729,13 @@ Re-verification one-liners (run from the repo root):
 - Histories still disjoint: `git merge-base main feat/nvsinner-distro || echo disjoint`
 - Pre-split SHAs reachable: `git log --oneline feat/nvsinner-distro | head`
 - FA-01/03/05 code intact: `grep -n 'nvim_buf_attach\|nvim__redraw\|M._timer' lua/core/ai-activity.lua`
-- FA-02/06/07 code intact: `grep -n 'term_bar\|BAR_DIM_FG\|TermOpen' lua/core/ui-touch.lua`
+- FA-02/06/07 code intact: `grep -n 'term_bar\|NvTermBarDim\|TermOpen' lua/core/ui-touch.lua`
 - FA-04/14 dedup + timeout: `grep -n '250' lua/core/autoreload.lua lua/plugins/ui/notify.lua`
 - FA-08 reserved ids: `grep -n '99 + n\|id = n' lua/plugins/terminal/toggleterm.lua`
 - FA-09 stays fixed (the shim is the guard): `make test-file FILE=tests/plugins/treesitter_predicates_spec.lua`; the shim is wired: `grep -n 'ts-compat' lua/plugins/editor/nvim-treesitter.lua`
 - FA-10/17: `grep -n 'enabled = false' lua/plugins/ui/noice.lua lua/plugins/ui/mini-animate.lua lua/plugins/ui/cursorline.lua`
 - FA-16 doctrine: `grep -n 'unshallow\|Lazy! restore' install.sh`
 - FA-21 guards: `grep -n 'semanticTokensProvider\|automatic_enable' lua/plugins/lsp/lsp-config.lua`
+- FA-26/27 palette single-sourced: `.claude/skills/nvsinner-testing-and-qa/scripts/palette-audit.sh`
+- FA-28 tombstones keep their lockfile entry: `make test-file FILE=tests/plugins/tombstone_lock_spec.lua`
 - FA-25 timeout + no t-mode `jk`: `nvim --headless -c 'lua print(vim.o.timeoutlen, "jk=" .. vim.fn.maparg("jk", "t"))' -c qa` (expect `300  jk=`)

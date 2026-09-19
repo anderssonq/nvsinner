@@ -49,5 +49,10 @@ settings/nvsinner-settings.json
 # Pre-push review reports (git hook output)
 .claude/logs/
 
+# Claude Code per-machine permissions — contains absolute paths from whoever
+# ran it, so it must never be committed. Do NOT rely on a global gitignore:
+# that one does not travel with the repo (forks, other machines).
+.claude/settings.local.json
+
 # Sinscribe per-feature agent prompt (generated per branch, never committed)
 AGENT_PROMPT.md
