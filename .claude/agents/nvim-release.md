@@ -20,7 +20,9 @@ No tags, GitHub releases or artifacts are required.
 1. **Decide the bump.** `git log -p --follow -- lua/nvsinner/init.lua` shows the
    last one. Patch = fixes, minor = features, major = a breaking user-facing
    contract (keymaps, commands, install layout). State your reasoning.
-2. **Edit `lua/nvsinner/init.lua`.**
+2. **Edit `lua/nvsinner/init.lua`**, and update the version pin in
+   `tests/core/version_spec.lua` in the same commit — that spec asserts the
+   exact current version and fails on every bump until you do.
 3. **Run the gates** — all must pass before you report done:
    ```bash
    make test                    # whole suite, 0 failed 0 errors
