@@ -26,6 +26,22 @@
 --                  focus-glow needs a step the stock ramp doesn't have)
 --   diff_*         the four hand-tuned diff washes
 --
+-- Light-variant contract (every theme whose registry entry says
+-- variant = "light"). The role NAMES are identical, but the ramp walks toward
+-- a dark extreme instead of a white one, so above base02 the meaning inverts:
+--   base00–base02  surfaces, lightest → darkest (bg, panels, Visual/borders)
+--   base03         the LIGHTEST foreground: muted comments — never darker
+--                  than body text, or comments shout over the code
+--   base04         body text
+--   base05         strongest fg: float text, completion match — DARKER than
+--                  base04, because it must read on the recessed `blend`
+--   base06         the dark extreme: delimiters, IncSearch fg
+--   blend/shade    still recessed, i.e. DARKER than base00 (not lighter)
+--   lift           still between base00 and base01
+-- Accents keep their carbon roles, but a light port may darken one a step: the
+-- statusline mode chips paint base00 text on a solid accent, and base00 is
+-- near-white here, so a pastel accent would swallow the label.
+--
 -- Statusline mode → accent map (implemented in lua/plugins/ui/lualine.lua):
 -- normal base09 · insert base12 · visual base14 · replace base08 ·
 -- command base13 · terminal base11 — dark base00 text on a solid accent chip.
@@ -66,15 +82,19 @@ M.dark = {
 	diff_delete = "#361c28",
 }
 
--- Light variant. Same role slots, higher-contrast accents suited to white.
+-- Light variant ("carbon-light"). Same role slots, accents re-picked for white.
+-- Note the ramp INVERTS above base02: on a light background the "extreme" the
+-- ramp walks toward is black, not white, so base03 is the LIGHTEST foreground
+-- (muted comments) and base06 the darkest (delimiters). See the light-variant
+-- role contract in the header.
 M.light = {
 	base00 = "#ffffff",
 	base01 = "#f2f2f2",
 	base02 = "#d0d0d0",
-	base03 = "#161616",
-	base04 = "#37474F",
-	base05 = "#90A4AE",
-	base06 = "#525252",
+	base03 = "#6f6f6f", -- muted comments (carbon gray-60), NOT darker than body text
+	base04 = "#37474F", -- body text
+	base05 = "#263238", -- strongest fg: float text, completion match
+	base06 = "#161616", -- the dark extreme: delimiters, IncSearch fg
 	base07 = "#08bdba",
 	base08 = "#ff7eb6",
 	base09 = "#ee5396",
@@ -97,17 +117,23 @@ M.light = {
 }
 
 -- ─── Background themes ───────────────────────────────────────────────────────
--- Named, user-selectable palettes (:NvSinnerMenu "Background theme"). The two
--- historic variants get names — "carbon" (M.dark) and "moon" (M.light) — and
--- eight ORIGINAL palettes inspired by well-known schemes join them. Each fills
--- the exact same role slots as M.dark, so every consumer works unchanged; the
--- role SEMANTICS (base09 identity, base10 attention, base12 busy, …) are
--- carbon's, only the hues change. Hexes are hand-derived from each
--- inspiration's public palette, tuned to the carbon role contract (body text
--- base04 never pure white, blend below base00, lift between base00/base01).
+-- Named, user-selectable palettes (:NvSinnerMenu "Background theme"). Each is
+-- named after the scheme it ports, and fills the exact same role slots as
+-- M.dark, so every consumer works unchanged; the role SEMANTICS (base09
+-- identity, base10 attention, base12 busy, …) are carbon's, only the hues
+-- change. Hexes are hand-derived from each upstream's public palette and tuned
+-- to the carbon role contract (body text base04 never pure white, blend below
+-- base00, lift between base00/base01) — these are ports, not byte-for-byte
+-- copies, and a port may darken an accent one step so the solid mode chips
+-- keep legible text.
+--
+-- The two historic names are aliases now: "moon" is "carbon-light" and the
+-- eight invented names ("onedusk", "kyoto", …) map to the real scheme names
+-- via M.theme_aliases below, so persisted choices and $NVSINNER_THEME keep
+-- working.
 
--- "onedusk" — inspired by One Dark Pro (Atom's One Dark).
-M.onedusk = {
+-- "onedark" — One Dark Pro (Atom's One Dark).
+M.onedark = {
 	base00 = "#282c34",
 	base01 = "#31353f",
 	base02 = "#3e4451",
@@ -135,8 +161,8 @@ M.onedusk = {
 	diff_delete = "#3b2d34",
 }
 
--- "mocha" — inspired by Catppuccin Mocha.
-M.mocha = {
+-- "catppuccin-mocha" — Catppuccin's darkest flavour.
+M.catppuccin_mocha = {
 	base00 = "#1e1e2e",
 	base01 = "#313244",
 	base02 = "#45475a",
@@ -164,8 +190,8 @@ M.mocha = {
 	diff_delete = "#3c2a3c",
 }
 
--- "kyoto" — inspired by Tokyo Night.
-M.kyoto = {
+-- "tokyonight" — Tokyo Night (folke/tokyonight.nvim), its "night" variant.
+M.tokyonight = {
 	base00 = "#1a1b26",
 	base01 = "#24283b",
 	base02 = "#343a55",
@@ -193,8 +219,39 @@ M.kyoto = {
 	diff_delete = "#37222c",
 }
 
--- "fjord" — inspired by Nord.
-M.fjord = {
+-- "tokyonight-day" — Tokyo Night's light "day" variant. The fg ramp inverts
+-- (base03 lightest → base06 darkest); accents come straight from upstream's
+-- day palette, which is already tuned for contrast on a light surface.
+M.tokyonight_day = {
+	base00 = "#e1e2e7", -- bg
+	base01 = "#d6d8e3", -- panels: CursorLine, Pmenu, Folded
+	base02 = "#c4c8da", -- Visual, MatchParen, borders
+	base03 = "#848cb5", -- comments (upstream's day comment)
+	base04 = "#3760bf", -- body text (upstream fg)
+	base05 = "#2c4b9c", -- strongest fg: float text
+	base06 = "#1c3578", -- the dark extreme: delimiters
+	base07 = "#118c74", -- teal
+	base08 = "#007197", -- cyan: functions/punctuation
+	base09 = "#2e7de9", -- Tokyo Night Day blue — the identity accent
+	base10 = "#f52a65", -- red: errors/attention
+	base11 = "#006a83", -- deep cyan: terminal-mode
+	base12 = "#b15c00", -- orange: insert-mode block, busy chip
+	base13 = "#587539", -- green
+	base14 = "#7847bd", -- purple: strings
+	base15 = "#5f77c9", -- muted indigo: companion of base09
+	blend = "#d9dbe4", -- recessed float surface (darker than base00)
+	shade = "#ced2e0", -- modal surface: darker still
+	backdrop = "#000000",
+	lift = "#dcdde4", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#d7e8d5",
+	diff_change = "#d5dff0",
+	diff_text = "#c2d3ee",
+	diff_delete = "#f0d5dd",
+}
+
+-- "nord" — Nord (Arctic Ice Studio).
+M.nord = {
 	base00 = "#2e3440",
 	base01 = "#3b4252",
 	base02 = "#434c5e",
@@ -222,8 +279,8 @@ M.fjord = {
 	diff_delete = "#4a353c",
 }
 
--- "monolith" — inspired by Monokai.
-M.monolith = {
+-- "monokai" — Monokai (Wimer Hazenberg's original, via Monokai Pro's tones).
+M.monokai = {
 	base00 = "#272822",
 	base01 = "#33342b",
 	base02 = "#49483e",
@@ -251,10 +308,10 @@ M.monolith = {
 	diff_delete = "#452430",
 }
 
--- "briar" — inspired by Rosé Pine (its darkest "main" variant). Rose, iris and
--- gold over a deep plum base; base05/base06, the pale iris companion and the
--- diff washes are derived, the rest are upstream roles.
-M.briar = {
+-- "rose-pine" — Rosé Pine (its darkest "main" variant). Rose, iris and gold
+-- over a deep plum base; base05/base06, the pale iris companion and the diff
+-- washes are derived, the rest are upstream roles.
+M.rose_pine = {
 	base00 = "#191724", -- base
 	base01 = "#1f1d2e", -- surface
 	base02 = "#403d52", -- highlight_med: Visual, borders
@@ -282,10 +339,10 @@ M.briar = {
 	diff_delete = "#3a2330",
 }
 
--- "grove" — inspired by Everforest (dark, medium contrast). Upstream ships its
--- own bg_green/bg_blue/bg_red washes, so three of the four diff slots are
--- verbatim; base05/base06, base11, base13 and base15 are derived.
-M.grove = {
+-- "everforest" — Everforest (sainnhe/everforest), dark medium contrast.
+-- Upstream ships its own bg_green/bg_blue/bg_red washes, so three of the four
+-- diff slots are verbatim; base05/base06, base11, base13 and base15 are derived.
+M.everforest = {
 	base00 = "#2d353b", -- bg0
 	base01 = "#343f44", -- bg1: CursorLine, Pmenu
 	base02 = "#475258", -- bg3: Visual, borders
@@ -313,10 +370,102 @@ M.grove = {
 	diff_delete = "#514045", -- bg_red
 }
 
--- "neon" — inspired by cyberdream. Electric accents on near-black; body text is
+-- "everforest-light" — Everforest light, medium contrast: the same forest
+-- accents over upstream's warm paper bg0. Accents are darkened one step from
+-- the light palette so the solid mode chips (base00 text on the accent) stay
+-- legible; the fg ramp inverts (base03 lightest → base06 darkest).
+M.everforest_light = {
+	base00 = "#fdf6e3", -- bg0: warm paper
+	base01 = "#efebd4", -- bg2: CursorLine, Pmenu, Folded
+	base02 = "#e0dcc7", -- bg4: Visual, MatchParen, borders
+	base03 = "#939f91", -- grey1: comments
+	base04 = "#5c6a72", -- fg
+	base05 = "#4a5860", -- strongest fg: float text
+	base06 = "#384850", -- the dark extreme: delimiters
+	base07 = "#1f9e6e", -- aqua: teal
+	base08 = "#2b7fa8", -- blue: functions/punctuation
+	base09 = "#6c8000", -- green — the identity accent
+	base10 = "#e0443f", -- red: errors/attention
+	base11 = "#2d8bb0", -- blue: terminal-mode
+	base12 = "#cf6a15", -- orange: insert-mode block, busy chip
+	base13 = "#4f8c2a", -- deeper green: Todo/success, command-mode
+	base14 = "#c4569f", -- purple: strings, DiagnosticWarn
+	base15 = "#8a9c3a", -- olive: companion of base09
+	blend = "#f4f0d9", -- bg1: recessed float surface
+	shade = "#eae6cf", -- modal surface: darker still
+	backdrop = "#000000",
+	lift = "#f7f2de", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#e3ecd0",
+	diff_change = "#dfe9ef",
+	diff_text = "#cfe0ea",
+	diff_delete = "#f4dcd8",
+}
+
+-- "nightfox" — Nightfox (EdenEast/nightfox.nvim), the flagship dark variant.
+M.nightfox = {
+	base00 = "#192330", -- bg1: Normal
+	base01 = "#212e3f", -- bg2: CursorLine, Pmenu, Folded
+	base02 = "#29394f", -- bg3: Visual, MatchParen, borders
+	base03 = "#738091", -- comment
+	base04 = "#cdcecf", -- fg1: body text
+	base05 = "#d6d6d7", -- fg0
+	base06 = "#e4e4e5", -- bright white: delimiters
+	base07 = "#63cdcf", -- cyan: teal
+	base08 = "#7ad5d6", -- bright cyan: functions/punctuation
+	base09 = "#719cd6", -- Nightfox blue — the identity accent
+	base10 = "#c94f6d", -- red: errors/attention
+	base11 = "#86abdc", -- bright blue: terminal-mode
+	base12 = "#f4a261", -- orange: insert-mode block, busy chip
+	base13 = "#81b29a", -- green: Todo/success
+	base14 = "#9d79d6", -- magenta: strings, DiagnosticWarn
+	base15 = "#a6c6ea", -- pale blue: companion of base09
+	blend = "#131a24", -- bg0: recessed float surface
+	shade = "#0f151d",
+	backdrop = "#000000",
+	lift = "#1d2937", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#26332c",
+	diff_change = "#22303f",
+	diff_text = "#2c405a",
+	diff_delete = "#33222a",
+}
+
+-- "dayfox" — Dayfox, Nightfox's light sibling: warm paper with earthy, already
+-- dark accents (upstream tunes them for a light surface, so no extra darkening
+-- is needed). The fg ramp inverts (base03 lightest → base06 darkest).
+M.dayfox = {
+	base00 = "#f6f2ee", -- bg1: warm paper
+	base01 = "#eae1d9", -- bg2: CursorLine, Pmenu, Folded
+	base02 = "#ded2c6", -- bg3: Visual, MatchParen, borders
+	base03 = "#8b7d6f", -- muted warm gray: comments
+	base04 = "#352c24", -- body text
+	base05 = "#2a231c", -- strongest fg: float text
+	base06 = "#1d1913", -- the dark extreme: delimiters
+	base07 = "#1d8b7a", -- teal
+	base08 = "#2a7ba8", -- blue: functions/punctuation
+	base09 = "#2848a9", -- Dayfox blue — the identity accent
+	base10 = "#a5222f", -- red: errors/attention
+	base11 = "#287980", -- cyan: terminal-mode
+	base12 = "#a8521a", -- burnt orange: insert-mode block, busy chip
+	base13 = "#396847", -- green: Todo/success, command-mode
+	base14 = "#6e33ce", -- magenta: strings, DiagnosticWarn
+	base15 = "#4c6da8", -- muted blue: companion of base09
+	blend = "#efe9e3", -- recessed float surface (darker than base00)
+	shade = "#e4dcd4", -- bg0: modal surface, darker still
+	backdrop = "#000000",
+	lift = "#f2ede7", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#dfe9dc",
+	diff_change = "#dde3ef",
+	diff_text = "#cbd6ea",
+	diff_delete = "#f0dcdc",
+}
+
+-- "cyberdream" — cyberdream: electric accents on near-black. Body text is
 -- pulled off pure white (base06's job per the role contract) and base07/base11/
 -- base15 are derived inside the palette's own hue family.
-M.neon = {
+M.cyberdream = {
 	base00 = "#16181a", -- bg
 	base01 = "#1e2124", -- bg_alt
 	base02 = "#3c4048", -- bg_highlight: Visual, borders
@@ -346,35 +495,86 @@ M.neon = {
 
 -- Registry: theme name → which role table it uses and which vim.o.background
 -- variant it belongs to (the variant also picks the accent-pack overrides).
+-- Public names carry hyphens; the role tables above use underscores, because a
+-- hyphen is not a Lua identifier — `palette` bridges the two.
 M.themes = {
+	-- dark
 	carbon = { palette = "dark", variant = "dark" },
-	moon = { palette = "light", variant = "light" },
-	onedusk = { palette = "onedusk", variant = "dark" },
-	mocha = { palette = "mocha", variant = "dark" },
-	kyoto = { palette = "kyoto", variant = "dark" },
-	fjord = { palette = "fjord", variant = "dark" },
-	monolith = { palette = "monolith", variant = "dark" },
-	briar = { palette = "briar", variant = "dark" },
-	grove = { palette = "grove", variant = "dark" },
-	neon = { palette = "neon", variant = "dark" },
+	onedark = { palette = "onedark", variant = "dark" },
+	["catppuccin-mocha"] = { palette = "catppuccin_mocha", variant = "dark" },
+	tokyonight = { palette = "tokyonight", variant = "dark" },
+	nord = { palette = "nord", variant = "dark" },
+	monokai = { palette = "monokai", variant = "dark" },
+	["rose-pine"] = { palette = "rose_pine", variant = "dark" },
+	everforest = { palette = "everforest", variant = "dark" },
+	cyberdream = { palette = "cyberdream", variant = "dark" },
+	nightfox = { palette = "nightfox", variant = "dark" },
+	-- light
+	["carbon-light"] = { palette = "light", variant = "light" },
+	["tokyonight-day"] = { palette = "tokyonight_day", variant = "light" },
+	["everforest-light"] = { palette = "everforest_light", variant = "light" },
+	dayfox = { palette = "dayfox", variant = "light" },
+}
+
+-- Retired names → the real scheme names that replaced them. Resolved by
+-- M.theme(), so a persisted choice, a `vim.g.nvsinner_theme` set by hand and
+-- `NVSINNER_THEME=kyoto nvsinner` all keep working; lua/core/settings.lua
+-- rewrites the persisted value on load so the JSON heals itself.
+M.theme_aliases = {
+	moon = "carbon-light",
+	onedusk = "onedark",
+	mocha = "catppuccin-mocha",
+	kyoto = "tokyonight",
+	fjord = "nord",
+	monolith = "monokai",
+	briar = "rose-pine",
+	grove = "everforest",
+	neon = "cyberdream",
 }
 
 -- Menu/cycle order (:NvSinnerMenu reads this — pairs() order would jitter).
-M.theme_names = { "carbon", "moon", "onedusk", "mocha", "kyoto", "fjord", "monolith", "briar", "grove", "neon" }
+-- Dark themes first, then light, so cycling with h/l does not flash the
+-- background back and forth on the way past.
+M.theme_names = {
+	"carbon",
+	"onedark",
+	"catppuccin-mocha",
+	"tokyonight",
+	"nord",
+	"monokai",
+	"rose-pine",
+	"everforest",
+	"cyberdream",
+	"nightfox",
+	"carbon-light",
+	"tokyonight-day",
+	"everforest-light",
+	"dayfox",
+}
+
+-- Resolve a raw theme value (possibly a retired name) to a registered one, or
+-- nil when it names nothing at all.
+function M.resolve_theme(name)
+	if name == nil then
+		return nil
+	end
+	name = M.theme_aliases[name] or name
+	return M.themes[name] and name or nil
+end
 
 -- Which background theme is active: "carbon" (default) or a key of M.themes.
 -- Same flag convention as accent()/transparent(): vim.g.nvsinner_theme wins
 -- over $NVSINNER_THEME; anything unknown → "carbon". The legacy binary
 -- background flag (vim.g.nvsinner_background / $NVSINNER_BACKGROUND) is still
 -- honored when no theme flag is set, so `NVSINNER_BACKGROUND=light nvsinner`
--- keeps booting the light palette (now named "moon").
+-- keeps booting the light palette (now named "carbon-light").
 function M.theme()
-	local t = vim.g.nvsinner_theme or vim.env.NVSINNER_THEME
-	if t and M.themes[t] then
+	local t = M.resolve_theme(vim.g.nvsinner_theme or vim.env.NVSINNER_THEME)
+	if t then
 		return t
 	end
 	local bg = vim.g.nvsinner_background or vim.env.NVSINNER_BACKGROUND
-	return bg == "light" and "moon" or "carbon"
+	return bg == "light" and "carbon-light" or "carbon"
 end
 
 -- ─── Accent packs ────────────────────────────────────────────────────────────
@@ -505,7 +705,7 @@ end
 -- Read at startup by theme.lua and on every (re)apply by colors/carbon.lua and
 -- ui-touch.lua. Three ways to set each flag (first match wins):
 --   * vim.g (set by :NvSinnerMenu via lua/core/settings.lua, or by hand)
---   * environment: `NVSINNER_THEME=fjord NVSINNER_TRANSPARENT=1
+--   * environment: `NVSINNER_THEME=nord NVSINNER_TRANSPARENT=1
 --     NVSINNER_ACCENT=green nvsinner` (per launch)
 --   * the persisted defaults lua/core/settings.lua seeds vim.g with at boot
 -- The vim.g value wins over the environment variable when both are set;

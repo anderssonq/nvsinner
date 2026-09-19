@@ -374,28 +374,56 @@ editing.
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
   colorscheme reloads and lazy-loaded plugins.
 - **Background themes** — `M.themes` / `M.theme_names` in `carbon.lua` name
-  ten full role tables selectable from `:NvSinnerMenu` "Background theme":
-  `carbon` (the reference dark, `M.dark`), `moon` (the light variant,
-  `M.light`), and eight ORIGINAL palettes inspired by well-known schemes —
-  `onedusk` (One Dark Pro), `mocha` (Catppuccin Mocha), `kyoto` (Tokyo
-  Night), `fjord` (Nord), `monolith` (Monokai), `briar` (Rosé Pine),
-  `grove` (Everforest), `neon` (cyberdream). Each registry entry maps the
-  name to its role table (`palette`) and its `vim.o.background` `variant`
-  (only `moon` is light); each palette fills the EXACT role set of `M.dark`
+  fourteen full role tables selectable from `:NvSinnerMenu` "Background
+  theme", each named after the scheme it ports: ten dark (`carbon` — the
+  reference, `M.dark` — plus `onedark`, `catppuccin-mocha`, `tokyonight`,
+  `nord`, `monokai`, `rose-pine`, `everforest`, `cyberdream`, `nightfox`) and
+  four light (`carbon-light` — the historic light variant, `M.light` — plus
+  `tokyonight-day`, `everforest-light`, `dayfox`). Each registry entry maps the
+  name to its role table (`palette`) and its `vim.o.background` `variant`;
+  **public names carry hyphens and role tables underscores** (`rose-pine` →
+  `M.rose_pine`), because a hyphen is not a Lua identifier — `palette` is the
+  bridge. Every palette fills the EXACT role set of `M.dark`
   (pinned by `tests/core/carbon_spec.lua`) with carbon's role semantics —
   base09 identity, base10 attention, base12 busy — so every consumer works
   unchanged. `M.theme()` resolves the flag (`vim.g.nvsinner_theme` /
   `$NVSINNER_THEME`, unknown → `"carbon"`; the legacy
   `nvsinner_background`/`$NVSINNER_BACKGROUND` flag still maps
-  light→`moon` when no theme flag is set), `M.colors()` selects the palette
-  from it, and `M.background()` returns the active theme's variant (what
-  `theme.lua` boots `vim.o.background` with). Switching is live:
+  light→`carbon-light` when no theme flag is set), `M.colors()` selects the
+  palette from it, and `M.background()` returns the active theme's variant
+  (what `theme.lua` boots `vim.o.background` with). Switching is live:
   `settings.set("theme", …)` → flag + `:colorscheme carbon` → every
   ColorScheme consumer retints. Accent packs overlay by the theme's
   dark/light variant, so `blue` (the empty pack) shows each theme's own
   signature accent and the other packs apply their generic overrides. New
-  themes are **appended** to `M.theme_names` — `tests/core/menu_spec.lua`
-  pins `carbon`/`moon` as the first two entries of the cycle.
+  themes are **appended to their variant's group** in `M.theme_names` (dark
+  first, then light, so cycling with `h`/`l` does not flash the background
+  back and forth) — `tests/core/menu_spec.lua` pins `carbon`/`onedark` as the
+  first two entries of the cycle.
+- **Retired theme names resolve, they do not break** — `M.theme_aliases` maps
+  the nine invented names the themes originally shipped under
+  (`moon`→`carbon-light`, `onedusk`→`onedark`, `mocha`→`catppuccin-mocha`,
+  `kyoto`→`tokyonight`, `fjord`→`nord`, `monolith`→`monokai`,
+  `briar`→`rose-pine`, `grove`→`everforest`, `neon`→`cyberdream`).
+  `M.resolve_theme(name)` is the one resolver — alias lookup, then registry
+  membership, `nil` for anything unregistered — and `M.theme()` reads every
+  flag through it, so a hand-set `vim.g` and `NVSINNER_THEME=kyoto nvsinner`
+  both still work. `settings.load` additionally REWRITES the persisted value
+  through it, so the JSON heals and `:NvSinnerMenu`'s cycle lands on the right
+  row. **Rename a theme and you add an alias** — dropping one silently falls a
+  user's saved choice back to `carbon`.
+- **The light variants invert the foreground ramp**, and this is the one place
+  a light palette can be got wrong while still filling every role slot: above
+  `base02` the ramp walks toward BLACK, so `base03` (muted comments) is the
+  LIGHTEST foreground, `base04` body text, `base05` darker still (it must read
+  on the recessed `blend`), `base06` the dark extreme. `blend`/`shade` stay
+  recessed, i.e. darker than `base00`. A light port may also darken an accent
+  one step: the statusline mode chips paint `base00` text on a solid accent,
+  and `base00` is near-white here, so a pastel accent swallows the label. The
+  contract is stated in `carbon.lua`'s header and enforced by
+  `tests/core/carbon_spec.lua` ("light themes follow the inverted foreground
+  ramp"), which exists because the original `moon` palette had it backwards —
+  near-black comments shouting over the code they annotate.
 - **Feature flags** (resolved by `carbon.lua`; `vim.g` wins over env, which
   wins over the persisted `:NvSinnerMenu` value seeded by `settings.lua`):
   `vim.g.nvsinner_theme` / `$NVSINNER_THEME` (background theme, above;
@@ -554,7 +582,9 @@ only exists when lualine does); layout/centring notes live in
   next to the committed `settings/prompts.json`, so all user-tweakable state
   sits in one place; a pre-`settings/` cache under `stdpath("data")` is
   migrated on first load) and applies them: `theme` (background theme; a
-  legacy persisted `background` key migrates to `moon`/`carbon` on load) /
+  legacy persisted `background` key migrates to `carbon-light`/`carbon` on
+  load, and a retired theme name is rewritten through
+  `carbon.resolve_theme`) /
   `transparent` / `accent` / `folder` / `notif` / `variables` / `strings` /
   `functions` (carbon flags), `tree_side` (neo-tree position), `ai_side` (AI/vertical
   terminal column side), `inlay_hints` (LSP inlay hints — off by default, since

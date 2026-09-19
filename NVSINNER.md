@@ -128,10 +128,11 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     one is gitsigns' rather than diffview's because diffview structurally cannot
     render a unified view: it draws through Neovim's native window `'diff'` mode,
     which needs two diffed windows. **v1.9.0** widened the look and finished the
-    TODO chips: three more background themes — `briar` (Rosé Pine), `grove`
-    (Everforest) and `neon` (cyberdream) — bring `:NvSinnerMenu`'s "Background
-    theme" row to ten, each an original palette mapped onto carbon's fixed role
-    semantics rather than a vendored colorscheme; and every TODO keyword now
+    TODO chips: three more background themes — Rosé Pine, Everforest and
+    cyberdream (then shipped under the invented names `briar`, `grove` and
+    `neon`) — bring `:NvSinnerMenu`'s "Background theme" row to ten, each a
+    palette mapped onto carbon's fixed role semantics rather than a vendored
+    colorscheme; and every TODO keyword now
     drops its Nerd Font glyph in the sign column beside the line number, the
     half of todo-comments.nvim the native
     [lua/core/todo.lua](lua/core/todo.lua) had not carried over. **v1.9.1** is

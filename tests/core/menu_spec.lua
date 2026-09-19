@@ -52,8 +52,8 @@ describe("core.menu", function()
 		menu.move(-99) -- row 1: Background theme
 		assert.are.equal("carbon", settings.get("theme"))
 		menu.cycle(1)
-		assert.are.equal("moon", settings.get("theme"))
-		assert.are.equal("moon", vim.g.nvsinner_theme, "cycling must apply the flag live")
+		assert.are.equal("onedark", settings.get("theme"))
+		assert.are.equal("onedark", vim.g.nvsinner_theme, "cycling must apply the flag live")
 		menu.cycle(-1) -- and back
 		assert.are.equal("carbon", settings.get("theme"))
 		menu.close()

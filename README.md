@@ -422,7 +422,7 @@ hovering moves the selection and a click cycles the row's value.
 
 | Row | Values |
 |-----|--------|
-| Background theme | `carbon` (dark, default) / `moon` (light) / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` / `briar` / `grove` / `neon` — original palettes inspired by One Dark Pro, Catppuccin Mocha, Tokyo Night, Nord, Monokai, Rosé Pine, Everforest and cyberdream |
+| Background theme | **dark:** `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` · **light:** `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` — role-palette ports of each upstream scheme, not the plugins themselves |
 | Transparency | `off` / `on` |
 | Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent, never the gray surfaces |
 | Folder color | `accent` / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` — recolors Neo-tree's folder names + icons |
@@ -474,7 +474,7 @@ Environment variables override the stored value at startup, which is what makes
 a one-off launch possible without touching your saved settings:
 
 ```bash
-NVSINNER_THEME=moon nvsinner          # boot the light palette once
+NVSINNER_THEME=carbon-light nvsinner  # boot the light palette once
 NVSINNER_ACCENT=purple nvsinner       # try an accent without saving it
 ```
 
@@ -483,7 +483,14 @@ built-in default**. The supported variables are `NVSINNER_THEME`,
 `NVSINNER_ACCENT`, `NVSINNER_TRANSPARENT`, `NVSINNER_FOLDER`, `NVSINNER_NOTIF`,
 `NVSINNER_VARIABLES`, `NVSINNER_STRINGS` and `NVSINNER_FUNCTIONS`.
 `NVSINNER_BACKGROUND=light` still works as a legacy alias for
-`NVSINNER_THEME=moon`.
+`NVSINNER_THEME=carbon-light`.
+
+The background themes are named after the schemes they port. The earlier
+invented names still resolve, so a saved `kyoto` boots `tokyonight` and heals
+itself on the next save. The full map is `moon`→`carbon-light`,
+`onedusk`→`onedark`, `mocha`→`catppuccin-mocha`, `kyoto`→`tokyonight`,
+`fjord`→`nord`, `monolith`→`monokai`, `briar`→`rose-pine`, `grove`→`everforest`,
+`neon`→`cyberdream`.
 
 The inline-completion feature reads four more, none of which are ever stored by
 the config: `OPENCODE_API_KEY` (required — the feature is a quiet no-op without
@@ -499,7 +506,7 @@ value:
 
 | Flag | Values | Per launch | Persistent |
 |------|--------|-----------|------------|
-| Background theme | `carbon` (default) / `moon` / `onedusk` / `mocha` / `kyoto` / `fjord` / `monolith` / `briar` / `grove` / `neon` | `NVSINNER_THEME=fjord nvsinner` | `vim.g.nvsinner_theme = "fjord"` |
+| Background theme | dark: `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox`; light: `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` | `NVSINNER_THEME=nord nvsinner` | `vim.g.nvsinner_theme = "nord"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
 | Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
 | Folder color | `accent` (default) / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` | `NVSINNER_FOLDER=aqua nvsinner` | `vim.g.nvsinner_folder = "aqua"` |

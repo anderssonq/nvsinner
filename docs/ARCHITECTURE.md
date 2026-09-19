@@ -135,10 +135,19 @@ also what makes it testable headlessly.
 Every color in the distro resolves through this module. No module hardcodes a
 hex.
 
-Ten full palettes (`dark`, `light`, `onedusk`, `mocha`, `kyoto`, `fjord`,
-`monolith`, `briar`, `grove`, `neon`) each fill an identical role-key set: a `base00`–`base05` grayscale
-ramp, `base06` white, `base07`–`base15` accents, plus `blend`, `lift`, `shade`,
-`backdrop` and the diff roles.
+Fourteen full palettes — ten dark (`dark`/carbon, `onedark`,
+`catppuccin_mocha`, `tokyonight`, `nord`, `monokai`, `rose_pine`, `everforest`,
+`cyberdream`, `nightfox`) and four light (`light`/carbon-light,
+`tokyonight_day`, `everforest_light`, `dayfox`) — each fill an identical
+role-key set: a `base00`–`base05` grayscale ramp, `base06` the foreground
+extreme, `base07`–`base15` accents, plus `blend`, `lift`, `shade`, `backdrop`
+and the diff roles. Public theme names carry hyphens (`rose-pine`), the role
+tables underscores, and `M.themes[name].palette` bridges the two.
+
+The ramp's direction is variant-dependent: on a light palette it walks toward
+black, so `base03` is the *lightest* foreground (muted comments) and `base06`
+the darkest. `carbon.lua`'s header states that contract and
+`tests/core/carbon_spec.lua` enforces it.
 
 On top sit three narrower override layers, each touching only what it must:
 
