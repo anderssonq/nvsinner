@@ -52,4 +52,15 @@ describe("toggleterm terminal-mode keymaps", function()
 			)
 		end
 	end)
+	-- Both terminal kinds must blank this editor's herdr pane context for the
+	-- process they spawn. Without it a column inherits HERDR_PANE_ID from the
+	-- EDITOR's pane, so a CLI with a herdr integration installed (claude ships
+	-- one) reports its session against that pane — every column overwriting the
+	-- last, and herdr later restoring a mis-attributed session into a shell.
+	-- core/herdr.lua's child_env() returns nil off herdr, so this is inert there.
+	it("hands both terminal kinds the herdr child environment", function()
+		local _, n = code:gsub('env%s*=%s*require%("core%.herdr"%)%.child_env%(%)', "")
+		assert.are.equal(2, n, "the AI columns AND the <leader>t terminals both need the isolation")
+		assert.matches("clear_env%s*=%s*false", code, "env must MERGE, not replace the whole environment")
+	end)
 end)

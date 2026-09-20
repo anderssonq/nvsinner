@@ -118,6 +118,22 @@
   Terminal) and sets `b:nv_term_label` in `on_panel_open` for the activity
   winbar. Full bridge/labeling contracts: `lua/core/CLAUDE.md` §AI and
   §Agent activity.
+- **herdr env isolation**: BOTH `Terminal:new` call sites (the AI columns and
+  the `<leader>t` horizontals) pass `env = require("core.herdr").child_env()`
+  with `clear_env = false`. Without it a spawned process inherits Neovim's
+  environment verbatim, including the EDITOR pane's `HERDR_PANE_ID` — so a CLI
+  with a herdr integration installed (claude ships one) reports its session
+  against that pane, every column overwriting the last, and herdr later
+  restores a mis-attributed session into a plain shell. `child_env()` returns
+  `nil` off herdr, so nothing changes there. The plugin **pulls** the table from
+  core; core never requires the plugin. Pinned by
+  `tests/plugins/terminal_keymaps_spec.lua` against comment-stripped source.
+  **Do not** isolate by prefixing the command with `env -u …` instead: it works
+  mechanically, but `agents.lua` sets `kind = term.cmd` and looks that string up
+  in `M.SIGNS`, keyed by the bare `claude` / `kiro-cli` / `opencode`. A prefixed
+  cmd misses the table and silently kills the screen-signature layer of status
+  detection — the layer that sees permission prompts — without failing a test.
+  Full contract: `lua/core/CLAUDE.md` §herdr bridge.
 
 ## Sessions — `persistence.lua`
 

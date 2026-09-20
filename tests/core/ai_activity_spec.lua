@@ -136,4 +136,84 @@ describe("core.ai-activity", function()
 
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
+	-- ─── The state-change channel (User NvSinnerAgentState) ──────────────────
+	--
+	-- core/herdr.lua subscribes to this instead of polling terminal buffers,
+	-- which is the design that was already ruled out here.
+	describe("state-change events", function()
+		-- Collect every NvSinnerAgentState for the duration of `fn`.
+		local function recording(fn)
+			local seen = {}
+			local id = vim.api.nvim_create_autocmd("User", {
+				pattern = "NvSinnerAgentState",
+				callback = function(args)
+					seen[#seen + 1] = args.data or {}
+				end,
+			})
+			fn(seen)
+			vim.api.nvim_del_autocmd(id)
+			return seen
+		end
+
+		it("announces idle → working and working → idle for a real terminal", function()
+			vim.cmd("terminal cat")
+			local buf = vim.api.nvim_get_current_buf()
+			local job = vim.b[buf].terminal_job_id
+
+			local seen = recording(function(acc)
+				vim.fn.chansend(job, "hello\n")
+				vim.wait(3000, function()
+					for _, e in ipairs(acc) do
+						if e.buf == buf and e.status == "working" then
+							return true
+						end
+					end
+					return false
+				end, 50)
+				vim.wait(4000, function()
+					for _, e in ipairs(acc) do
+						if e.buf == buf and e.status == "idle" then
+							return true
+						end
+					end
+					return false
+				end, 50)
+			end)
+
+			local got = {}
+			for _, e in ipairs(seen) do
+				if e.buf == buf then
+					got[e.status] = true
+				end
+			end
+			assert.is_true(got.working, "the first output chunk must announce working")
+			assert.is_true(got.idle, "going quiet must announce idle")
+
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end)
+
+		it("announces a prompt mark once, not on every repeat", function()
+			vim.cmd("terminal cat")
+			local buf = vim.api.nvim_get_current_buf()
+			vim.wait(500, function()
+				return ai.status(buf) == "idle"
+			end, 50)
+
+			local seen = recording(function()
+				ai._on_osc(buf, "\27]133;B")
+				ai._on_osc(buf, "\27]133;B") -- a repeat says nothing new
+				ai._on_osc(buf, "\27]133;B")
+			end)
+
+			local awaiting = 0
+			for _, e in ipairs(seen) do
+				if e.buf == buf and e.status == "awaiting" then
+					awaiting = awaiting + 1
+				end
+			end
+			assert.are.equal(1, awaiting, "only the transition is news")
+
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end)
+	end)
 end)

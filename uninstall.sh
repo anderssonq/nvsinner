@@ -18,6 +18,7 @@ DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/$APP"
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/$APP"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/$APP"
 LAUNCHER="$HOME/.local/bin/$APP"
+HERDR_CLIENT="$HOME/.local/bin/$APP-herdr"
 
 info() { printf '\033[36m▸ %s\033[0m\n' "$1"; }
 ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
@@ -35,7 +36,7 @@ for arg in "$@"; do
   esac
 done
 
-targets=("$CONFIG_DIR" "$DATA_DIR" "$STATE_DIR" "$CACHE_DIR" "$LAUNCHER")
+targets=("$CONFIG_DIR" "$DATA_DIR" "$STATE_DIR" "$CACHE_DIR" "$LAUNCHER" "$HERDR_CLIENT")
 
 # Keep only paths that actually exist. `-e` follows symlinks (false for a dangling
 # link), so also test `-L` to catch a broken symlink.

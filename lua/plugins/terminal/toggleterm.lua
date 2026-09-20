@@ -151,6 +151,11 @@ return {
 					direction = "horizontal",
 					size = h_height,
 					on_open = on_panel_open,
+					-- Same herdr isolation as the AI columns below: a nested
+					-- `nvsinner` launched from this shell must report onto its
+					-- OWN pane, not onto the one hosting this editor.
+					env = require("core.herdr").child_env(),
+					clear_env = false,
 				})
 			end
 			return h_panels[n]
@@ -211,6 +216,14 @@ return {
 				size = AI_WIDTH, -- fixed column width (not percentual): a compact AI column
 				hidden = true, -- "custom" terminal: not part of the <leader>t list
 				close_on_exit = false, -- if the CLI/shell dies, don't auto-close
+				-- Blank out this editor's herdr pane context for the spawned CLI.
+				-- Without it the column inherits HERDR_PANE_ID from the EDITOR's
+				-- pane, so an agent with a herdr integration installed (claude
+				-- ships one) reports its session against that pane — every column
+				-- overwriting the last. nil when herdr isn't here, so nothing
+				-- changes off herdr. See lua/core/herdr.lua's child_env().
+				env = require("core.herdr").child_env(),
+				clear_env = false,
 				-- on_panel_open forces the column full-height on the configured
 				-- side and re-tucks any horizontal terminal bottom-left.
 				on_open = on_panel_open,

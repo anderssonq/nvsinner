@@ -256,6 +256,37 @@ spinner *plus* each CLI's own on-screen prompts; the per-CLI patterns live in
 `M.SIGNS` at the top of `lua/core/agents.lua`, so teaching it a new CLI — or
 correcting one that reworded its prompt — is a one-line edit.
 
+### Running under herdr
+
+[herdr](https://herdr.dev) is a terminal multiplexer built for AI agents: it
+recognises an agent inside a pane it owns and tracks it as working, blocked or
+idle. NvSinner's columns live inside one Neovim process, so without help the
+whole editor looks like a single pane "running an editor" — up to nine live
+agents herdr cannot see, count, or tell you are blocked.
+
+When herdr owns the pane, NvSinner reports them. The editor's pane shows one
+agent whose state is the **rollup** of your columns — attention wins, so any
+column waiting on you makes the pane `blocked` — plus a token per column
+(`j1` … `j9`) naming its CLI and status. Everything here is inert outside
+herdr, and `:NvSinnerMenu` → *herdr reporting* switches it off.
+
+Because herdr tracks one agent per pane, it can see the columns but cannot type
+into a single one. `nvsinner-herdr` is the way in — run it from any other herdr
+pane, including from an agent working there:
+
+```bash
+nvsinner-herdr list                    # every column, its CLI and status
+nvsinner-herdr focus 3                 # open or focus column 3
+nvsinner-herdr send 3 "review the diff" # drop text into its CLI input
+echo "$diff" | nvsinner-herdr send 3 -  # the same, from stdin
+nvsinner-herdr read 3 --lines 80        # tail what column 3 is showing
+```
+
+It targets the calling pane by default (`--pane <id>` for another), speaks to
+the editor over Neovim's own RPC socket, and `--json` makes any of it
+machine-readable. **`send` never submits** — text lands in the CLI input for you
+to review, exactly like the in-editor bridge below.
+
 **Send context without the clipboard:** select code and hit `<leader>as` to
 drop it into the AI column's input, `<leader>ab` to send an `@path` mention
 of the current file, `<leader>ad` to send the current line's diagnostics.
@@ -435,6 +466,8 @@ hovering moves the selection and a click cycles the row's value.
 | AI column side | `left` / `right` |
 | AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
 | Inlay hints | `on` / `off` (default `off`) — LSP inlay hints (parameter names, inferred types) as virtual text. Off by default because they change how every line reads; `<leader>lh` is the same switch |
+| herdr reporting | `on` / `off` (default `on`) — publish the AI columns' rolled-up `working` / `blocked` / `idle` state to a running [herdr](https://herdr.dev) server, so the multiplexer hosting this editor can see the agents inside it. Does nothing unless herdr owns this pane |
+| herdr detail | `state` / `tokens` (default) / `full` — how much herdr gets: the lifecycle state alone, plus a per-column token (`j1` … `j9`, each naming its CLI and status), or plus the project title and state labels |
 | Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
 
@@ -581,6 +614,8 @@ lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal w
 lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja, <leader>jc clear)
 lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
 lua/core/agents.lua            Agent cockpit: every AI column + status + chat preview (:NvSinnerAgents, <leader>xa)
+lua/core/herdr.lua             Reports the AI columns' state to a herdr server (no-op unless herdr owns this pane)
+bin/nvsinner-herdr             Drive those columns from another herdr pane (list/focus/send/read)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems toast

@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Drive NvSinner's AI columns from anywhere inside herdr.
+#
+# NvSinner's AI columns live inside one Neovim process, so herdr can see their
+# rolled-up state (lua/core/herdr.lua reports it) but cannot type into a single
+# one: its input surface is the pane's PTY, and the pane is the editor. This is
+# the way in. Neovim always listens on v:servername, and the editor writes a
+# discovery record naming its pane, so a client in ANOTHER herdr pane can go
+# pane id -> socket -> column.
+#
+# The socket is Neovim's own, whose parent directories are 0700. Holding it
+# means being able to evaluate code in that editor, which is exactly what this
+# script does — it is a convenience, not a privilege boundary.
+#
+#   nvsinner-herdr list                     every column with its status
+#   nvsinner-herdr focus 3                  open or focus column 3
+#   nvsinner-herdr send 3 "review this"     put text in its CLI input
+#   echo "..." | nvsinner-herdr send 3 -    the same, from stdin
+#   nvsinner-herdr read 3 --lines 80        tail column 3
+#
+# --pane <id>  target another pane (default: $HERDR_PANE_ID, the calling pane)
+# --json       machine-readable output
+#
+# Text is NEVER submitted: it lands in the CLI input for a human to review,
+# the same contract the in-editor send-to-AI bridge keeps.
+
+set -euo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nvsinner/herdr"
+
+die() { printf 'nvsinner-herdr: %s\n' "$1" >&2; exit 1; }
+
+usage() {
+	sed -n '4,27p' "$0" | sed 's/^# \{0,1\}//'
+	exit "${1:-0}"
+}
+
+action="${1:-}"
+[ -n "$action" ] || usage 1
+case "$action" in
+	-h|--help|help) usage 0 ;;
+	list|focus|send|read) shift ;;
+	*) die "unknown command: $action (try --help)" ;;
+esac
+
+pane="${HERDR_PANE_ID:-}"
+json=0
+lines=""
+n=""
+text=""
+have_text=0
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--pane) pane="${2:-}"; shift 2 ;;
+		--json) json=1; shift ;;
+		--lines) lines="${2:-}"; shift 2 ;;
+		--) shift ;;
+		-)  text="$(cat)"; have_text=1; shift ;;
+		*)
+			if [ -z "$n" ]; then n="$1"; else
+				text="${text:+$text }$1"; have_text=1
+			fi
+			shift ;;
+	esac
+done
+
+[ -n "$pane" ] || die "no pane: run this inside herdr, or pass --pane <id>"
+
+record="$STATE_DIR/$(printf '%s' "$pane" | tr -c '[:alnum:]_-' '-').json"
+[ -f "$record" ] || die "no NvSinner editor registered for pane $pane
+  (open a column there first; the record appears at $record)"
+
+# The record is one flat JSON object written by lua/core/herdr.lua. Pull the
+# socket out without requiring a JSON parser on the box.
+socket="$(sed -n 's/.*"servername":"\([^"]*\)".*/\1/p' "$record")"
+[ -n "$socket" ] || die "discovery record has no servername: $record"
+[ -S "$socket" ] || die "the editor for pane $pane is gone (stale socket: $socket)"
+
+case "$action" in
+	focus|read) [ -n "$n" ] || die "$action needs a column number" ;;
+	send)
+		[ -n "$n" ] || die "send needs a column number"
+		[ "$have_text" = 1 ] || die "send needs text (or - to read stdin)" ;;
+esac
+
+req="$(mktemp "${TMPDIR:-/tmp}/nvsinner-herdr.XXXXXX")"
+trap 'rm -f "$req"' EXIT HUP INT TERM
+{
+	printf 'action=%s\n' "$action"
+	[ -n "$n" ] && printf 'n=%s\n' "$n"
+	[ -n "$lines" ] && printf 'lines=%s\n' "$lines"
+	printf 'json=%s\n' "$json"
+	printf -- '--\n'
+	[ "$have_text" = 1 ] && printf '%s' "$text"
+} > "$req"
+
+exec nvim --server "$socket" --remote-expr \
+	"luaeval('require(\"core.herdr\").remote(_A)', '$req')"

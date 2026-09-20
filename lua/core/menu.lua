@@ -70,6 +70,9 @@ local ITEMS = {
 	{ key = "ai_complete", label = "AI completion", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "inlay_hints", label = "Inlay hints", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "minimap", label = "Minimap", values = { false, true }, show = bool_show("on", "off") },
+	-- herdr reporting: both rows no-op unless a herdr server owns this pane.
+	{ key = "herdr", label = "herdr reporting", values = { false, true }, show = bool_show("on", "off") },
+	{ key = "herdr_detail", label = "herdr detail", values = { "state", "tokens", "full" } },
 	{
 		key = "key_timeout",
 		label = "Key timeout",

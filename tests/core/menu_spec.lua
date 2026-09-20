@@ -72,4 +72,15 @@ describe("core.menu", function()
 		assert.are.equal("left", settings.get("tree_side"))
 		menu.close()
 	end)
+	it("offers the herdr rows and cycles them into core/settings", function()
+		menu.open()
+		local labels = {}
+		for _, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+			labels[#labels + 1] = line
+		end
+		local text = table.concat(labels, "\n")
+		assert.matches("herdr reporting", text)
+		assert.matches("herdr detail", text)
+		menu.close()
+	end)
 end)

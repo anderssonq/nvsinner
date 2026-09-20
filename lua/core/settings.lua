@@ -49,6 +49,8 @@ M.defaults = {
 	key_timeout = 300, -- 'timeoutlen' ms: the prefix wait on <leader>t/j/jx/f (core/options.lua sets the same baseline)
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
 	minimap = false, -- code minimap (braille overview) on the right edge of the focused window
+	herdr = true, -- report the AI columns' state to a herdr server; no-ops unless herdr owns this pane
+	herdr_detail = "tokens", -- how much detail herdr gets: "state" | "tokens" (+ per-column) | "full" (+ title/labels)
 }
 
 local legacy_file = vim.fn.stdpath("data") .. "/nvsinner-settings.json" -- pre-settings/ location
@@ -210,6 +212,12 @@ local apply = {
 			require("core.minimap").set_enabled(v)
 		end)
 	end,
+	herdr = function(v)
+		pcall(function()
+			require("core.herdr").set_enabled(v)
+		end)
+	end,
+	herdr_detail = function() end, -- read at report time by herdr.flush(); nothing to apply live
 }
 
 -- Set + persist + apply live + broadcast.

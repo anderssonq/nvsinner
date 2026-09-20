@@ -63,12 +63,27 @@ function M.panel_numbers()
 	return clearer and clearer.list() or {}
 end
 
+-- Announce a session appearing/disappearing on the same `User
+-- NvSinnerAgentState` channel core/ai-activity.lua uses, so consumers need one
+-- subscriber. These two carry facts ai-activity structurally cannot see:
+-- register fires for a column that may sit silent for minutes before its first
+-- byte of output, and unregister is the ONLY "the CLI died" signal (ai-activity
+-- tracks buffers, not jobs, so a dead job's buffer reports idle forever).
+local function emit(n, reason)
+	pcall(vim.api.nvim_exec_autocmds, "User", {
+		pattern = "NvSinnerAgentState",
+		data = { n = n, reason = reason },
+	})
+end
+
 function M.register(n, term)
 	registry[n] = { n = n, term = term, last_used = stamp() }
+	emit(n, "register")
 end
 
 function M.unregister(n)
 	registry[n] = nil
+	emit(n, "unregister")
 end
 
 -- Bump a session's MRU stamp (called from toggleterm's on_panel_open and the
