@@ -52,8 +52,8 @@ describe("core.menu", function()
 		menu.move(-99) -- row 1: Background theme
 		assert.are.equal("carbon", settings.get("theme"))
 		menu.cycle(1)
-		assert.are.equal("moon", settings.get("theme"))
-		assert.are.equal("moon", vim.g.nvsinner_theme, "cycling must apply the flag live")
+		assert.are.equal("onedark", settings.get("theme"))
+		assert.are.equal("onedark", vim.g.nvsinner_theme, "cycling must apply the flag live")
 		menu.cycle(-1) -- and back
 		assert.are.equal("carbon", settings.get("theme"))
 		menu.close()
@@ -70,6 +70,17 @@ describe("core.menu", function()
 		assert.are.equal("right", settings.get("tree_side"))
 		menu.cycle(1) -- wraps around
 		assert.are.equal("left", settings.get("tree_side"))
+		menu.close()
+	end)
+	it("offers the herdr rows and cycles them into core/settings", function()
+		menu.open()
+		local labels = {}
+		for _, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+			labels[#labels + 1] = line
+		end
+		local text = table.concat(labels, "\n")
+		assert.matches("herdr reporting", text)
+		assert.matches("herdr detail", text)
 		menu.close()
 	end)
 end)

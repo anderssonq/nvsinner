@@ -148,6 +148,29 @@ function M.report()
 		end
 	end
 
+	-- herdr is OPTIONAL, so it is deliberately not in M.tools: that table drives
+	-- the first-run "missing tools" count, and running without herdr is the
+	-- normal case, not a problem. Probed with fs_stat rather than by connecting —
+	-- a health check must not open a channel.
+	h.start("NvSinner · herdr")
+	local hok, herdr = pcall(require, "core.herdr")
+	if not hok then
+		h.warn("core.herdr failed to load — the integration is inert")
+	else
+		local env = herdr._env()
+		if not env.present then
+			h.info("No herdr pane detected (HERDR_ENV unset) — the integration is inert.")
+		elseif not (vim.uv or vim.loop).fs_stat(env.socket) then
+			h.warn("herdr owns this pane but its socket is gone: " .. tostring(env.socket), {
+				"The server may have stopped. `herdr status server` to check.",
+			})
+		elseif not herdr.enabled() then
+			h.info("herdr pane " .. tostring(env.pane) .. " — reporting is off (:NvSinnerMenu → herdr reporting).")
+		else
+			h.ok("Reporting the AI columns to herdr as pane " .. tostring(env.pane))
+		end
+	end
+
 	h.start("NvSinner · Nerd Font")
 	h.info("Icons need a Nerd Font (FiraCode Nerd Font is bundled in fonts/).")
 	h.info('Set your terminal (or GUI) font to a "… Nerd Font" — this can\'t be auto-detected.')

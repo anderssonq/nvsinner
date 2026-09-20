@@ -49,6 +49,8 @@ lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
 lua/core/ai-ask.lua          :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection (native)
 lua/core/ai-complete.lua     Inline AI completion (ghost text), manual insert <C-l> / :NvSinnerComplete trigger; curl→OpenCode Zen ONLY (default minimax-m2.5), $OPENCODE_API_KEY from env (native)
 lua/core/agents.lua          :NvSinnerAgents / <leader>xa — agent cockpit: every AI column with its status (ai-activity + per-CLI screen signatures), a live chat preview, focus + close (native)
+bin/nvsinner-herdr           Drive the AI columns from another herdr pane (list/focus/send/read over Neovim's RPC socket)
+lua/core/herdr.lua           Reports the AI columns' rolled-up working/blocked/idle state to a running herdr server over its unix-socket JSON API; a total no-op unless herdr owns this pane (native)
 lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, model picker over the verified-safe Go models, Ask-AI, prompts); listed as the single AI row in :NvSinnerHelp (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
@@ -157,6 +159,11 @@ line to `init.lua`** or its files will silently never load.
   moved onto `gf`. Don't add a second exit key.
 - **mini.animate scroll stays off** — smooth scrolling is neoscroll's job;
   never enable both.
+- **The herdr bridge is push-only and one-request-per-connection** —
+  `lua/core/herdr.lua` subscribes to `User NvSinnerAgentState` (never polls
+  terminal buffers), and every API call opens its own socket: a second frame on
+  the same connection is accepted and silently dropped. Its one timer is a
+  coalescer armed by an event, never a free-running poller.
 
 ## Key subsystems — where the full contracts live
 

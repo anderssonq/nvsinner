@@ -378,6 +378,41 @@ describe("core.agents", function()
 		assert.are_not.equal(win, vim.api.nvim_get_current_win(), "an empty list must not stay open")
 	end)
 
+	-- ─── snapshot(): the read-only view outside the modal ────────────────────
+
+	it("snapshot() returns the same rows refresh() would build", function()
+		sessions.register(1, fake_term({ cmd = "claude", __open = false }))
+		fake_clearer({ [1] = true })
+
+		local snap = agents.snapshot()
+		assert.are.equal(1, #snap)
+		assert.are.equal(1, snap[1].n)
+		assert.are.equal("claude", snap[1].kind)
+		assert.is_true(snap[1].alive)
+	end)
+
+	-- core/herdr.lua reads the cockpit from outside it. refresh() rewrites the
+	-- module's item list AND the layout, and `ui.sel` is a POSITIONAL index into
+	-- that list — so an outside refresh racing a dying session can shift rows
+	-- under a screen nobody repainted and make the next <CR>/d act on a
+	-- different agent than the one shown. snapshot() must never touch it.
+	it("snapshot() leaves the open cockpit's rows and selection alone", function()
+		sessions.register(1, fake_term({ cmd = "claude", __open = false }))
+		sessions.register(2, fake_term({ cmd = "opencode", __open = false }))
+		fake_clearer({ [1] = true, [2] = true })
+
+		agents.open()
+		local items_before = agents._items()
+		local count_before = #items_before
+
+		sessions.unregister(2) -- a session dies while the modal is up
+		agents.snapshot()
+
+		assert.are.equal(items_before, agents._items(), "the modal must keep its own list object")
+		assert.are.equal(count_before, #agents._items(), "snapshot() must not re-index the rows")
+		agents.close()
+	end)
+
 	-- ─── The live-refresh timer ──────────────────────────────────────────────
 
 	it("runs its own poll timer only while the modal is open", function()

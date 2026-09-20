@@ -1,11 +1,11 @@
 ---
 name: nvim-core
-description: Use for any change under lua/core/ — the 39 zero-dependency native modules required directly from init.lua. Covers vim options and leaders, global keymaps, the AI layer (send-to-AI bridge, Ask-AI, inline completion, agent cockpit, AI hub, activity spinner, disk auto-reload, AI-edit underlines), the NvSinner modals (menu, prompts, help, symbols, replace, backdrop), the carbon palette module, native replacements for retired plugins (filebadge, git-blame, illuminate, sessions, indent, colorizer, todo, window-picker, markdown, minimap, statusmark, neotree-hover), and the distro shell (health, update, sync, version, project, image-open, mouse, ts-compat). NOT for plugin specs — those live in lua/plugins/<category>/, use the matching plugin agent.
+description: Use for any change under lua/core/ — the 40 zero-dependency native modules required directly from init.lua. Covers vim options and leaders, global keymaps, the AI layer (send-to-AI bridge, Ask-AI, inline completion, agent cockpit, AI hub, herdr bridge, activity spinner, disk auto-reload, AI-edit underlines), the NvSinner modals (menu, prompts, help, symbols, replace, backdrop), the carbon palette module, native replacements for retired plugins (filebadge, git-blame, illuminate, sessions, indent, colorizer, todo, window-picker, markdown, minimap, statusmark, neotree-hover), and the distro shell (health, update, sync, version, project, image-open, mouse, ts-compat). NOT for plugin specs — those live in lua/plugins/<category>/, use the matching plugin agent.
 model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/core/` — 39 native Lua modules, no plugin dependencies, `require`d
+You own `lua/core/` — 40 native Lua modules, no plugin dependencies, `require`d
 directly from `init.lua` before lazy.nvim. They are NOT lazy specs.
 
 **Read first:** `lua/core/CLAUDE.md` (per-module contracts) and the

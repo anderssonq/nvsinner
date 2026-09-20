@@ -229,25 +229,35 @@ local function make_row(n, term, open, alive)
 	return row
 end
 
+-- Every AI column with its status, as a PURE read: builds a fresh list and
+-- touches no module state. Callers outside the modal (core/herdr.lua) must use
+-- this and never M.refresh() — `ui.sel` is a positional index into `items`, so
+-- refreshing from outside can shift rows under a screen nobody repainted and
+-- make the next <CR>/d act on a different agent than the one shown.
+function M.snapshot()
+	local sessions = require("core.ai-sessions")
+	local out = {}
+	local seen = {}
+	for _, s in ipairs(sessions.sessions()) do
+		seen[s.n] = true
+		out[#out + 1] = make_row(s.n, s.term, s.open, true)
+	end
+	for _, n in ipairs(sessions.panel_numbers()) do
+		if not seen[n] then
+			out[#out + 1] = make_row(n, nil, false, false)
+		end
+	end
+	table.sort(out, function(a, b)
+		return a.n < b.n
+	end)
+	return out
+end
+
 -- Rebuild the rows AND the layout in one pass (two buffer lines per item, so
 -- rows are non-uniform and hover/click need an explicit line → item map).
 -- Returns the items (test seam, like help.refresh()).
 function M.refresh()
-	local sessions = require("core.ai-sessions")
-	items = {}
-	local seen = {}
-	for _, s in ipairs(sessions.sessions()) do
-		seen[s.n] = true
-		items[#items + 1] = make_row(s.n, s.term, s.open, true)
-	end
-	for _, n in ipairs(sessions.panel_numbers()) do
-		if not seen[n] then
-			items[#items + 1] = make_row(n, nil, false, false)
-		end
-	end
-	table.sort(items, function(a, b)
-		return a.n < b.n
-	end)
+	items = M.snapshot()
 
 	line_map = {}
 	local line = TOP_PAD

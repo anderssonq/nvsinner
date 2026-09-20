@@ -57,7 +57,7 @@ disagree, CLAUDE.md wins and this skill needs the fix.
 
 | Layer | Where | Nature |
 |---|---|---|
-| **Core native modules** | `lua/core/*.lua` (39 files) | Zero-dependency Lua `require`d before lazy. Not plugin specs; only `vim.*` / `vim.uv`. The AI workflow, the modals, the native replacements for retired plugins, and the distro shell helpers all live here. |
+| **Core native modules** | `lua/core/*.lua` (40 files) | Zero-dependency Lua `require`d before lazy. Not plugin specs; only `vim.*` / `vim.uv`. The AI workflow, the modals, the native replacements for retired plugins, and the distro shell helpers all live here. |
 | **Plugin specs** | `lua/plugins/<category>/<name>.lua` | One plugin per file, each returning a lazy spec. Six categories: `ui/ lsp/ git/ editor/ navigation/ terminal/`. Lazy-loaded wherever possible; only `theme.lua` and `toggleterm.lua` are deliberately eager. |
 | **Distro shell** | `bin/nvsinner`, `install.sh`, `uninstall.sh`, `lua/nvsinner/` | Makes the config an installable, named distribution. `bin/nvsinner` is one line: `exec env NVIM_APPNAME=nvsinner nvim "$@"`. `lua/nvsinner/health.lua` exists only so `:checkhealth nvsinner` resolves; it delegates to `core.health`. `lua/nvsinner/init.lua` holds the single semver source of truth. |
 

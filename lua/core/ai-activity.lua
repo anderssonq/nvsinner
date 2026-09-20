@@ -96,6 +96,39 @@ function M.status(buf)
 	return "idle"
 end
 
+-- ─── State-change notification ──────────────────────────────────────────────
+-- Fires `User NvSinnerAgentState` on every transition, so consumers (today:
+-- core/herdr.lua) learn about agent activity WITHOUT polling. Polling is the
+-- rejected design here — a changedtick/getbufline sweep over terminal buffers
+-- is exactly what the attach-or-nothing finding ruled out — so the signal is
+-- pushed instead.
+--
+-- Emitted only from NORMAL event contexts: tick() (vim.schedule_wrap'd) and
+-- _on_osc (probed non-fast). on_lines/on_detach are fast contexts and emit
+-- nothing: on_lines calls ensure_ticking(), so the idle→working edge is picked
+-- up by the compare inside tick() within POLL_MS.
+--
+-- The payload is a TICKLE, not a state transfer: `status` is this buffer's new
+-- value, and subscribers are expected to re-read the full picture themselves.
+-- ai-activity is buffer-keyed and knows nothing about session numbers.
+local function emit(buf, status, prev)
+	pcall(vim.api.nvim_exec_autocmds, "User", {
+		pattern = "NvSinnerAgentState",
+		data = { buf = buf, status = status, prev = prev, reason = "activity" },
+	})
+end
+
+-- Coarse status straight off a state row (M.status without the lookup).
+local function status_of(s)
+	if s.busy then
+		return "working"
+	end
+	if s.awaiting then
+		return "awaiting"
+	end
+	return "idle"
+end
+
 -- Busy-gating: the poll timer runs ONLY while at least one terminal is busy.
 -- on_lines starts it with the first output chunk; tick() stops it once nothing
 -- is busy anymore, right after the idle-flip's final redraw. Idle terminals
@@ -140,12 +173,29 @@ local function tick()
 	frame = frame % #SPINNER + 1
 	local now = uv.now()
 	local any_busy, changed = false, false
+	-- Transitions are COLLECTED here and flushed after the loop: subscribers of
+	-- nvim_exec_autocmds run synchronously, and one that touched `state` would
+	-- be mutating this table mid-iteration.
+	local emits = nil
 	for buf, s in pairs(state) do
 		if not vim.api.nvim_buf_is_valid(buf) then
 			state[buf] = nil
+			if s.emitted then
+				emits = emits or {}
+				emits[#emits + 1] = { buf, nil, s.emitted }
+			end
 		else
 			if s.busy and (now - s.last) > IDLE_MS then
 				s.busy, changed = false, true
+			end
+			-- Compare against the last value we announced rather than trying to
+			-- edge-detect: a skipped tick (mode "c"), a duplicate prompt mark, or
+			-- a reconnecting consumer all self-heal.
+			local cur = status_of(s)
+			if cur ~= s.emitted then
+				emits = emits or {}
+				emits[#emits + 1] = { buf, cur, s.emitted }
+				s.emitted = cur
 			end
 			any_busy = any_busy or s.busy
 		end
@@ -159,6 +209,12 @@ local function tick()
 	if any_busy or changed then
 		if not pcall(vim.api.nvim__redraw, { statusline = true, winbar = true, flush = true }) then
 			vim.cmd("redrawstatus!")
+		end
+	end
+	-- After the repaint, so a subscriber can never delay the winbar.
+	if emits then
+		for _, e in ipairs(emits) do
+			emit(e[1], e[2], e[3])
 		end
 	end
 	-- Nothing busy → nothing animates and no idle-flip is pending: stop waking
@@ -207,6 +263,13 @@ function M._on_osc(buf, seq)
 		s.awaiting, s.busy = true, false
 	else
 		return
+	end
+	-- Normal event context (probed), so this can emit inline.
+	local cur = status_of(s)
+	if cur ~= s.emitted then
+		local prev = s.emitted
+		s.emitted = cur
+		emit(buf, cur, prev)
 	end
 	-- The tick() loop skips redraws while everything is idle, so repaint the
 	-- winbar here (same nvim__redraw path — :redrawstatus misses winbars).

@@ -90,7 +90,7 @@ describe("core.settings", function()
 		fd:write(vim.json.encode({ background = "light" }))
 		fd:close()
 		settings.load({ file = temp })
-		assert.are.equal("moon", settings.get("theme"))
+		assert.are.equal("carbon-light", settings.get("theme"))
 
 		fd = assert(io.open(temp, "w"))
 		fd:write(vim.json.encode({ background = "dark" }))
@@ -100,21 +100,36 @@ describe("core.settings", function()
 
 		-- A persisted theme wins over a stale background key.
 		fd = assert(io.open(temp, "w"))
-		fd:write(vim.json.encode({ background = "light", theme = "fjord" }))
+		fd:write(vim.json.encode({ background = "light", theme = "nord" }))
 		fd:close()
 		settings.load({ file = temp })
-		assert.are.equal("fjord", settings.get("theme"))
+		assert.are.equal("nord", settings.get("theme"))
+
+		-- A theme persisted under its retired name heals to the real one, so the
+		-- JSON stops carrying a dead value and the menu cycle lands on its row.
+		fd = assert(io.open(temp, "w"))
+		fd:write(vim.json.encode({ theme = "kyoto" }))
+		fd:close()
+		settings.load({ file = temp })
+		assert.are.equal("tokyonight", settings.get("theme"))
+
+		-- A theme that names nothing at all falls back to the default.
+		fd = assert(io.open(temp, "w"))
+		fd:write(vim.json.encode({ theme = "solarized" }))
+		fd:close()
+		settings.load({ file = temp })
+		assert.are.equal("carbon", settings.get("theme"))
 	end)
 
 	it("seeds the carbon vim.g flags only when unset (vim.g/env win)", function()
 		local orig = vim.g.nvsinner_theme
 		local fd = assert(io.open(temp, "w"))
-		fd:write(vim.json.encode({ theme = "mocha" }))
+		fd:write(vim.json.encode({ theme = "catppuccin-mocha" }))
 		fd:close()
 
 		vim.g.nvsinner_theme = nil
 		settings.setup({ file = temp })
-		assert.are.equal("mocha", vim.g.nvsinner_theme, "persisted value should seed an unset flag")
+		assert.are.equal("catppuccin-mocha", vim.g.nvsinner_theme, "persisted value should seed an unset flag")
 
 		vim.g.nvsinner_theme = "carbon" -- user override in place…
 		settings.setup({ file = temp })
@@ -148,7 +163,7 @@ describe("core.settings", function()
 		before_each(function()
 			saved_accent = vim.g.nvsinner_accent
 			-- Pin the reference palette: settings.setup() (run at require time) may
-			-- have seeded a real persisted theme (e.g. mocha) into vim.g, but these
+			-- have seeded a real persisted theme (e.g. catppuccin-mocha) into vim.g, but these
 			-- tests assert against carbon.dark.* specifically.
 			saved_theme = vim.g.nvsinner_theme
 			vim.g.nvsinner_theme = "carbon"
@@ -252,6 +267,23 @@ describe("core.settings", function()
 			vim.g.nvsinner_accent = "blue"
 			assert.are.equal(carbon.dark.base09, carbon.colors().base09)
 			vim.o.background = bg
+		end)
+	end)
+	describe("herdr reporting", function()
+		it("defaults to on, with per-column detail", function()
+			assert.are.equal(true, settings.defaults.herdr)
+			assert.are.equal("tokens", settings.defaults.herdr_detail)
+		end)
+
+		it("persists both keys across a reload", function()
+			local file = vim.fn.tempname()
+			settings.setup({ file = file })
+			settings.set("herdr", false)
+			settings.set("herdr_detail", "full")
+			settings.setup({ file = file })
+			assert.are.equal(false, settings.get("herdr"))
+			assert.are.equal("full", settings.get("herdr_detail"))
+			vim.fn.delete(file)
 		end)
 	end)
 end)

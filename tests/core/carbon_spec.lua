@@ -19,30 +19,49 @@ describe("core.carbon", function()
 
 	it("resolves the carbon role table by default and a named theme via the flag", function()
 		assert.are.equal("#161616", carbon.colors().base00)
-		vim.g.nvsinner_theme = "fjord"
+		vim.g.nvsinner_theme = "nord"
 		assert.are.equal("#2e3440", carbon.colors().base00)
-		vim.g.nvsinner_theme = "moon"
+		vim.g.nvsinner_theme = "carbon-light"
 		assert.are.equal("#ffffff", carbon.colors().base00)
 	end)
 
 	it("theme(): defaults to carbon, honors vim.g/env, unknown values fall back", function()
 		assert.are.equal("carbon", carbon.theme())
-		vim.env.NVSINNER_THEME = "mocha"
-		assert.are.equal("mocha", carbon.theme())
+		vim.env.NVSINNER_THEME = "catppuccin-mocha"
+		assert.are.equal("catppuccin-mocha", carbon.theme())
 		-- vim.g wins over the environment; invalid values fall back to carbon.
-		vim.g.nvsinner_theme = "kyoto"
-		assert.are.equal("kyoto", carbon.theme())
+		vim.g.nvsinner_theme = "tokyonight"
+		assert.are.equal("tokyonight", carbon.theme())
 		vim.g.nvsinner_theme = "solarized"
 		assert.are.equal("carbon", carbon.theme())
 	end)
 
+	-- The eight invented names ("kyoto", "fjord", …) and "moon" were renamed to
+	-- the schemes they port. A persisted choice, a hand-set vim.g and a launch
+	-- env var may all still carry the old name, so every read resolves it.
+	it("theme(): resolves the retired names to the schemes that replaced them", function()
+		for old, new in pairs(carbon.theme_aliases) do
+			assert.is_not_nil(carbon.themes[new], new .. " must be a registered theme")
+			assert.is_nil(carbon.themes[old], old .. " must no longer be registered")
+			assert.are.equal(new, carbon.resolve_theme(old))
+			vim.g.nvsinner_theme = old
+			assert.are.equal(new, carbon.theme(), "vim.g." .. old)
+			vim.g.nvsinner_theme = nil
+			vim.env.NVSINNER_THEME = old
+			assert.are.equal(new, carbon.theme(), "$NVSINNER_THEME=" .. old)
+			vim.env.NVSINNER_THEME = nil
+		end
+		assert.is_nil(carbon.resolve_theme("solarized"))
+		assert.is_nil(carbon.resolve_theme(nil))
+	end)
+
 	it("theme(): honors the legacy background flag when no theme flag is set", function()
 		vim.env.NVSINNER_BACKGROUND = "light"
-		assert.are.equal("moon", carbon.theme())
+		assert.are.equal("carbon-light", carbon.theme())
 		vim.g.nvsinner_background = "dark" -- vim.g wins over the env var
 		assert.are.equal("carbon", carbon.theme())
-		vim.g.nvsinner_theme = "fjord" -- and the theme flag wins over both
-		assert.are.equal("fjord", carbon.theme())
+		vim.g.nvsinner_theme = "nord" -- and the theme flag wins over both
+		assert.are.equal("nord", carbon.theme())
 	end)
 
 	it("every named theme fills the full role set and registers coherently", function()
@@ -68,12 +87,12 @@ describe("core.carbon", function()
 
 	it("background(): derives the variant from the active theme", function()
 		assert.are.equal("dark", carbon.background())
-		vim.g.nvsinner_theme = "moon"
+		vim.g.nvsinner_theme = "carbon-light"
 		assert.are.equal("light", carbon.background())
-		vim.g.nvsinner_theme = "monolith"
+		vim.g.nvsinner_theme = "monokai"
 		assert.are.equal("dark", carbon.background())
 		vim.g.nvsinner_theme = nil
-		vim.env.NVSINNER_BACKGROUND = "light" -- legacy flag still boots moon
+		vim.env.NVSINNER_BACKGROUND = "light" -- legacy flag still boots carbon-light
 		assert.are.equal("light", carbon.background())
 	end)
 
@@ -114,23 +133,50 @@ describe("core.carbon", function()
 	end)
 
 	it("named themes resolve through the same colorscheme", function()
-		vim.g.nvsinner_theme = "moon"
-		vim.cmd.colorscheme("carbon")
-		assert.are.equal(0xffffff, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
-		vim.g.nvsinner_theme = "kyoto"
-		vim.cmd.colorscheme("carbon")
-		assert.are.equal(0x1a1b26, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
-		vim.g.nvsinner_theme = "briar"
-		vim.cmd.colorscheme("carbon")
-		assert.are.equal(0x191724, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
-		vim.g.nvsinner_theme = "grove"
-		vim.cmd.colorscheme("carbon")
-		assert.are.equal(0x2d353b, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
-		vim.g.nvsinner_theme = "neon"
-		vim.cmd.colorscheme("carbon")
-		assert.are.equal(0x16181a, vim.api.nvim_get_hl(0, { name = "Normal" }).bg)
+		-- One dark and one light theme per upstream family, so a palette losing
+		-- its bg role fails here rather than in a screenshot.
+		local expected = {
+			["carbon-light"] = 0xffffff,
+			tokyonight = 0x1a1b26,
+			["tokyonight-day"] = 0xe1e2e7,
+			["rose-pine"] = 0x191724,
+			everforest = 0x2d353b,
+			["everforest-light"] = 0xfdf6e3,
+			nightfox = 0x192330,
+			dayfox = 0xf6f2ee,
+			cyberdream = 0x16181a,
+		}
+		for name, bg in pairs(expected) do
+			vim.g.nvsinner_theme = name
+			vim.cmd.colorscheme("carbon")
+			assert.are.equal(bg, vim.api.nvim_get_hl(0, { name = "Normal" }).bg, name)
+		end
 		vim.g.nvsinner_theme = nil
 		vim.cmd.colorscheme("carbon")
+	end)
+
+	-- On a light background the fg ramp walks toward black, so base03 (muted
+	-- comments) must stay LIGHTER than base04 (body text) and base05/base06
+	-- darker — the inverse of the dark contract. Getting this backwards is how
+	-- the old "moon" palette ended up with near-black comments shouting over
+	-- the code they annotate.
+	it("light themes follow the inverted foreground ramp", function()
+		local function lum(hex)
+			local r, g, b = hex:match("^#(%x%x)(%x%x)(%x%x)$")
+			return 0.299 * tonumber(r, 16) + 0.587 * tonumber(g, 16) + 0.114 * tonumber(b, 16)
+		end
+		for _, name in ipairs(carbon.theme_names) do
+			if carbon.themes[name].variant == "light" then
+				vim.g.nvsinner_theme = name
+				local c = carbon.colors()
+				assert.is_true(lum(c.base03) > lum(c.base04), name .. ": comments must be lighter than body text")
+				assert.is_true(lum(c.base05) < lum(c.base04), name .. ": base05 must be darker than body text")
+				assert.is_true(lum(c.base06) < lum(c.base05), name .. ": base06 is the dark extreme")
+				assert.is_true(lum(c.blend) < lum(c.base00), name .. ": floats stay recessed")
+				assert.is_true(lum(c.shade) < lum(c.blend), name .. ": modals sit below the floats")
+			end
+		end
+		vim.g.nvsinner_theme = nil
 	end)
 
 	-- Groups Neovim (or a plugin) ships with a hardcoded off-palette color, or

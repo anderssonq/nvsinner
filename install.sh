@@ -66,6 +66,13 @@ EOF
 chmod +x "$LAUNCHER"
 ok "Installed launcher: $LAUNCHER"
 
+# The herdr control client is a symlink into the clone, not a copy, so it stays
+# current with `git pull` / :NvSinnerUpdate. It is inert without herdr.
+if [ -x "$CONFIG_DIR/bin/nvsinner-herdr" ]; then
+  ln -sf "$CONFIG_DIR/bin/nvsinner-herdr" "$BIN_DIR/nvsinner-herdr"
+  ok "Installed herdr client: $BIN_DIR/nvsinner-herdr"
+fi
+
 # If ~/.local/bin isn't on PATH, PRINT the exact line to add (naming the likely
 # shell rc) — we never edit the user's shell files, just tell them what to paste.
 case ":$PATH:" in

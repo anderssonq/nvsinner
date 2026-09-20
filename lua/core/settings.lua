@@ -10,7 +10,7 @@
 --
 -- Precedence contract (documented in lua/core/carbon.lua): vim.g wins over the
 -- environment. This module only SEEDS vim.g when neither vim.g nor the env var
--- is set, so `NVSINNER_THEME=fjord nvsinner` still overrides a persisted
+-- is set, so `NVSINNER_THEME=nord nvsinner` still overrides a persisted
 -- choice for that launch.
 --
 -- Settings that other modules consume:
@@ -49,6 +49,8 @@ M.defaults = {
 	key_timeout = 300, -- 'timeoutlen' ms: the prefix wait on <leader>t/j/jx/f (core/options.lua sets the same baseline)
 	quiet = false, -- true → hide INFO/DEBUG notifications (WARN+ still show)
 	minimap = false, -- code minimap (braille overview) on the right edge of the focused window
+	herdr = true, -- report the AI columns' state to a herdr server; no-ops unless herdr owns this pane
+	herdr_detail = "tokens", -- how much detail herdr gets: "state" | "tokens" (+ per-column) | "full" (+ title/labels)
 }
 
 local legacy_file = vim.fn.stdpath("data") .. "/nvsinner-settings.json" -- pre-settings/ location
@@ -87,9 +89,14 @@ function M.load(opts)
 		-- Migration: the pre-themes "background" ("dark"|"light") key becomes
 		-- the equivalent named theme; the stale key drops on the next save.
 		if decoded.theme == nil and decoded.background ~= nil then
-			data.theme = (decoded.background == "light") and "moon" or "carbon"
+			data.theme = (decoded.background == "light") and "carbon-light" or "carbon"
 		end
 	end
+	-- Migration: the invented theme names ("kyoto", "moon", …) became the real
+	-- scheme names they ported. carbon.theme() resolves an alias on every read
+	-- anyway, but healing the value here means the JSON stops carrying a dead
+	-- name and :NvSinnerMenu's cycle lands on the right row.
+	data.theme = require("core.carbon").resolve_theme(data.theme) or M.defaults.theme
 	if migrating then
 		M.save()
 	end
@@ -205,6 +212,12 @@ local apply = {
 			require("core.minimap").set_enabled(v)
 		end)
 	end,
+	herdr = function(v)
+		pcall(function()
+			require("core.herdr").set_enabled(v)
+		end)
+	end,
+	herdr_detail = function() end, -- read at report time by herdr.flush(); nothing to apply live
 }
 
 -- Set + persist + apply live + broadcast.

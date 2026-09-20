@@ -205,6 +205,151 @@ edits files on disk (see *Auto-reload* below).
   `M._set_items`, `M._preview_lines`, `M._ticking`, `M._reset`. Spec:
   `tests/core/agents_spec.lua`.
 
+## herdr bridge — `herdr.lua` (required from `init.lua`)
+
+Reports the AI columns to a running [herdr](https://herdr.dev) server, so the
+multiplexer that owns this editor's pane can see the agents living *inside* it.
+
+**Why it exists.** herdr recognises a coding agent by watching the terminal of a
+pane it owns. Our columns are toggleterm buffers inside one Neovim process, so
+from herdr's side the whole editor is one pane "running an editor" — up to nine
+live agents it cannot see, count, or tell you are blocked.
+
+**This is not the rejected direction.** It exports state *outward* to the
+terminal runtime. It still reads no API key, renders no chat and wraps no CLI —
+the AI-is-a-CLI-in-a-column rule is untouched. Do not delete it as "an in-editor
+AI integration".
+
+**Gate.** Every entry point is a no-op unless `HERDR_ENV=1`, `HERDR_SOCKET_PATH`
+and `HERDR_PANE_ID` are all present — the same guard herdr's own shipped
+integrations use. `:NvSinnerMenu` → "herdr reporting" turns it off on top of
+that; "herdr detail" picks `state` (lifecycle only), `tokens` (+ per-column) or
+`full` (+ title and state labels).
+
+**One agent per pane.** herdr keys agents by pane id, so N columns necessarily
+roll up into ONE reported agent. `M._payload()` is the single place that rule is
+written down, and it is pure so the spec can pin it: **attention wins** — any
+column awaiting makes the pane `blocked`, else any working makes it `working`,
+else `idle`; no live column at all yields `nil`, which means *release our
+authority and let herdr go back to screen detection*. Per-column detail rides
+along as `report_metadata` tokens `j1`…`j9`.
+
+**Push, never poll.** State arrives on the `User NvSinnerAgentState` channel
+that `ai-activity.lua` and `ai-sessions.lua` emit on. A sweep over terminal
+buffers is the design that was already ruled out for activity detection, and
+`M.snapshot()` → `status_of` → `tail()` *is* such a sweep — so the only timer in
+this module is a **coalescer armed by an event**. That also makes coalescing
+mandatory rather than an optimisation: herdr tracks one agent per pane, so N
+column events collapse into one frame by definition.
+
+**Reads the cockpit through `agents.snapshot()`, never `refresh()`.** `refresh()`
+rewrites the modal's item list *and* its layout, and `ui.sel` is a positional
+index into that list — refreshing from outside can shift rows under a screen
+nobody repainted and make the next `<CR>`/`d` act on a different agent than the
+one shown. `snapshot()` is the pure half, extracted for exactly this.
+
+**Env isolation (`child_env()`).** Columns otherwise inherit Neovim's
+environment verbatim, including the *editor's* `HERDR_PANE_ID`. A CLI with a
+herdr integration installed (claude ships one) then reports its own session
+against the editor's pane — every column overwriting the last, and herdr later
+restoring a mis-attributed session into a plain shell. `child_env()` blanks the
+five `HERDR_*` vars for the child; `jobstart`'s `env` cannot delete a variable,
+and `clear_env` would mean rebuilding `PATH` by hand, so empty strings are the
+mechanism — they fail herdr's `== "1"` / non-empty guards, which is all its
+clients check. Gated on env **presence**, not on `M.enabled()`: the
+mis-attribution happens whether or not we report, so turning reporting off must
+not re-open it. `lua/plugins/terminal/toggleterm.lua` **pulls** the table
+(`env = require("core.herdr").child_env()`); core never requires the plugin.
+
+**Protocol findings** (probed on NVIM 0.12.3 against herdr 0.9.1, protocol 22):
+
+- **One request per connection.** A second frame written to the same socket is
+  accepted by `chansend()` but never answered and never applied. A persistent
+  channel looks like it works — `report_agent` lands and `report_metadata`
+  silently vanishes. Every call opens its own connection, as herdr's own hooks
+  do.
+- `sockconnect()` **throws** on failure (`Vim:connection failed`), and
+  `chansend()` on a dead id throws `E900`, despite `:help` saying they return 0.
+  Both are `pcall`-wrapped.
+- A report **is** accepted on a pane whose foreground process is not a shell,
+  and takes over from screen detection — verified end to end against a live
+  server on an agentless pane, then released cleanly.
+- `report_metadata` tokens **merge across sources**; nulling ours leaves another
+  integration's tokens standing. `release_agent` drops the lifecycle authority
+  but leaves title/labels/tokens, so `M.release()` clears its own metadata first.
+
+**Failure is silent by design.** A herdr server that went away must be
+indistinguishable from no herdr: sends are `pcall`'d, failures re-arm a widening
+backoff, and nothing ever toasts — a retry loop that notified would nag straight
+past the `quiet` setting (the same reasoning as `version.lua`'s offline launch).
+
+**Why the rollup is the ceiling, not a shortcut** (measured 2026-09-20 against
+herdr 0.9.1, on an idle shell pane, released afterwards):
+
+- Reporting agent A from source `probe-a`, then agent B from a DIFFERENT source
+  `probe-b`, against the same pane leaves **one** entry in `agent.list` — B
+  replaced A. Same source with a second name replaces it again. So it is one
+  agent per pane, **last writer wins, regardless of source**. Per-column agents
+  would require per-column *panes*, i.e. moving the CLIs out of the editor.
+- A REPORTED agent is **not addressable by name**: `agent.get` /
+  `herdr agent get <name>` answers `agent_not_found` while `agent.list` is still
+  showing that agent on the pane. Name targeting works for agents herdr detected
+  itself. That is why `bin/nvsinner-herdr` exists at all, and why nothing here
+  should be documented as reachable via `herdr agent prompt`.
+- `pane.release_agent` is subject to the same `seq` watermark as a report: a
+  release carrying a LOWER seq than the last report is accepted (`ok`) and
+  silently ignored. `herdr pane release-agent` on the CLI generates its own seq,
+  so it cannot undo a state reported with a large one. `next_seq()` here is
+  monotonic across the module's whole lifetime for exactly this reason — never
+  give release its own numbering.
+
+**Honest limit.** What we report is only as good as `agents.status_of()`, whose
+per-CLI screen signatures are field-verified, not test-verified. `blocked` is a
+heuristic, not a guarantee.
+
+### Discovery + remote control — `M.remote` and `bin/nvsinner-herdr`
+
+Reporting lets herdr *see* the columns; this lets anything inside herdr *drive*
+them. Neovim always listens on `v:servername`, so a client in another pane can
+go pane id → socket → column.
+
+**Why a file and not a token.** Token values are **truncated at 80 characters**,
+silently — the server still answers `ok`. The default socket path is ~108, so
+`v:servername` can never ride in a token. `M.publish()` writes a discovery
+record at `stdpath("state")/herdr/<pane>.json` (directory `0700`) holding the
+servername, pid, cwd and pane; the token carries only the **pid**, which is
+short, identifies the instance, and is worth seeing in herdr's UI. The record is
+written before the first send — the control path must work even while reporting
+is failing — and removed on `VimLeavePre`.
+
+**Why Neovim's own socket.** Neovim creates socket files `0755`, so a socket of
+ours in a shared directory would be world-connectable. The default one is
+protected by its `0700` parent directories, so we reuse it rather than calling
+`serverstart()` on a path of our own.
+
+**`M.remote(path)` takes a request FILE, not a request.** The client writes
+`key=value` header lines, a bare `--`, then the free text verbatim. That way a
+multi-line prompt never has to be escaped into a Vim expression, and the only
+interpolated value is a path the client made. Actions: `list`, `focus`, `send`,
+`read` — an allowlist, and an unknown one is refused. `json=1` returns the same
+shape encoded, so the shell client needs no JSON parser.
+
+`M.remote` is deliberately **not** gated on `M.enabled()`: a client may hold the
+socket while this editor reports nothing. It is an API surface, **not a security
+boundary** — anything holding that socket can already evaluate arbitrary code
+here. Do not document it as a sandbox.
+
+`send` goes through `ai-sessions.send_to`, so the **never-auto-submit** contract
+holds unchanged: the text lands in the CLI input and no carriage return follows.
+
+`read` trims the blank tail **before** taking the last N lines. A terminal buffer
+is a full-height grid, so a column that has not filled its screen yet keeps its
+output at the top with blank rows under it — tailing first returns nothing.
+
+Spec: `tests/core/herdr_spec.lua`. `M._send` is the one socket toucher and is
+swapped by table field in every test, so the suite never opens a connection; the
+remote specs drive `M.remote` against real terminals.
+
 ## Inline AI completion — `ai-complete.lua` (required from `init.lua`)
 
 The **one deliberate exception** to "no in-editor AI / never read an API key".
@@ -374,28 +519,56 @@ editing.
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
   colorscheme reloads and lazy-loaded plugins.
 - **Background themes** — `M.themes` / `M.theme_names` in `carbon.lua` name
-  ten full role tables selectable from `:NvSinnerMenu` "Background theme":
-  `carbon` (the reference dark, `M.dark`), `moon` (the light variant,
-  `M.light`), and eight ORIGINAL palettes inspired by well-known schemes —
-  `onedusk` (One Dark Pro), `mocha` (Catppuccin Mocha), `kyoto` (Tokyo
-  Night), `fjord` (Nord), `monolith` (Monokai), `briar` (Rosé Pine),
-  `grove` (Everforest), `neon` (cyberdream). Each registry entry maps the
-  name to its role table (`palette`) and its `vim.o.background` `variant`
-  (only `moon` is light); each palette fills the EXACT role set of `M.dark`
+  fourteen full role tables selectable from `:NvSinnerMenu` "Background
+  theme", each named after the scheme it ports: ten dark (`carbon` — the
+  reference, `M.dark` — plus `onedark`, `catppuccin-mocha`, `tokyonight`,
+  `nord`, `monokai`, `rose-pine`, `everforest`, `cyberdream`, `nightfox`) and
+  four light (`carbon-light` — the historic light variant, `M.light` — plus
+  `tokyonight-day`, `everforest-light`, `dayfox`). Each registry entry maps the
+  name to its role table (`palette`) and its `vim.o.background` `variant`;
+  **public names carry hyphens and role tables underscores** (`rose-pine` →
+  `M.rose_pine`), because a hyphen is not a Lua identifier — `palette` is the
+  bridge. Every palette fills the EXACT role set of `M.dark`
   (pinned by `tests/core/carbon_spec.lua`) with carbon's role semantics —
   base09 identity, base10 attention, base12 busy — so every consumer works
   unchanged. `M.theme()` resolves the flag (`vim.g.nvsinner_theme` /
   `$NVSINNER_THEME`, unknown → `"carbon"`; the legacy
   `nvsinner_background`/`$NVSINNER_BACKGROUND` flag still maps
-  light→`moon` when no theme flag is set), `M.colors()` selects the palette
-  from it, and `M.background()` returns the active theme's variant (what
-  `theme.lua` boots `vim.o.background` with). Switching is live:
+  light→`carbon-light` when no theme flag is set), `M.colors()` selects the
+  palette from it, and `M.background()` returns the active theme's variant
+  (what `theme.lua` boots `vim.o.background` with). Switching is live:
   `settings.set("theme", …)` → flag + `:colorscheme carbon` → every
   ColorScheme consumer retints. Accent packs overlay by the theme's
   dark/light variant, so `blue` (the empty pack) shows each theme's own
   signature accent and the other packs apply their generic overrides. New
-  themes are **appended** to `M.theme_names` — `tests/core/menu_spec.lua`
-  pins `carbon`/`moon` as the first two entries of the cycle.
+  themes are **appended to their variant's group** in `M.theme_names` (dark
+  first, then light, so cycling with `h`/`l` does not flash the background
+  back and forth) — `tests/core/menu_spec.lua` pins `carbon`/`onedark` as the
+  first two entries of the cycle.
+- **Retired theme names resolve, they do not break** — `M.theme_aliases` maps
+  the nine invented names the themes originally shipped under
+  (`moon`→`carbon-light`, `onedusk`→`onedark`, `mocha`→`catppuccin-mocha`,
+  `kyoto`→`tokyonight`, `fjord`→`nord`, `monolith`→`monokai`,
+  `briar`→`rose-pine`, `grove`→`everforest`, `neon`→`cyberdream`).
+  `M.resolve_theme(name)` is the one resolver — alias lookup, then registry
+  membership, `nil` for anything unregistered — and `M.theme()` reads every
+  flag through it, so a hand-set `vim.g` and `NVSINNER_THEME=kyoto nvsinner`
+  both still work. `settings.load` additionally REWRITES the persisted value
+  through it, so the JSON heals and `:NvSinnerMenu`'s cycle lands on the right
+  row. **Rename a theme and you add an alias** — dropping one silently falls a
+  user's saved choice back to `carbon`.
+- **The light variants invert the foreground ramp**, and this is the one place
+  a light palette can be got wrong while still filling every role slot: above
+  `base02` the ramp walks toward BLACK, so `base03` (muted comments) is the
+  LIGHTEST foreground, `base04` body text, `base05` darker still (it must read
+  on the recessed `blend`), `base06` the dark extreme. `blend`/`shade` stay
+  recessed, i.e. darker than `base00`. A light port may also darken an accent
+  one step: the statusline mode chips paint `base00` text on a solid accent,
+  and `base00` is near-white here, so a pastel accent swallows the label. The
+  contract is stated in `carbon.lua`'s header and enforced by
+  `tests/core/carbon_spec.lua` ("light themes follow the inverted foreground
+  ramp"), which exists because the original `moon` palette had it backwards —
+  near-black comments shouting over the code they annotate.
 - **Feature flags** (resolved by `carbon.lua`; `vim.g` wins over env, which
   wins over the persisted `:NvSinnerMenu` value seeded by `settings.lua`):
   `vim.g.nvsinner_theme` / `$NVSINNER_THEME` (background theme, above;
@@ -554,7 +727,9 @@ only exists when lualine does); layout/centring notes live in
   next to the committed `settings/prompts.json`, so all user-tweakable state
   sits in one place; a pre-`settings/` cache under `stdpath("data")` is
   migrated on first load) and applies them: `theme` (background theme; a
-  legacy persisted `background` key migrates to `moon`/`carbon` on load) /
+  legacy persisted `background` key migrates to `carbon-light`/`carbon` on
+  load, and a retired theme name is rewritten through
+  `carbon.resolve_theme`) /
   `transparent` / `accent` / `folder` / `notif` / `variables` / `strings` /
   `functions` (carbon flags), `tree_side` (neo-tree position), `ai_side` (AI/vertical
   terminal column side), `inlay_hints` (LSP inlay hints — off by default, since
