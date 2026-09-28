@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.8.1).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.9.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.8.1"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.9.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer swaps the quote for an update prompt (or
     appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.8.1` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.9.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -307,6 +307,22 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     that reads it. `palette-audit.sh` now derives its whitelist from
     `lua/core/carbon.lua`, and `tests/docs/claude_docs_spec.lua` turns the
     mechanical half of the drift into a red test.
+    **v3.9.0** is three features. The background themes now carry the names of
+    the schemes they port (`kyoto` is `tokyonight`, `fjord` is `nord`, `briar` is
+    `rose-pine`, `grove` is `everforest`, and so on), with `theme_aliases` +
+    `resolve_theme()` keeping every retired name working, and four new palettes
+    (`tokyonight-day`, `everforest-light`, `nightfox`, `dayfox`) bring the total
+    to fourteen; building the light ones exposed that the old light theme had its
+    comment and float-text roles inverted, now fixed and guarded by a spec.
+    `lua/core/herdr.lua` reports the AI columns to a running herdr server (one
+    rolled-up agent state per pane, pushed on `User NvSinnerAgentState`, never
+    polled), and `bin/nvsinner-herdr` drives them from another herdr pane
+    (list/focus/send/read; send never submits); it is inert unless herdr owns the
+    pane, and columns no longer inherit the editor pane's `HERDR_PANE_ID`. Last,
+    in the `<leader>gd` Diffview both panes scroll together under the mouse
+    wheel: Neovim only syncs `scrollbind` for the current window, so a
+    `WinScrolled` autocmd re-syncs the unfocused pane with a net-zero
+    `<C-y><C-e>` run as the scrolled window.
 
 ## Status
 
