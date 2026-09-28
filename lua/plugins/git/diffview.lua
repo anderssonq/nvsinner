@@ -482,12 +482,47 @@ return {
 	-- a desc. `init` runs at startup without loading the plugin, and the panel
 	-- filetypes only ever exist once it has. See core/mouse.lock_selection; the
 	-- diff windows themselves (keymaps.view) keep normal drag-selection.
+	--
+	-- The same group also keeps the two diff panes scrolling together under the
+	-- mouse wheel. diffview sets 'scrollbind' on both, but Neovim only syncs the
+	-- binds of the CURRENT window: a wheel over the other pane (focus in the file
+	-- panel, or in the opposite pane) scrolled it alone until the next cursor
+	-- move. When a scroll happened and the current window did not move, re-sync
+	-- from the window that did. Keys and neoscroll scroll the current window, so
+	-- they return on the first check and never fight the native sync. Keyed on
+	-- 'scrollbind', not diffview, so a native `:diffthis` split gets it too; the
+	-- wheel itself is never remapped.
 	init = function()
+		local group = vim.api.nvim_create_augroup("nvsinner_diffview_mouse", { clear = true })
 		vim.api.nvim_create_autocmd("FileType", {
-			group = vim.api.nvim_create_augroup("nvsinner_diffview_mouse", { clear = true }),
+			group = group,
 			pattern = { "DiffviewFiles", "DiffviewFileHistory" },
 			callback = function(args)
 				require("core.mouse").lock_selection(args.buf)
+			end,
+		})
+		vim.api.nvim_create_autocmd("WinScrolled", {
+			group = group,
+			callback = function()
+				if vim.v.event[tostring(vim.api.nvim_get_current_win())] then
+					return -- the current window scrolled: Neovim already synced its binds
+				end
+				for id in pairs(vim.v.event) do
+					local win = tonumber(id) -- nil for the "all" key
+					if win and vim.api.nvim_win_is_valid(win) and vim.wo[win].scrollbind then
+						-- A net-zero scroll run AS that window hands it to Neovim's own
+						-- bind logic, which then drags the partners along, diff filler
+						-- included. It is diffview's sync_scroll trick: `:syncbind` forced
+						-- one topline, the focused pane's cursor then got corrected, and
+						-- the native re-sync from that pane left them 2 lines apart.
+						-- Up-then-down so a pane at the bottom can't come back one short.
+						local keys = vim.fn.getwininfo(win)[1].topline > 1 and "\25\5" or "\5\25"
+						vim.api.nvim_win_call(win, function()
+							vim.cmd("normal! " .. keys)
+						end)
+						return
+					end
+				end
 			end,
 		})
 	end,
