@@ -275,6 +275,110 @@ describe("diffview spec", function()
 		end)
 	end)
 
+	-- Neovim syncs 'scrollbind' only for the CURRENT window, so a mouse wheel over
+	-- the other diff pane scrolled it alone. The spec's `init` re-syncs from the
+	-- scrolled window. Exercised natively: two `:diffthis` windows are exactly
+	-- what diffview builds (diff + scrollbind), no plugin needed.
+	--
+	-- It runs in an `--embed` child over RPC because nvim_input_mouse only QUEUES
+	-- the event: only the main loop consumes input, and a spec never yields to
+	-- its own (vim.wait and an "x" feedkeys both leave the wheel unread). The
+	-- child's loop reads it between our requests, as it would under a real UI.
+	describe("wheel scroll sync", function()
+		local chan
+
+		local function child(code, ...)
+			return vim.rpcrequest(chan, "nvim_exec_lua", code, { ... })
+		end
+
+		-- `left` scrolled by the wheel while `right` keeps focus.
+		local function tops()
+			return child([[
+				local t = function(w) return vim.fn.getwininfo(w)[1].topline end
+				return { left = t(_G.left), right = t(_G.right), focus_right = vim.api.nvim_get_current_win() == _G.right }
+			]])
+		end
+
+		local function wheel_over_left()
+			local pos = child("return vim.api.nvim_win_get_position(_G.left)")
+			vim.rpcrequest(chan, "nvim_input_mouse", "wheel", "down", "", 0, pos[1] + 2, pos[2] + 2)
+			vim.wait(1000, function()
+				return tops().left > 1
+			end, 10)
+			vim.wait(100) -- let a sync, if any, land
+			return tops()
+		end
+
+		before_each(function()
+			chan = vim.fn.jobstart({
+				vim.v.progpath,
+				"--embed",
+				"--headless",
+				"--noplugin",
+				"-u",
+				repo_root() .. "/tests/minimal_init.lua",
+			}, { rpc = true })
+			assert.is_true(chan > 0, "could not start the child nvim")
+			child(
+				[[
+				local path, bind = ...
+				dofile(path).init()
+				-- A change every 10 lines: identical buffers would fold to one line
+				-- under foldmethod=diff, leaving nothing to scroll.
+				local old, new = {}, {}
+				for i = 1, 200 do
+					old[i] = "line " .. i
+					new[i] = i % 10 == 0 and ("changed " .. i) or old[i]
+				end
+				vim.api.nvim_buf_set_lines(0, 0, -1, false, new)
+				_G.right = vim.api.nvim_get_current_win()
+				vim.cmd("leftabove vnew")
+				vim.api.nvim_buf_set_lines(0, 0, -1, false, old)
+				_G.left = vim.api.nvim_get_current_win()
+				for _, win in ipairs({ _G.left, _G.right }) do
+					if bind then
+						vim.api.nvim_win_call(win, function() vim.cmd("diffthis") end)
+					end
+					vim.wo[win].scrollbind = bind
+				end
+				vim.api.nvim_set_current_win(_G.right)
+			]],
+				repo_root() .. "/lua/plugins/git/diffview.lua",
+				true
+			)
+		end)
+
+		after_each(function()
+			vim.fn.jobstop(chan)
+		end)
+
+		it("drags the focused pane along when the wheel scrolls the other one", function()
+			local t = wheel_over_left()
+			assert.is_true(t.left > 1, "the wheel must scroll the pane under the pointer")
+			assert.are.equal(t.left, t.right, "the focused pane must follow")
+			assert.is_true(t.focus_right, "the wheel must not move focus")
+		end)
+
+		-- Negative control: without the autocmd Neovim leaves the partner behind,
+		-- which is the whole reason it exists.
+		it("is what makes it work — Neovim alone leaves the focused pane behind", function()
+			child([[vim.api.nvim_clear_autocmds({ group = "nvsinner_diffview_mouse", event = "WinScrolled" })]])
+			local t = wheel_over_left()
+			assert.is_true(t.left > 1)
+			assert.are.equal(1, t.right)
+		end)
+
+		it("leaves windows without 'scrollbind' alone", function()
+			child([[
+				vim.cmd("diffoff!")
+				for _, win in ipairs({ _G.left, _G.right }) do vim.wo[win].scrollbind = false end
+			]])
+			local t = wheel_over_left()
+			assert.is_true(t.left > 1)
+			assert.are.equal(1, t.right)
+		end)
+	end)
+
 	-- diffview fires diff_buf_win_enter for every diff window it opens, including
 	-- the ones nobody asked to jump to. With no jump queued the hook must be
 	-- inert: it runs on windows/buffers it was never told about.

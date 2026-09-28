@@ -205,3 +205,23 @@
   `desc`. `init` also runs at startup without loading diffview, and the panel
   filetypes only exist once it has. **`keymaps.view` is deliberately excluded** —
   the diff windows are real text and keep normal drag-selection.
+
+  **Wheel scrolling stays synced across the diff panes.** diffview sets
+  `scrollbind` on both, but Neovim only syncs the binds of the *current*
+  window, so a mouse wheel over the other pane (focus in the file panel or in
+  the opposite pane) moved it alone. The same `init` (same augroup) adds a
+  `WinScrolled` autocmd. When the current window is NOT among the scrolled
+  ones, it runs a net-zero `<C-y><C-e>` (or `<C-e><C-y>` at the top) as the
+  scrolled window, which hands it to Neovim's native bind logic. That is
+  diffview's own `sync_scroll` trick. Rules:
+  - **Never `:syncbind` here.** It forces one topline, the focused pane's
+    cursor is then corrected, and the native re-sync from that pane left the
+    panes 2 lines apart (measured). The native path aligns exactly like
+    keyboard scrolling, diff filler included, so a 1-line topline gap around a
+    deleted block is correct, not drift.
+  - **The guard is "the current window did not scroll".** Keys and neoscroll
+    scroll the current window and return on the first check, so this never
+    fights the native sync.
+  - **Keyed on `scrollbind`, never on diffview**, so native `:diffthis`
+    splits get it too; the file panels (`scrollbind = false`) never do. The
+    wheel itself is never remapped.
