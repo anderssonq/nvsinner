@@ -154,6 +154,27 @@ autocmds look the field up at call time, so every path lands on the wrapper.
 For another host: find the one function every redraw goes through and wrap
 that field, idempotently (`alpha._nvsinner_wallpaper` guard).
 
+### Animating it: resample once, re-pair pixel rows per frame
+
+The wallpaper floats (a slow sine of a few pixel rows). The pattern generalizes
+to any moving image:
+
+- **Split the resample from the frame.** `M.pixels` (the expensive cover-fit
+  bilinear pass) is memoized per window size; `M.frame(px, cols, rows, off)`
+  only chooses which two pixel rows fill each `▄` cell. A vertical move then
+  costs a table walk, not a resample.
+- **Move in pixel rows, not cells.** One pixel row is half a cell, so the
+  motion is twice as smooth as cell steps for free.
+- **Repaint only when the integer offset changes**, and make the host's own
+  redraw path paint at the current offset too (`M.paint` reads `M.off`), or
+  every alpha redraw snaps the picture back to rest.
+- **Gate the timer like statusmark's**: never headless, stop on the first tick
+  with nothing on screen, stop on `FocusLost`, restart on `FocusGained`.
+- **Verify in a real PTY, not headless** — the timer never runs headless. Render
+  the TUI output through `pyte` and compare snapshots: bytes per window,
+  changed cells, and which rows hold `▄` glyphs, across "dashboard → `:e file`
+  → `:Alpha`". That probe is what caught the fall's split figure.
+
 ### Settings shape
 
 On/off is one persisted key written through `core/settings`, exposed as a
@@ -219,6 +240,7 @@ must still be pure black.
 | Darkening the bg under text for legibility | painted a dark box behind every word |
 | `ok and s.get(k) or nil`, `transparent(x) and nil or x` | Lua `and/or` with a `false`/`nil` middle falls through; both caught by the spec — use plain `if` |
 | An asset smaller than the screen's half-block size | upscaled → blurred |
+| A continuous fall (image wrapping top ↔ bottom) | the figure showed split across both edges; the owner chose a float instead |
 
 ## Provenance and maintenance
 

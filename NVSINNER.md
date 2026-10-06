@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.10.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.11.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.10.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.11.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.10.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.11.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -332,6 +332,14 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     extmarks — half-block glyphs on blank cells, a bg tint under the menu's text,
     and pure black as a transparency key so the theme's own background shows
     through under every palette. The dashboard footer's rotating quotes are gone.
+    **v3.11.0** makes the angel float: while the dashboard is on screen it
+    hovers in place on a slow sine of a few pixel rows, under the same on/off
+    switch. The resample is done once per window size and each frame only
+    re-pairs which two pixel rows fill a `▄` cell, so the motion moves in
+    half-cell steps and a tick repaints only when the offset changes; the timer
+    runs only while a dashboard is visible and the editor has focus. A
+    continuous fall was tried first and dropped — measured in a real PTY, the
+    figure showed split across the top and bottom edges.
 
 ## Status
 
