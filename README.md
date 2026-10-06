@@ -118,6 +118,12 @@ any existing `~/.config/nvim` without touching it.
   is a float, so it never disturbs your window layout, and it leaves the edge
   free for satellite's hunk/diagnostic ruler — minimap and overview ruler side
   by side, the way an IDE does it.
+- **Dashboard wallpaper** — a fallen-angel image painted *behind* the start
+  screen, faded toward the theme background so the menu stays readable. It is on
+  by default; hide it with `:NvSinnerWallpaper off` (no argument toggles) or the
+  *Wallpaper* row in `:NvSinnerMenu`. It needs nothing installed: the image ships
+  as a small raw-pixel file that pure Lua resizes to the window, with no image
+  protocol and no external process.
 - **Distro table stakes** — Trouble diagnostics panel (`<leader>x*`), LSP
   rename (`<leader>rn`) alongside the Neovim 0.11 builtins, Telescope pickers
   for diagnostics/keymaps/commands/resume (`<leader>s*`), which-key group
@@ -623,6 +629,7 @@ lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems t
 lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
 lua/core/image-open.lua        Image files open in macOS Quick Look
 lua/core/minimap.lua           Code minimap pane (:NvSinnerMinimap, <leader>xn) — braille overview + click to jump
+lua/core/wallpaper.lua         Dashboard wallpaper (:NvSinnerWallpaper on|off) — pure-Lua image painted behind alpha
 lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
 settings/prompts.json          The prompt library (committed, hand-editable)
 fonts/                         Bundled FiraCode Nerd Font .ttf files
@@ -647,7 +654,7 @@ spec; new files in an existing category are picked up automatically.
 | `incline.lua` | incline.nvim | **Disabled** — replaced by the native winbar file badge (`lua/core/filebadge.lua`) |
 | `barbacue.lua` | barbecue.nvim | VS Code-style breadcrumbs (winbar) |
 | `render-markdown.lua` | render-markdown.nvim | **Disabled** — replaced by the native markdown reading view (`lua/core/markdown.lua`, same "Open view" chip + `<leader>m`) |
-| `dashboard.lua` | alpha-nvim | Start screen — the NvSinner ASCII mark + clickable quick-action menu; rotating dev quote |
+| `dashboard.lua` | alpha-nvim | Start screen — the NvSinner ASCII mark + clickable quick-action menu over the wallpaper |
 | `noice.lua` | noice.nvim | Centered floating `:` cmdline; messages routed through nvim-notify |
 | `colorizer.lua` | nvim-colorizer | **Disabled** — replaced by the native hex color chips (`lua/core/colorizer.lua`) |
 | `identmini.lua` | indentmini.nvim | **Disabled** — replaced by the native current-scope indent guide (`lua/core/indent.lua`) |
@@ -887,7 +894,7 @@ upstream in neo-tree.
 
 NvSinner tells you when it's time: once per session (on the dashboard, or when
 you open `:NvSinnerHelp`) it checks the version on `main` — if a newer one
-exists, the dashboard quote is replaced by an update prompt and the help title
+exists, the dashboard footer shows an update prompt and the help title
 shows `· update available` next to the version.
 
 NvSinner is just a git clone, so an update is a `git pull` plus a plugin

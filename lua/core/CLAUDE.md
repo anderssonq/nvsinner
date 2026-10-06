@@ -1312,7 +1312,7 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
 - **Headless never checks** (`M._headless`, the `health.lua` bail pattern) —
   the installer's headless boot and the test suite stay off the network.
   Failures (no curl, curl error, non-200, unparseable body) degrade to status
-  `error` — consumers fall back to the plain quote / no title suffix — plus
+  `error` — consumers fall back to an empty footer / no title suffix — plus
   ONE warning written to `:messages` history (`nvim_echo`), deliberately NOT
   a `vim.notify` toast: an offline launch must not nag.
 - Seams: `M._fetch` (the only network toucher, swapped in specs),
@@ -1777,3 +1777,70 @@ and the menu row can never disagree (the `<leader>lh` / `inlay_hints` pattern).
 - Seams: `M._ns`, `M._encode(lines, { width, span, tabstop, per })`,
   `M._slice(total, w0, ws, rows, per)`, `M._eligible(win)`, `M._win()`,
   `M._clicked_line(mp, rect)`, `M.jump(line)`, `M._reset()`.
+
+## Dashboard wallpaper — `wallpaper.lua` (required from `init.lua`)
+
+ONE image painted **behind** the alpha start screen. It is **on by default**,
+and on/off is the only knob: the `wallpaper_on` setting, the *Wallpaper* row in
+`:NvSinnerMenu`, and `:NvSinnerWallpaper [on|off]` (no argument toggles; it
+writes through `core/settings`, so the command and the row can never
+disagree).
+
+**Choosing an image was removed on purpose.** So were the user-image path
+through chafa, the per-size ANSI cache, the strength setting, and the other
+built-ins. Don't reintroduce them without asking.
+
+- **Zero runtime dependencies.** The image is `assets/wallpapers/angel.ppm`
+  (`M.IMAGE`, resolved through the runtimepath): a binary P6 PPM, 320×180,
+  ~173 KB (the spec caps it at 192 KB). It is raw pixels, so pure Lua decodes
+  it (`M.parse_ppm`). A user installing NvSinner needs **no chafa, no Python,
+  nothing**. Python/PIL was used once, offline, to *author* the asset.
+  chafa was only ever used for the removed user-image path.
+- **Why a PPM and not ANSI.** A chafa `.ansi` file is fixed to one window size
+  (~300 KB). A PPM is resampled by `M.sample` to any size: cover-fit (scale to
+  fill, crop the overflow, centred), bilinear, two pixel rows per `▄` cell.
+  Ship at least the screen's half-block pixel size (~210×116 full-screen): a
+  smaller asset is UPscaled and looks blurred. `M.sample` precomputes the
+  separable per-column / per-row weights (17 ms → 5 ms at 210×59).
+  `M.grid` memoizes the decoded image and the last sample.
+- **Paint rules** (`M.paint_grid`):
+  - Blank cells get an overlay `virt_text_win_col` chunk with the image glyph.
+  - Text cells keep their character and only get `bg` = the average of the
+    cell's two pixels, so alpha's fg highlights still apply.
+  - **A lone space between two non-spaces counts as text.** Otherwise the gap
+    in "Find file" got an image glyph that cut the label's patch and the hover
+    pill.
+  - A prototype also darkened the bg under text. That painted a dark box
+    behind every word, so it was dropped.
+  - Colours mix toward carbon `base00` by `M.STRENGTH` (0.35), then quantize
+    to `M.STEP`, which bounds the `NvWallpaper_*` groups. The group cache is
+    dropped on `ColorScheme`.
+  - `M.PRIORITY` (10) keeps the wallpaper under the hover pill (1000).
+- **Black is transparent.** A pixel at or below `M.KEY_MAX` (6) on every
+  channel means "no image". A cell keyed on BOTH halves gets **no extmark at
+  all**, so the window's real `Normal` bg shows through under any theme,
+  variant or transparency setting. The asset therefore stores its backdrop as
+  pure black.
+  - The first `angel` build remapped its backdrop onto `base00` instead, and
+    ran `autocontrast` on RGB. Per-channel stretching tinted it blue, and even
+    a neutral match fits only one theme. On screen it showed as a bluish panel
+    around the figure.
+  - The asset is grayscale. Its backdrop is thresholded (≤ 24) to 0, and the
+    figure is lifted into 40–255, clear of the key.
+- **Composition of `angel`.** The figure was cut from a 640×1138 portrait and
+  placed **off-centre** on a 16:9 canvas, at 79% across and 74% of the height.
+  The centre is where the logo and menu sit. Expect it to sit closer to the
+  menu in a narrow window, because cover-fit crops the sides.
+- **Padding.** The buffer is padded with empty lines up to the window height,
+  so rows below the menu have a line to anchor on.
+- **Repaint hook.** `alpha.draw` runs `nvim_buf_clear_namespace(buf, -1, …)`
+  (every namespace) and rewrites the lines. So `M.attach_alpha(alpha)` (called
+  from `dashboard.lua`) wraps the **`alpha.draw` field**. Alpha's own start,
+  redraw and resize autocmds look the field up at call time, so all of them
+  land on the wrapper, and so do the version spinner's redraws.
+- **Lua `and/or` trap, hit twice here.** `ok and s.get(k) or nil` turns a
+  `false` setting into `nil`, and `transparent(x) and nil or x` always yields
+  `x`. Both were caught by the spec; keep the plain `if` forms.
+- Seams: `M.parse_ppm`, `M.sample`, `M.mix`, `M.paint_grid`, `M.path`,
+  `M.grid`, `M.enabled`, `M.paint`, `M.refresh`, `M.attach_alpha`,
+  `M.command`, `M._reset`. Spec: `tests/core/wallpaper_spec.lua`.

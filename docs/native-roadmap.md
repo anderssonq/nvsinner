@@ -109,7 +109,7 @@ tidies them away.
 
 | Plugin | Native shape | Justification |
 |---|---|---|
-| `alpha-nvim` | `core/dashboard.lua` | the spec is already ~90% custom NvSinner code (logo, gradient, mouse pills, quotes); alpha only contributes the buffer scaffold, which `menu.lua` already knows how to build. The start screen is the first thing a user sees — it should be ours end to end. |
+| `alpha-nvim` | `core/dashboard.lua` | the spec is already ~90% custom NvSinner code (logo, gradient, mouse pills, version footer, wallpaper); alpha only contributes the buffer scaffold, which `menu.lua` already knows how to build. The start screen is the first thing a user sees — it should be ours end to end. |
 | `nvim-notify` | `core/toast.lua` | stacked top-right floats + fade timer; every primitive (floats, `vim.uv` timers, carbon roles, ColorScheme re-apply) exists. Owning `vim.notify` also unblocks noice decisions (noice currently routes messages through nvim-notify). |
 | `barbecue.nvim` + `nvim-navic` | breadcrumbs inside `core/filebadge.lua` | reuses `symbols.lua`'s DocumentSymbol flattening; **unifies winbar ownership** (today split across barbecue / filebadge / ui-touch — a documented friction point). Two plugins out, one owner in. |
 | `satellite.nvim` | native scrollbar (decoration provider) | lowest priority of the tier; nontrivial rendering, purely cosmetic payoff. |

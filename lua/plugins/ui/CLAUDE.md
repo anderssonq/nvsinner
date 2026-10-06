@@ -13,19 +13,24 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   whose only job is applying `:colorscheme carbon` at startup. The palette
   truth is `lua/core/carbon.lua`; the colorscheme is `colors/carbon.lua`.
 - `dashboard.lua` — alpha-nvim start screen (`event = "VimEnter"`, shows on a
-  bare `nvim`). The footer shows one random line from `quotes` per launch —
-  dev quotes plus programming and AI one-liner jokes, each kept under ~80
-  columns so it centres on a normal terminal. The footer quote area doubles as the version-check surface
-  (`lua/core/version.lua`): `footer.val` is a **function** re-resolved on
-  every draw — a spinner while the once-per-session check runs (a
-  self-stopping `vim.uv` timer drives `alpha.redraw()`), the `:NvSinnerUpdate`
-  prompt (`NvSinnerUpdateAvail`, `base10` attention) when an update is
-  available, the quote plus a muted "up to date" line (`NvSinnerVersion`,
-  `base03`) when current, and the plain quote on idle/error. The function
+  bare `nvim`). The footer line is the version-check surface
+  (`lua/core/version.lua`). **It no longer rotates a random dev quote; that
+  was removed on request, so don't bring it back.** `footer.val` is a
+  **function** re-resolved on every draw. It shows:
+  - a spinner while the once-per-session check runs (a self-stopping
+    `vim.uv` timer drives `alpha.redraw()`);
+  - the `:NvSinnerUpdate` prompt (`NvSinnerUpdateAvail`, `base10` attention)
+    when an update is available;
+  - an empty line otherwise. When current, the separate muted "up to date"
+    element (`NvSinnerVersion`, `base03`) carries the message. The function
   must return a **table of lines, never a `\n` string** — alpha renders `\n`
   strings across multiple screen lines but advances its line accounting by
   only 1, corrupting every later element's highlights. All groups live in
   `apply_dashboard_hl()` (carbon roles, re-applied on `ColorScheme`).
+  Just before `alpha.setup()` it calls
+  `require("core.wallpaper").attach_alpha(alpha)`, which wraps `alpha.draw` so
+  the optional wallpaper is repainted after every draw (alpha's draw clears
+  **every** namespace). Contract in `lua/core/CLAUDE.md` §Dashboard wallpaper.
 - `lualine.lua` — statusline with the carbon **mode→accent** map: the mode
   block is a solid accent chip with dark `base00` text (normal `base09`,
   insert `base12`, visual `base14`, replace `base08`, command `base13`,

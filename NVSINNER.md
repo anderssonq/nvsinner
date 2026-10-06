@@ -75,8 +75,8 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
         (`version = "3.9.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
-    `main`: the dashboard footer swaps the quote for an update prompt (or
-    appends "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
+    `main`: the dashboard footer shows an update prompt (or
+    "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
     `v3.9.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
