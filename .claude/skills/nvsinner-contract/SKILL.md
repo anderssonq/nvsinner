@@ -48,6 +48,7 @@ disagree, CLAUDE.md wins and this skill needs the fix.
 | To prove a Neovim behavior claim empirically | `nvsinner-empirical-verification` |
 | Doc style, which doc is the record, commit/PR shape | `nvsinner-docs-and-style` |
 | What to build next | `nvsinner-frontier` |
+| Drawing an image / pixels as terminal cells | `nvsinner-image-rendering` |
 
 ---
 

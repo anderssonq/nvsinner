@@ -276,7 +276,7 @@ specs live in `tests/CLAUDE.md`.
 
 ## Skill library (`.claude/skills/`)
 
-Nine ground-truth-verified runbooks that auto-load from their trigger-rich
+Ten ground-truth-verified runbooks that auto-load from their trigger-rich
 descriptions — nothing needs to be invoked by name, and each skill
 self-describes:
 
@@ -291,6 +291,7 @@ self-describes:
 | `nvsinner-build-and-run` | Install, launch, update, uninstall |
 | `nvsinner-docs-and-style` | Writing any markdown here, including the anti-drift rule |
 | `nvsinner-frontier` | What to build next, and what may be claimed in public |
+| `nvsinner-image-rendering` | Drawing an image as terminal cells with no dependencies — the wallpaper pipeline as a reusable recipe + its PPM authoring script |
 
 Each ends with a **Provenance and maintenance** section (`Facts verified:
 <date>` + re-verification commands) — re-run those before trusting a value

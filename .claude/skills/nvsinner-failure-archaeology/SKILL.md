@@ -703,6 +703,22 @@ description with root causes.
 - **Status:** settled.
 - **Do not retry:** a floating window as persistent per-window chrome.
 
+### FA-30 — The dashboard wallpaper's rejected image paths (2026-10-06)
+
+- **Context:** PR #35 (`5101de0`) painted an image behind the alpha dashboard.
+- **Tried and dropped:** chafa-rendered `.ansi` art (frozen to one window size,
+  ~300 KB each, or a runtime dependency); user-image selection, a per-size ANSI
+  cache, a strength setting and several built-ins (removed to keep one knob);
+  remapping the asset's backdrop onto `base00` plus RGB `autocontrast` (a
+  bluish panel around the figure, fitting one theme at best); darkening the bg
+  under text (a dark box behind every word).
+- **Resolution:** a raw P6 PPM resampled in pure Lua, painted as extmarks, with
+  pure black as the transparency key. The full recipe, its authoring script and
+  the dead-end table live in `nvsinner-image-rendering`.
+- **Status:** settled.
+- **Do not retry:** pre-rendered ANSI for anything that must fit the window, or
+  a backdrop color baked into an asset.
+
 ## Provenance and maintenance
 
 **Sources:** archived PR descriptions in `.tmp/*.md` (richest narratives);
@@ -737,5 +753,6 @@ Re-verification one-liners (run from the repo root):
 - FA-16 doctrine: `grep -n 'unshallow\|Lazy! restore' install.sh`
 - FA-21 guards: `grep -n 'semanticTokensProvider\|automatic_enable' lua/plugins/lsp/lsp-config.lua`
 - FA-26/27 palette single-sourced: `.claude/skills/nvsinner-testing-and-qa/scripts/palette-audit.sh`
+- FA-30 wallpaper path intact: `make test-file FILE=tests/core/wallpaper_spec.lua`
 - FA-28 tombstones keep their lockfile entry: `make test-file FILE=tests/plugins/tombstone_lock_spec.lua`
 - FA-25 timeout + no t-mode `jk`: `nvim --headless -c 'lua print(vim.o.timeoutlen, "jk=" .. vim.fn.maparg("jk", "t"))' -c qa` (expect `300  jk=`)
