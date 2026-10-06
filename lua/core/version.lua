@@ -6,8 +6,8 @@
 -- main — so "remote main carries a newer semver" is exactly "updating would
 -- deliver a newer version".
 --
--- Consumers: the dashboard footer (lua/plugins/ui/dashboard.lua swaps the
--- quote for an update prompt) and the :NvSinnerHelp title (lua/core/help.lua
+-- Consumers: the dashboard footer (lua/plugins/ui/dashboard.lua shows an
+-- update prompt) and the :NvSinnerHelp title (lua/core/help.lua
 -- appends the status). Both subscribe via M.on_change and guard their own UI
 -- validity. Triggers: the first dashboard draw and :NvSinnerHelp's open() —
 -- whichever comes first wins; the once-guard makes later triggers free.
@@ -156,7 +156,7 @@ end
 
 -- Once per session, interactive only. "checking" is set synchronously so the
 -- draw that triggered the check already renders the spinner state. Failures
--- degrade to status "error" (consumers fall back to the plain quote / no
+-- degrade to status "error" (consumers fall back to an empty footer / no
 -- suffix) plus one :messages warning — never a crash, never a UI freeze.
 function M.check()
 	if M._checked or M._headless() then

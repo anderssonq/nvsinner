@@ -14,7 +14,7 @@ runbook it follows — and the reference for cutting a release by hand.
 - **Merging to `main` IS the release.** Every install runs a once-per-session
   async check (on dashboard load or `:NvSinnerHelp`) comparing its local
   version against raw `main` with `vim.version`. When remote > local, the
-  dashboard swaps the footer quote for an update prompt and the help title
+  dashboard footer shows an update prompt and the help title
   shows `· update available`; the user updates with `:NvSinnerUpdate`
   (`git pull --ff-only` → `Lazy restore` → `checkhealth`).
 - Git tags (`vX.Y.Z`) are optional publicity — the mechanism depends only on

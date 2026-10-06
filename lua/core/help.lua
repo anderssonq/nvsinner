@@ -53,6 +53,7 @@ local DESCS = {
 	NvSinnerSymbols = "Document symbols — jump to one (<leader>cs / <leader>xo)",
 	NvSinnerSync = "Float plugins + Mason to latest — rewrites lockfile (<leader>xS)",
 	NvSinnerUpdate = "git pull + restore pinned plugins + checkhealth (<leader>xu)",
+	NvSinnerWallpaper = "Dashboard wallpaper — toggle, or :NvSinnerWallpaper on | off",
 }
 
 -- Commands NOT listed here: they live inside the :NvSinnerIA hub modal, so the
@@ -75,6 +76,7 @@ local SECTION_OF = {
 	NvSinnerMinimap = "editor",
 	NvSinnerSymbols = "editor",
 	NvSinnerMenu = "settings",
+	NvSinnerWallpaper = "settings",
 	NvSinnerSync = "maintenance",
 	NvSinnerUpdate = "maintenance",
 }

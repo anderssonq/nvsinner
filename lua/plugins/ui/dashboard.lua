@@ -1,14 +1,14 @@
 -- Start screen ("NvSinner" dashboard) built on alpha-nvim.
 --
 -- Layout mirrors the classic alpha "dashboard" theme: centred logo, a muted
--- subtitle, a column of shortcut buttons, and a footer. The footer rotates
--- a random dev quote on each launch, with a constant "andersoftware.com"
--- attribution line below it. The logo is the distressed shade-block NVSINNER
+-- subtitle, a column of shortcut buttons, and a footer: the version-check
+-- line above a constant "andersoftware.com" attribution. The logo is the distressed shade-block NVSINNER
 -- mark — the same ASCII art as the README header (one identity everywhere).
 --
 -- Buttons are wired to THIS config's real features (telescope, neo-tree,
 -- the native core/sessions, lazy) rather than the alpha defaults. Menu items are also
 -- mouse-aware: hovering highlights the item (a "pill") and a click runs it.
+-- An image wallpaper is painted behind it by lua/core/wallpaper.lua (on/off).
 -- See CLAUDE.md.
 
 return {
@@ -70,7 +70,6 @@ return {
 			end
 			vim.api.nvim_set_hl(0, "NvSinnerKey", { fg = c.base09, italic = true })
 			vim.api.nvim_set_hl(0, "NvSinnerItem", { fg = c.base04 })
-			vim.api.nvim_set_hl(0, "NvSinnerFooter", { fg = c.base09, italic = true })
 			-- base04 (body text): the subtitle reads brighter than the base03
 			-- attribution line below it, and the role adapts to the light variant
 			-- (the old hardcoded #a2a9b0 was off-palette and dark-only).
@@ -122,45 +121,11 @@ return {
 		}
 
 		-- ── Footer ───────────────────────────────────────────────────────────
-		-- A dev quote or joke picked fresh on every launch (this config runs once per
-		-- VimEnter), sitting above a CONSTANT attribution line — so the rotating
-		-- quote changes but "andersoftware.com" is always shown. The quote area
-		-- doubles as the version-check surface (core/version.lua): a spinner
-		-- while the once-per-session check is in flight, the :NvSinnerUpdate
-		-- prompt when an update is available, the quote plus a muted "up to
-		-- date" line when current, and the plain quote on idle/error.
-		local quotes = {
-			"Don't stop until you're proud",
-			"Greatness is the orphan of urgency",
-			"First, solve the problem. Then, write the code",
-			"Clean code always looks like it was written by someone who cares",
-			"Make it work, make it right, make it fast. — Kent Beck",
-			"The best code is no code at all. — Jeff Atwood",
-			"Simplicity is the soul of efficiency. — Austin Freeman",
-			"Walking on water and developing software from a specification are easy if both are frozen. — Edward V. Berard",
-			-- Programming jokes (one-liners; keep each under ~80 columns).
-			"There are 10 kinds of people: those who understand binary and those who don't",
-			"Two hard things in CS: cache invalidation, naming things, and off-by-one errors",
-			"To understand recursion, you must first understand recursion",
-			"Knock knock. Race condition. Who's there?",
-			"A SQL query walks into a bar, sees two tables and asks: can I join you?",
-			"Be the developer your linter thinks you are",
-			"It's not a bug, it's an undocumented feature",
-			"I've used Vim for years, mostly because I can't figure out how to exit",
-			"It works on my machine. Then we'll ship your machine",
-			-- AI jokes.
-			"AI hallucination: creativity without the burden of accuracy",
-			"You get suspicious when the AI's code works on the first try",
-			"The junior pastes AI code without reading it. The senior pastes it anyway",
-			"A 10x developer prompts the AI ten times before giving up",
-			"The most dangerous phrase in engineering: “Don't worry, I asked the AI”",
-			"Magic 8-ball vs. an LLM: the 8-ball admits when it's not sure",
-			"“Think outside the box.” — “I don't have a box, I have parameters.”",
-			"Finally, someone else to blame for the bug: thanks, AI",
-			"Vibe coding: when the tests pass and nobody knows why",
-		}
-		math.randomseed(vim.uv.hrtime())
-		local quote = "⟡ " .. quotes[math.random(#quotes)] .. " ⟡"
+		-- The footer line is the version-check surface (core/version.lua): a
+		-- spinner while the once-per-session check is in flight, the
+		-- :NvSinnerUpdate prompt when an update is available, and an empty line
+		-- otherwise (the separate "up to date" element below covers "latest").
+		-- It used to rotate a random dev quote here; removed on request.
 
 		local SPIN = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
 		-- Anchored via the footer.val closure (held by alpha's config for the
@@ -241,12 +206,8 @@ return {
 							.. ") — update with :NvSinnerUpdate",
 					},
 				}
-			elseif st == "latest" then
-				rows = {
-					{ "NvSinnerFooter", quote },
-				}
-			else -- idle | error → the plain quote (an error already warned via :messages)
-				rows = { { "NvSinnerFooter", quote } }
+			else -- latest | idle | error → an empty line (an error already warned via :messages)
+				rows = { { "NvSinnerVersion", "" } }
 			end
 			dashboard.section.footer.opts.hl = line_hl(rows)
 			local lines = {}
@@ -278,9 +239,8 @@ return {
 
 		-- "NvSinner is up to date" as its OWN centered element. alpha centers
 		-- each element on its longest line, so a short line riding inside the
-		-- footer (which holds the wide, variable-length quote) would
-		-- left-align under the quote. Keeping it on its own line lets it centre
-		-- on the screen. The `val` function (re-resolved on every redraw, like
+		-- footer (which can hold the wide update prompt) would left-align under
+		-- it. Keeping it on its own line lets it centre on the screen. The `val` function (re-resolved on every redraw, like
 		-- the footer) only paints when the version check resolved to "latest".
 		table.insert(dashboard.config.layout, {
 			type = "text",
@@ -294,8 +254,8 @@ return {
 		})
 		-- Attribution as its OWN centered element. alpha centers each element on
 		-- its longest line, so keeping this short line out of the footer (which
-		-- holds the wide, variable-length quote) lets it centre on the screen
-		-- instead of left-aligning under the quote.
+		-- can hold the wide update prompt) lets it centre on the screen instead
+		-- of left-aligning under it.
 		table.insert(dashboard.config.layout, { type = "padding", val = 1 })
 		table.insert(dashboard.config.layout, {
 			type = "text",
@@ -313,7 +273,7 @@ return {
 		-- Paint the pill on the button under the cursor. A button line is the only
 		-- one whose label is followed by a right-aligned shortcut — i.e. a run of
 		-- ≥2 spaces after its first word block — so requiring that gap skips the
-		-- logo/subtitle/quote/attribution. The pill spans label → before the gap.
+		-- logo/subtitle/footer/attribution. The pill spans label → before the gap.
 		local function render_hover(win, buf)
 			if not (vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(buf)) then
 				return
@@ -364,7 +324,7 @@ return {
 
 		-- <LeftRelease>: run the button under the pointer, but only if the click
 		-- actually landed on a button row (the snap kept the row) — so clicking the
-		-- logo, quote or padding does nothing.
+		-- logo, footer or padding does nothing.
 		local function press_under_mouse()
 			local a = require("alpha")
 			local win = vim.api.nvim_get_current_win()
@@ -428,6 +388,11 @@ return {
 		if vim.bo.filetype == "alpha" then
 			attach_mouse(0)
 		end
+
+		-- Wallpaper (lua/core/wallpaper.lua): every alpha draw clears all
+		-- namespaces, so it wraps alpha.draw to repaint right after (on by
+		-- default; :NvSinnerWallpaper / the :NvSinnerMenu row turn it off).
+		require("core.wallpaper").attach_alpha(alpha)
 
 		alpha.setup(dashboard.config)
 	end,
