@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.9.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.10.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.9.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.10.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.9.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.10.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -323,6 +323,15 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     wheel: Neovim only syncs `scrollbind` for the current window, so a
     `WinScrolled` autocmd re-syncs the unfocused pane with a net-zero
     `<C-y><C-e>` run as the scrolled window.
+    **v3.10.0** puts a picture behind the dashboard. An image (`angel`) is
+    painted under the alpha start screen, on by default, with on/off as the only
+    knob (`:NvSinnerWallpaper [on|off]` or the *Wallpaper* row in
+    `:NvSinnerMenu`). It needs nothing at runtime: the asset ships as a small
+    binary PPM that [lua/core/wallpaper.lua](lua/core/wallpaper.lua) decodes and
+    resamples in pure Lua to any window size, then lays onto the buffer as
+    extmarks — half-block glyphs on blank cells, a bg tint under the menu's text,
+    and pure black as a transparency key so the theme's own background shows
+    through under every palette. The dashboard footer's rotating quotes are gone.
 
 ## Status
 
