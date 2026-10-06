@@ -1,6 +1,7 @@
 -- ─── Dashboard wallpaper ─────────────────────────────────────────────────────
 -- One image painted BEHIND the alpha start screen (lua/plugins/ui/dashboard.lua),
--- on by default. The only knob is on/off: the `wallpaper_on` setting, the
+-- on by default, gently floating while the dashboard is on screen (see *The
+-- float* below). The only knob is on/off: the `wallpaper_on` setting, the
 -- *Wallpaper* row in :NvSinnerMenu, and :NvSinnerWallpaper [on|off].
 --
 -- Zero external dependencies at runtime: the image ships as a small binary PPM
@@ -29,6 +30,9 @@ M.IMAGE = "assets/wallpapers/angel.ppm" -- runtimepath-relative
 M.STRENGTH = 0.35 -- how much of the image shows through (the rest is base00)
 M.STEP = 6 -- per-channel colour quantization step
 M.PRIORITY = 10 -- under alpha's fg highlights' bg and the hover pill (1000)
+M.FLOAT_PX = 3 -- float amplitude in pixel rows (one pixel = half a cell)
+M.FLOAT_MS = 6000 -- one full up-and-down cycle
+M.FRAME_MS = 100 -- tick interval; a tick repaints only when the offset changes
 
 local function utf8_len(b)
 	return b < 0x80 and 1 or b < 0xE0 and 2 or b < 0xF0 and 3 or 4
@@ -107,10 +111,10 @@ function M.parse_ppm(raw)
 	return { w = w, h = h, data = data }
 end
 
--- Resample `img` to a `cols`×`rows` cell grid of ▄ half-blocks (two pixel rows
--- per cell: top → bg, bottom → fg), cover-fit (scale to fill, crop the
--- overflow, centred), bilinear.
-function M.sample(img, cols, rows)
+-- Resample `img` to `cols` × `rows * 2` pixels (two pixel rows per cell),
+-- cover-fit (scale to fill, crop the overflow, centred), bilinear. Returns the
+-- pixel rows 0-based: px[ty][tx + 1] = { r, g, b }.
+function M.pixels(img, cols, rows)
 	local tw, th = cols, rows * 2
 	local iw, ih, data = img.w, img.h, img.data
 	local scale = math.max(tw / iw, th / ih)
@@ -147,16 +151,38 @@ function M.sample(img, cols, rows)
 		end
 		return out
 	end
+	local px = {}
+	for ty = 0, th - 1 do
+		px[ty] = row_px(ty)
+	end
+	return px
+end
+
+-- Build the ▄ cell grid (top pixel → bg, bottom → fg) with the image shifted
+-- DOWN by `off` pixel rows (negative = up); off = 0 is the image at rest. Rows
+-- shifted in from beyond an edge repeat that edge row, so a figure the canvas
+-- crops never shows a hard blank band. One pixel row is half a cell, which is
+-- what keeps the float smooth.
+function M.frame(px, cols, rows, off)
+	local th = rows * 2
+	local function src(y)
+		return px[math.min(math.max(y - off, 0), th - 1)]
+	end
 	local grid = {}
 	for r = 0, rows - 1 do
-		local top, bot = row_px(2 * r), row_px(2 * r + 1)
+		local top, bot = src(2 * r), src(2 * r + 1)
 		local row = {}
 		for c = 1, cols do
-			row[c] = { ch = "▄", bg = top[c], fg = bot[c] }
+			row[c] = { ch = "▄", bg = top and top[c], fg = bot and bot[c] }
 		end
 		grid[r + 1] = row
 	end
 	return grid
+end
+
+-- The image at rest as a `cols`×`rows` cell grid.
+function M.sample(img, cols, rows)
+	return M.frame(M.pixels(img, cols, rows), cols, rows, 0)
 end
 
 function M.enabled()
@@ -169,14 +195,26 @@ function M.path()
 	return vim.api.nvim_get_runtime_file(M.IMAGE, false)[1]
 end
 
-local memo = { img = nil, key = nil, grid = nil }
+local memo = { img = nil, key = nil, px = nil }
 
--- The image as a grid at w×h (decoded once; the last sample memoized).
+-- The float: the image's current vertical shift in pixel rows (0 = at rest).
+M.off = 0
+
+-- The image as a grid at w×h, shifted by the current float offset (decoded once;
+-- the last resample memoized, so a frame only re-pairs pixel rows).
 function M.grid(w, h)
 	local key = w .. "x" .. h
-	if memo.key == key then
-		return memo.grid
+	if memo.key ~= key then
+		memo.px = M._load_pixels(w, h)
+		memo.key = memo.px and key or nil
 	end
+	if not memo.px then
+		return nil
+	end
+	return M.frame(memo.px, w, h, M.off)
+end
+
+function M._load_pixels(w, h)
 	if not memo.img then
 		local p = M.path()
 		local fd = p and io.open(p, "rb")
@@ -190,8 +228,7 @@ function M.grid(w, h)
 			return nil
 		end
 	end
-	memo.key, memo.grid = key, M.sample(memo.img, w, h)
-	return memo.grid
+	return M.pixels(memo.img, w, h)
 end
 
 -- ─── Painting ────────────────────────────────────────────────────────────────
@@ -306,13 +343,109 @@ function M.paint(win, buf)
 	end
 	if not M.enabled() then
 		vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+		M.stop()
 		return
 	end
 	local grid = M.grid(vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win))
 	if grid then
 		M.paint_grid(win, buf, grid, M.STRENGTH)
+		M.start()
 	end
 end
+
+-- ─── The float ───────────────────────────────────────────────────────────────
+-- The angel hovers in place: a sine of FLOAT_PX pixel rows over FLOAT_MS. Black
+-- is the transparency key, so shifting the image moves only the figure.
+--
+-- Cheap by construction: the resample is memoized per window size, so a frame
+-- only re-pairs pixel rows, and a tick repaints only when the integer offset
+-- actually changes (a handful of times per cycle). The timer runs only while a
+-- dashboard is on screen in the current tab and the editor has focus; it stops
+-- itself on the first tick that finds none, and never starts headless.
+
+-- The dashboard windows in the current tab.
+local function dashboards()
+	local out = {}
+	for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+		local buf = vim.api.nvim_win_get_buf(win)
+		if vim.bo[buf].filetype == "alpha" then
+			out[#out + 1] = { win = win, buf = buf }
+		end
+	end
+	return out
+end
+
+-- The float's offset `ms` into the cycle, in whole pixel rows.
+function M.float_offset(ms)
+	return math.floor(M.FLOAT_PX * math.sin(2 * math.pi * ms / M.FLOAT_MS) + 0.5)
+end
+
+-- One frame at time `now` (ms, defaults to the loop clock): move the float and
+-- repaint every visible dashboard if the offset changed. Returns false (and
+-- stops the loop) when there is nothing to animate.
+function M.tick(now)
+	local found = dashboards()
+	if #found == 0 or not M.enabled() then
+		M.stop()
+		return false
+	end
+	if vim.api.nvim_get_mode().mode == "c" then
+		return true -- don't repaint under the cmdline
+	end
+	local off = M.float_offset((now or vim.uv.now()) - (M._t0 or 0))
+	if off == M.off then
+		return true
+	end
+	M.off = off
+	for _, d in ipairs(found) do
+		local grid = M.grid(vim.api.nvim_win_get_width(d.win), vim.api.nvim_win_get_height(d.win))
+		if grid then
+			pcall(M.paint_grid, d.win, d.buf, grid, M.STRENGTH)
+			pcall(vim.api.nvim__redraw, { win = d.win, valid = false, flush = true })
+		end
+	end
+	return true
+end
+
+M._headless = function()
+	return #vim.api.nvim_list_uis() == 0
+end
+
+function M.start()
+	if M._running or M._headless() then
+		return
+	end
+	M._running = true
+	-- Every (re)start begins the cycle at rest; a float frozen by FocusLost
+	-- settles back by at most FLOAT_PX pixel rows on the first tick.
+	M._t0 = vim.uv.now()
+	M._timer = M._timer or vim.uv.new_timer()
+	M._timer:start(
+		M.FRAME_MS,
+		M.FRAME_MS,
+		vim.schedule_wrap(function()
+			M.tick()
+		end)
+	)
+end
+
+function M.stop()
+	M._running = false
+	if M._timer then
+		M._timer:stop()
+	end
+end
+
+local float = vim.api.nvim_create_augroup("nv_wallpaper_float", { clear = true })
+vim.api.nvim_create_autocmd("FocusLost", { group = float, callback = M.stop })
+vim.api.nvim_create_autocmd("FocusGained", {
+	group = float,
+	callback = function()
+		if #dashboards() > 0 and M.enabled() then
+			M.start()
+		end
+	end,
+})
 
 -- Repaint every visible dashboard (after the setting changes).
 function M.refresh()
@@ -368,8 +501,10 @@ end, {
 
 -- Test seam: forget memoized state.
 function M._reset()
-	memo = { img = nil, key = nil, grid = nil }
+	M.stop()
+	memo = { img = nil, key = nil, px = nil }
 	made = {}
+	M.off = 0
 end
 
 return M

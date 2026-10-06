@@ -1,7 +1,8 @@
 -- Tests for the dashboard wallpaper (lua/core/wallpaper.lua): the PPM decoder,
 -- the cover-fit sampler, the quantized colour mix, the paint onto a buffer
 -- (image glyphs on blank cells, bg-only marks under text, a lone inner space
--- kept as text, pure black as the transparency key), the shipped image, the
+-- kept as text, pure black as the transparency key), the float (pixel-row
+-- shifts, the sine offset, tick gating), the shipped image, the
 -- on/off setting + :NvSinnerWallpaper toggle, and the alpha.draw hook.
 
 -- Palette-dependent: pin the theme so the user's real settings can't leak in.
@@ -164,6 +165,79 @@ describe("core.wallpaper", function()
 		it("rejects anything but on/off (no image switching)", function()
 			vim.cmd("NvSinnerWallpaper ~/some.png")
 			assert.is_true(settings.get("wallpaper_on"))
+		end)
+	end)
+
+	describe("the float", function()
+		-- 1×4 PPM, one colour per pixel row: sampled at 1×2 cells the scale is
+		-- exactly 1, so every pixel row comes through unblended.
+		local R, G, B, W = { 255, 0, 0 }, { 0, 255, 0 }, { 0, 0, 255 }, { 255, 255, 255 }
+		local STRIP = "P6\n1 4\n255\n" .. string.char(255, 0, 0, 0, 255, 0, 0, 0, 255, 255, 255, 255)
+		local function px()
+			return wallpaper.pixels(wallpaper.parse_ppm(STRIP), 1, 2)
+		end
+		local function cells(f)
+			return { f[1][1].bg, f[1][1].fg, f[2][1].bg, f[2][1].fg }
+		end
+
+		it("frame at offset 0 is the image at rest", function()
+			local f = wallpaper.frame(px(), 1, 2, 0)
+			assert.are.same({ R, G, B, W }, cells(f))
+			assert.are.same(f, wallpaper.sample(wallpaper.parse_ppm(STRIP), 1, 2))
+		end)
+
+		it("shifts by pixel rows, re-pairing the cell halves (half a cell per step)", function()
+			assert.are.same({ R, R, G, B }, cells(wallpaper.frame(px(), 1, 2, 1))) -- down 1
+			assert.are.same({ G, B, W, W }, cells(wallpaper.frame(px(), 1, 2, -1))) -- up 1
+		end)
+
+		it("repeats the edge row instead of opening a blank band", function()
+			local f = wallpaper.frame(px(), 1, 2, 3)
+			for _, c in ipairs(cells(f)) do
+				assert.is_not_nil(c)
+			end
+		end)
+
+		it("float_offset is a sine of FLOAT_PX rows over FLOAT_MS", function()
+			local P, A = wallpaper.FLOAT_MS, wallpaper.FLOAT_PX
+			assert.are.equal(0, wallpaper.float_offset(0))
+			assert.are.equal(A, wallpaper.float_offset(P / 4))
+			assert.are.equal(0, wallpaper.float_offset(P / 2))
+			assert.are.equal(-A, wallpaper.float_offset(3 * P / 4))
+			assert.are.equal(0, wallpaper.float_offset(P))
+		end)
+
+		it("tick repaints a visible dashboard only when the offset changes", function()
+			vim.bo[buf].filetype = "alpha"
+			wallpaper.paint(win, buf)
+			local rest = vim.inspect(marks())
+			wallpaper._t0 = 0
+			assert.is_true(wallpaper.tick(0)) -- offset still 0: nothing to do
+			assert.are.equal(rest, vim.inspect(marks()))
+			assert.is_true(wallpaper.tick(wallpaper.FLOAT_MS / 4))
+			assert.are.equal(wallpaper.FLOAT_PX, wallpaper.off)
+			assert.are_not.equal(rest, vim.inspect(marks()))
+		end)
+
+		it("tick stops the loop when no dashboard is on screen, or when off", function()
+			assert.is_false(wallpaper.tick(1500))
+			vim.bo[buf].filetype = "alpha"
+			settings.set("wallpaper_on", false)
+			assert.is_false(wallpaper.tick(1500))
+			assert.are.equal(0, wallpaper.off)
+		end)
+
+		it("never starts the timer headless", function()
+			wallpaper.start()
+			assert.is_falsy(wallpaper._running)
+		end)
+
+		it("paints at the current offset, so an alpha redraw doesn't snap it back", function()
+			wallpaper.paint(win, buf)
+			local rest = vim.inspect(marks())
+			wallpaper.off = 2
+			wallpaper.paint(win, buf)
+			assert.are_not.equal(rest, vim.inspect(marks()))
 		end)
 	end)
 

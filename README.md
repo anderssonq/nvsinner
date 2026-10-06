@@ -119,8 +119,8 @@ any existing `~/.config/nvim` without touching it.
   free for satellite's hunk/diagnostic ruler — minimap and overview ruler side
   by side, the way an IDE does it.
 - **Dashboard wallpaper** — a fallen-angel image painted *behind* the start
-  screen, faded toward the theme background so the menu stays readable. It is on
-  by default; hide it with `:NvSinnerWallpaper off` (no argument toggles) or the
+  screen, faded toward the theme background so the menu stays readable, and
+  floating gently up and down while the dashboard is open. It is on by default; hide it with `:NvSinnerWallpaper off` (no argument toggles) or the
   *Wallpaper* row in `:NvSinnerMenu`. It needs nothing installed: the image ships
   as a small raw-pixel file that pure Lua resizes to the window, with no image
   protocol and no external process.

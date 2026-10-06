@@ -1841,6 +1841,29 @@ built-ins. Don't reintroduce them without asking.
 - **Lua `and/or` trap, hit twice here.** `ok and s.get(k) or nil` turns a
   `false` setting into `nil`, and `transparent(x) and nil or x` always yields
   `x`. Both were caught by the spec; keep the plain `if` forms.
-- Seams: `M.parse_ppm`, `M.sample`, `M.mix`, `M.paint_grid`, `M.path`,
-  `M.grid`, `M.enabled`, `M.paint`, `M.refresh`, `M.attach_alpha`,
-  `M.command`, `M._reset`. Spec: `tests/core/wallpaper_spec.lua`.
+- **The float.** While a dashboard is on screen the angel hovers in place: a
+  sine of `M.FLOAT_PX` pixel rows over `M.FLOAT_MS`, sampled every
+  `M.FRAME_MS`. It is part of the wallpaper, not a second knob — `off` stops
+  both.
+  - **Resample once, re-pair per frame.** `M.pixels` (the cover-fit bilinear
+    resample) is memoized per window size; `M.frame(px, cols, rows, off)` only
+    picks which two pixel rows fill each `▄` cell. One pixel row is half a cell,
+    which is what keeps the motion smooth.
+  - **Edges repeat, never blank.** Rows shifted in from beyond the canvas
+    repeat the edge row, so a figure the canvas crops never opens a band.
+  - **A tick repaints only when the integer offset changes** (a few times per
+    cycle), and paints at `M.off` — `M.paint` uses it too, so alpha's own
+    redraws (the version spinner) never snap the float back to rest.
+  - **The timer is gated like statusmark's**: started from `M.paint`, never
+    headless (`M._headless`), stopped by the first tick that finds no `alpha`
+    window in the current tab or the setting off, and by `FocusLost`
+    (`FocusGained` restarts it). Every start begins the cycle at rest.
+  - **A continuous fall was tried first and dropped**: wrapping the image
+    through the screen showed the figure split between the top and bottom
+    edges, and the owner preferred the float. Measured in a real PTY (pyte):
+    the float keeps the figure on the same ~35 rows before and after `:e` →
+    `:Alpha`, with no output while a file is open.
+- Seams: `M.parse_ppm`, `M.pixels`, `M.frame`, `M.sample`, `M.float_offset`,
+  `M.tick(now)`, `M.mix`, `M.paint_grid`, `M.path`, `M.grid`, `M.enabled`,
+  `M.paint`, `M.refresh`, `M.attach_alpha`, `M.command`, `M._headless`,
+  `M._reset`. Spec: `tests/core/wallpaper_spec.lua`.
