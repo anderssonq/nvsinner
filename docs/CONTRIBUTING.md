@@ -42,6 +42,31 @@ between formatting drift and `main`.
 Bypass one push with `git push --no-verify`; disable it for the repo with
 `git config --unset core.hooksPath`.
 
+#### What the hook runs
+
+A `pre-push` git hook lives in [`.githooks/pre-push`](../.githooks/pre-push).
+When you `git push`, it runs the test suite that
+[CI](../.github/workflows/ci.yml) also runs — so a red pipeline is caught
+*before* the push rather than after — plus a format check that CI does **not**
+have, making the hook the only thing standing between formatting drift and
+`main`:
+
+| Step | What it does |
+|------|--------------|
+| `stylua --check` | Format check over every tracked Lua path (`init.lua colors lua tests after`). ~0s. |
+| `make test` | The plenary suite. ~18s. |
+
+Either one failing rejects the push. Test output is suppressed on success and
+printed in full on failure. The hook skips itself entirely when the push
+carries no `.lua` changes, and skips just the format step when `stylua` isn't
+on `PATH` (it's Mason-installed, so a fresh clone may not have it yet — CI
+still enforces the suite).
+
+There's no `.stylua.toml` on purpose: stylua's defaults (tabs, 120 columns)
+already match the house style, and none-ls formats on save with those same
+defaults. If the hook reports drift, `stylua init.lua colors lua tests after`
+fixes it.
+
 ## Conventions
 
 ### Language and layout
@@ -77,7 +102,7 @@ Bypass one push with `git push --no-verify`; disable it for the repo with
 ### Keymaps
 
 `<leader>` is Space, `<localleader>` is `\`. Check the **Full keybindings
-reference** in [README.md](../README.md) before claiming a key. The namespaces:
+reference** in [keybindings.md](keybindings.md) before claiming a key. The namespaces:
 
 | Prefix | Owns |
 |--------|------|

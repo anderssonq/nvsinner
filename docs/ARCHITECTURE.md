@@ -371,6 +371,94 @@ and uninstalling leaves your other config untouched.
 surprises people once. On the development machine `~/.config/nvsinner` is a
 symlink to the repo, so both names load the same files.
 
+## Folder structure
+
+```
+init.lua                       Bootstraps lazy.nvim, loads lua/core/*, imports the plugin folders
+colors/carbon.lua              The carbon colorscheme (oxocarbon / IBM Carbon port)
+lua/core/carbon.lua            The palette — single source of truth for every color
+lua/core/options.lua           Leaders + core vim options
+lua/core/settings.lua          Persistent :NvSinnerMenu settings (JSON in settings/)
+lua/core/menu.lua              :NvSinnerMenu settings modal
+lua/core/prompts.lua           :NvSinnerPrompts prompt library modal
+lua/core/help.lua              :NvSinnerHelp command palette
+lua/core/replace.lua           :NvSinnerReplace word-replace modal (<leader>rw): file, confirm, cgn, project-wide
+lua/core/keymaps.lua           Global keymaps (save/undo/redo, folds, split-resize, buffers)
+lua/core/autoreload.lua        Disk auto-reload + edit toast for the AI terminal workflow
+lua/core/ai-edits.lua          Underlines AI-written lines after a reload, until you take over
+lua/core/ui-touch.lua          Active-window glow + mouse-hover docs (native)
+lua/core/filebadge.lua         Per-window winbar file badge: focus dot + filename (+ markdown "Open view" chip)
+lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal winbar
+lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja, <leader>jc clear)
+lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
+lua/core/agents.lua            Agent cockpit: every AI column + status + chat preview (:NvSinnerAgents, <leader>xa)
+lua/core/herdr.lua             Reports the AI columns' state to a herdr server (no-op unless herdr owns this pane)
+bin/nvsinner-herdr             Drive those columns from another herdr pane (list/focus/send/read)
+lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
+lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
+lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems toast
+lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
+lua/core/image-open.lua        Image files open in macOS Quick Look
+lua/core/minimap.lua           Code minimap pane (:NvSinnerMinimap, <leader>xn) — braille overview + click to jump
+lua/core/copy-on-select.lua    herdr-style copy on select: a mouse selection lands in the clipboard on release
+lua/core/wallpaper.lua         Dashboard wallpaper (:NvSinnerWallpaper on|off) — pure-Lua image painted behind alpha
+lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
+settings/prompts.json          The prompt library (committed, hand-editable)
+fonts/                         Bundled FiraCode Nerd Font .ttf files
+tests/                         Plenary busted suite (make test)
+CLAUDE.md                      Technical notes for AI agents working on this repo
+NVSINNER.md                    The distro plan + status log
+```
+
+Plugins are grouped into category folders under `lua/plugins/`
+(`ui/`, `lsp/`, `git/`, `editor/`, `navigation/`, `terminal/`). To add a
+plugin, create a new `lua/plugins/<category>/<name>.lua` that returns a lazy
+spec; new files in an existing category are picked up automatically.
+
+## Performance notes
+
+Plugins are lazy-loaded via lazy.nvim triggers:
+
+- `event = "InsertEnter"` — completion (`nvim-cmp`), autopairs.
+- `event = { "BufReadPost", "BufNewFile" }` — treesitter, LSP, breadcrumbs.
+- `event = { "BufReadPre", "BufNewFile" }` — gitsigns (sign-column markers).
+- `event = "VeryLazy"` — statusline, scroll, notifications, surround,
+  which-key.
+- `cmd` / `keys` — Telescope, Neo-tree, toggleterm AI column, diffview.
+
+Three plugins load eagerly: the colorscheme (`theme.lua`, `lazy = false` +
+`priority = 1000` — it must paint before anything else), the start screen
+(`dashboard.lua`, on `VimEnter`, which also pulls in `nvim-web-devicons`), and
+**toggleterm** (`lazy = false`, a documented exception: the `<leader>t*` /
+`<leader>j*` maps are closures over panel tables built inside its `config`, so
+the plugin must load for the maps to exist). Check the breakdown anytime with
+`:Lazy profile`.
+
+### Neo-tree's Buffers tab and the Git tab
+
+neo-tree computes git state by shelling out to `git status`, and for two of its
+source tabs that call is **synchronous** — it blocks the editor.
+neo-tree's `git_status_async` option does *not* cover them; only the Files
+(filesystem) source reads it.
+
+- **Buffers** used to pay that cost on *every render*. NvSinner disables it
+  (`buffers.before_render`), so the tab is instant — at the cost of git symbols
+  on buffer rows. Files still shows git state.
+- neo-tree's stock **Git** tab (the `git_status` source) blocks while it scans,
+  because the scan *is* the tab's content (**73 ms** measured against 14 ms for
+  a plain `git status` — a ~5× multiplier that grows with the ignored tree), and
+  diffview already owns git. So NvSinner does **not** use that source. The
+  **Git** tab you see instead is a shortcut: clicking it (or reaching it with
+  `<` / `>`) opens the `<leader>gd` diff — the same single Diffview tab — and
+  never scans anything. A deliberate `:Neotree source=git_status` still works
+  if you ever want the stock tree.
+
+If you want that faster today, the lever is your `.gitignore` scope, not
+Neovim. **`core.fsmonitor` / `core.untrackedCache` do not help** — measured A/B,
+fsmonitor was *slower* here (it never helps `--ignored` enumeration, and its
+daemon IPC costs more than it saves at this scale). The real fix belongs
+upstream in neo-tree.
+
 ## Where to go deeper
 
 | Subsystem | Contract |

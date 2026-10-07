@@ -183,7 +183,8 @@ when you work under that directory. Read them before editing there:
 | Navigation: telescope, neo-tree (`tree_side`), leap | `lua/plugins/navigation/CLAUDE.md` |
 | Colorscheme file | `colors/CLAUDE.md` |
 | Test suite: spec inventory + conventions | `tests/CLAUDE.md` |
-| Installation runbook + install/uninstall scripts | `docs/installation.md` |
+| Installation runbook, install/uninstall scripts, update + troubleshooting | `docs/installation.md` |
+| User reference: keybindings · settings & theming · AI workflow (the README is a short landing that links here) | `docs/keybindings.md` · `docs/settings.md` · `docs/ai-workflow.md` |
 | Release flow: semver source, update check, cutting a release | `docs/releasing.md` |
 
 AI summary (details in `lua/core/CLAUDE.md` + `lua/plugins/terminal/CLAUDE.md`):
@@ -202,8 +203,8 @@ with its status, a live preview of its chat, and focus/close from the list.
 
 ## Keymaps
 
-The full keybindings reference lives in **README.md §Full keybindings
-reference** — check it before adding a map. Leader namespaces (leader = Space):
+The full keybindings reference lives in **[docs/keybindings.md](docs/keybindings.md)**
+— check it before adding a map. Leader namespaces (leader = Space):
 
 - `a` ai (send-to-AI bridge) · `c` code · `g` git (diffview; `gd` = the diff, in
   **at most one tab** — pressed again it returns to the view already open;
