@@ -581,7 +581,7 @@ editing.
   below), and the four single-role slot flags
   `vim.g.nvsinner_notif|variables|strings|functions` /
   `$NVSINNER_NOTIF|VARIABLES|STRINGS|FUNCTIONS` (below). Documented for users
-  in README's *Theme options (carbon)*, which also carries the glass→carbon
+  in `docs/settings.md` *Theme options (carbon)*, which also carries the glass→carbon
   migration steps.
 - **Accent packs** — `M.accents` in `carbon.lua` defines four selectable
   identity accents (`blue` default / `magenta` / `green` / `purple`, IBM

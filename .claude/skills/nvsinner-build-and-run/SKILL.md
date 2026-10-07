@@ -280,7 +280,7 @@ git -C ~/.config/nvsinner pull --ff-only
 NVIM_APPNAME=nvsinner nvim --headless "+Lazy! restore" +qa
 ```
 
-(README's by-hand snippet omits `--ff-only`; both scripted paths use it —
+(`docs/installation.md`'s by-hand update snippet omits `--ff-only`; both scripted paths use it —
 prefer it by hand too so a diverged clone fails loudly instead of merging.)
 
 ### 5d. Restore-vs-sync doctrine

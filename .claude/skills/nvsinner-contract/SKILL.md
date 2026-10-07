@@ -99,7 +99,7 @@ table, that command *is* the documentation.
 | LSP servers, capability surgery | `lua/plugins/lsp/lsp-config.lua` | `grep -nE 'ensure_installed\|vim.lsp.enable\|semanticTokensProvider\|automatic_enable' …` |
 | Probed external tools | `lua/core/health.lua` | `grep -n 'name = ' lua/core/health.lua` |
 | The distro version | `lua/nvsinner/init.lua` | one line, `version = "X.Y.Z"` |
-| Every keybinding | `README.md` §Full keybindings reference | that table is the single source; don't fork it |
+| Every keybinding | `docs/keybindings.md` §Full keybindings reference | that table is the single source; don't fork it |
 
 The handful of values worth stating because they are *calibrated*, not
 arbitrary — re-read them before quoting:
@@ -327,7 +327,7 @@ behavior in `lua/core/` gets a new spec.
 
 **Gate 5 — doc sync.** CLAUDE.md is the manifest: any new or changed keymap,
 subsystem behavior, convention or tool requirement is reflected there, and
-keymaps also in README.md's "Full keybindings reference".
+keymaps also in `docs/keybindings.md`'s "Full keybindings reference".
 
 **Gate 6 — formatting:** `stylua --check lua/ tests/`.
 
@@ -354,7 +354,7 @@ nightly, and CI symlinks the checkout to `~/.config/nvim`, so the
 | 8 | Terminal ids: AI 100+, horizontals 1–9 untouched |
 | 9 | All comments and all markdown in English; Lua only |
 | 10 | Gates 1, 2, 4, 6 run and green |
-| 11 | Gate 5: CLAUDE.md and README tables synced |
+| 11 | Gate 5: CLAUDE.md and `docs/keybindings.md` tables synced |
 | 12 | Cross-category effects flagged |
 
 ---
@@ -389,7 +389,7 @@ nightly, and CI symlinks the checkout to `~/.config/nvim`, so the
 
 ## Provenance and maintenance
 
-**Facts verified: 2026-09-19**, against the working tree by direct file read.
+**Facts verified: 2026-09-19** (keybinding-reference location re-pointed to `docs/keybindings.md` 2026-10-07), against the working tree by direct file read.
 This skill replaces `nvsinner-architecture-contract`, `nvsinner-change-control`
 and `nvsinner-config-catalog`, which stated the same facts three times and
 drifted independently.

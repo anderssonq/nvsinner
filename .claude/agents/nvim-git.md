@@ -47,4 +47,4 @@ make test
 Never `+Lazy! sync` — it rewrites `lazy-lock.json`. Use `+Lazy! restore`.
 
 Report what changed, the validation output, and any new keymap, so the
-orchestrator can update the keymap table in README.md.
+orchestrator can update the keymap table in docs/keybindings.md.

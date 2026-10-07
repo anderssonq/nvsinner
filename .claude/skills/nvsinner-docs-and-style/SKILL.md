@@ -30,8 +30,11 @@ description: >
 | `docs/CONTRIBUTING.md` | Contributor-facing conventions and the gate list. | Outside contributors | A convention or gate changes |
 | `docs/releasing.md` | The release runbook — semver source, the update check, cutting a release. | Owner + `nvim-release` agent | The release flow changes |
 | `docs/native-roadmap.md` | The plugin→native migration analysis and its wave plan. | Owner + agents planning waves | A wave lands or a candidate is re-scoped |
-| `docs/installation.md` | Agent-executable install runbook (7 steps, `[manual]` tags), external requirements, `install.sh`/`uninstall.sh` anatomy. Read on demand, not auto-loaded. | AI agents installing from scratch | The install flow or scripts change |
-| `README.md` | User-facing distro docs: pitch, requirements, plugin tables, **the single full keybindings reference**, install/update/health/uninstall guides. | Humans installing NvSinner | Anything user-visible changes |
+| `docs/installation.md` | Agent-executable install runbook (7 steps, `[manual]` tags), external requirements, `install.sh`/`uninstall.sh` anatomy; then the user-facing requirements table, getting started, updating, troubleshooting, health check, uninstalling. Read on demand, not auto-loaded. | AI agents installing from scratch + humans | The install/update flow, scripts, or a known failure mode change |
+| `README.md` | The short "Confessional" landing page (~5 KB): pitch, one-line install, the seven-sins feature table, first-60-seconds keys, the four modal commands, links into `docs/`. Reference detail does NOT go here — see §2a. | First-time visitors | The pitch, a headline feature, or a linked doc changes |
+| `docs/keybindings.md` | **The single full keybindings reference** + the plugin/command tables. | Humans | A keymap or plugin changes |
+| `docs/settings.md` | `:NvSinnerMenu` rows, settings JSON + env-var overrides, theme options, Ghostty over SSH. | Humans | A setting, theme or accent changes |
+| `docs/ai-workflow.md` | The feature list + the full AI workflow: columns, cockpit, herdr, send-to-AI bridge, Ask AI, inline completion + model table, prompts, help palette. | Humans | Any AI-layer behavior changes |
 | `NVSINNER.md` | Distro plan + status log, ✅-checklist style ("What's missing… → ✅ Done — …"). | Owner + agents tracking distro maturity | A distro milestone lands |
 | `TODO.md` | Open items only. Completed items move to a short "Done" summary pointing at NVSINNER.md for detail. | Same | An item opens or completes |
 | `.claude/agents/*.md` | Per-category Sonnet owner-agent contracts (files owned, hard constraints, validation commands). | Claude Code subagents | That category's rules change |
@@ -77,21 +80,45 @@ Concretely, in any `.md` under this repo:
 3. **Bold key terms** on first use; backticks for every identifier, path, key,
    and command.
 4. **Tables** for keymaps, inventories, requirements; prose for rationale.
-5. README uses emoji section headers (`## 📦 Requirements`, `## 🚀 Getting
-   started`); CLAUDE.md uses plain headers.
+5. README follows the Confessional rules in §2a; `docs/` and CLAUDE.md use plain
+   headers.
 6. Negative space is documented: what NOT to do lives next to what to do
    ("Do **not** reintroduce `require("lspconfig").<server>.setup()`").
 
+## 2a. README — the "Confessional" landing
+
+The README is a page a first-time visitor reads in under two minutes. Rules:
+
+- **Voice.** Sin / confession / fall from grace lives in **section titles
+  only** ("The confession", "Fall from grace in one line", "The seven sins",
+  "The four altars", "Penance", "Scripture"). Body text is plain, literal and
+  short — the joke is the title, the sentence under it says exactly what the
+  feature does. Address the reader directly; no marketing words. Quote Ander's
+  text exactly.
+- **Order.** Hero image + italic tagline `‹ the sinner's neovim ide ›` +
+  badges + dashboard screenshot → the confession → install one-liner + one
+  line of requirements → the seven sins (exactly 7 rows, one sin = one
+  feature; swap a row, never add an eighth) → one `> [!WARNING]` (disk wins)
+  → first 60 seconds (max 5 rows) → the four altars (modal commands) →
+  penance (troubleshoot/update/uninstall + the speed/reproducibility line) →
+  scripture (links to `docs/`) → footer `MIT · andersoftware.com`.
+- **Formatting.** Keys as `Space x` in the README; `<leader>x` in `docs/`.
+  Tables over bullets, ~7 rows max. One GitHub alert per page. No emoji in
+  body text — the alchemical glyphs appear only in the sins table.
+- **Anything longer than 3 lines of reference belongs in `docs/`**, linked.
+- The cold-start number follows `nvsinner-frontier`'s claim discipline.
+
 ## 3. Keymap documentation (single full table)
 
-The **only full keymap table** is `README.md` → **"⌨️ Full keybindings
+The **only full keymap table** is `docs/keybindings.md` → **"Full keybindings
 reference"** (multiple themed tables, includes modes). The root `CLAUDE.md`
 keeps just a leader-**namespace** map (one line per namespace) — do NOT
 reintroduce a full keymap table there; that duplication was deliberately cut.
 Subsystem keymaps (hunks, diffview, terminals, …) are also described in prose
 in the owning nested `CLAUDE.md`.
 
-Checklist when a keymap changes: update README's table; update the owning
+Checklist when a keymap changes: update `docs/keybindings.md`'s table (and the
+README's "first 60 seconds" / sins rows only if they name the key); update the owning
 nested `CLAUDE.md` if it names the key; update the root namespace map only if
 a namespace is added/removed; check which-key `desc` strings in the code match
 the doc wording; re-grep the old key sequence across `*.md` to catch
@@ -99,7 +126,7 @@ stragglers: `grep -rn '<leader>x' CLAUDE.md README.md lua/ tests/ docs/ .claude/
 
 ## 4. Doc-sync checklist by change type
 
-| Change | root CLAUDE.md | nested CLAUDE.md | README.md | NVSINNER.md | TODO.md | agents/ | skills/ |
+| Change | root CLAUDE.md | nested CLAUDE.md | `docs/` user docs (README only if a headline row names it) | NVSINNER.md | TODO.md | agents/ | skills/ |
 |---|---|---|---|---|---|---|---|
 | New plugin | Layout table if new category | subsystem note in the category's file | plugin table row (+ keys row) | — | — | category agent if constraints change | `nvsinner-contract` trigger map |
 | New/changed keymap | namespace map only if a namespace changes | owning subsystem prose | Full keybindings | — | — | — | catalog if terminal/AI axis |
@@ -160,7 +187,7 @@ directory's own CLAUDE.md — `lua/core/CLAUDE.md`,
 - Tunables (`X_MS`, `Y`) live at the top of the file.
 ```
 
-**README plugin-table row:**
+**Plugin-table row (`docs/keybindings.md`):**
 
 ```markdown
 | `<file>.lua` | <plugin-name> | <what it does / main keys> |
@@ -180,10 +207,14 @@ Facts verified: 2026-07-02 against commit `a65af7f` (doc sections, commit
 headlines from `git log --oneline --all`, PR skeleton from
 `.tmp/06-29-26_01_*.md`). Docs-of-record map updated 2026-07-04 for the
 CLAUDE.md split (lean root + nested CLAUDE.md files + `docs/installation.md`).
+README rewritten as the Confessional landing 2026-10-07; reference moved to
+`docs/keybindings.md`, `docs/settings.md`, `docs/ai-workflow.md`,
+`docs/installation.md`, `docs/ARCHITECTURE.md`, `docs/CONTRIBUTING.md`.
 
 Re-verification one-liners:
 
-- Doc sections still exist: `grep -n '^## ' CLAUDE.md README.md`
-- Keymap tables: `grep -n 'Keymap reference\|keybindings reference' CLAUDE.md README.md`
+- Doc sections still exist: `grep -n '^## ' CLAUDE.md README.md docs/*.md`
+- Keymap tables: `grep -n 'Keymap reference\|keybindings reference' CLAUDE.md docs/keybindings.md`
+- README size budget: `wc -c README.md` (stay under ~6 KB)
 - Commit style drift: `git log --oneline -10`
 - PR archive convention: `ls .tmp/`
