@@ -27,6 +27,7 @@
 --   * quiet     → mute info-level vim.notify toasts (warnings/errors still show)
 --   * minimap   → code minimap pane on the right edge (lua/core/minimap.lua)
 --   * wallpaper_on → the dashboard wallpaper on/off (lua/core/wallpaper.lua)
+--   * copy_on_select → mouse selections land in the system clipboard (lua/core/copy-on-select.lua)
 -- Every M.set fires `User NvSinnerSetting` (data = { key, value }) so lazy
 -- specs can react without requiring this module eagerly.
 
@@ -53,6 +54,7 @@ M.defaults = {
 	herdr = true, -- report the AI columns' state to a herdr server; no-ops unless herdr owns this pane
 	herdr_detail = "tokens", -- how much detail herdr gets: "state" | "tokens" (+ per-column) | "full" (+ title/labels)
 	wallpaper_on = true, -- the dashboard wallpaper (lua/core/wallpaper.lua); on by default
+	copy_on_select = true, -- herdr-style: a mouse selection is copied to the + register on release
 }
 
 local legacy_file = vim.fn.stdpath("data") .. "/nvsinner-settings.json" -- pre-settings/ location
@@ -226,6 +228,7 @@ local apply = {
 			require("core.wallpaper").refresh()
 		end)
 	end,
+	copy_on_select = function() end, -- read on every mouse release by core/copy-on-select.lua
 }
 
 -- Set + persist + apply live + broadcast.

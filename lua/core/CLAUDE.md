@@ -1626,6 +1626,39 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   be synthesized headless, the same shape as `neotree-hover`'s `M.update(mp)`.
   Spec: `tests/core/mouse_spec.lua`.
 
+## Copy on select — `copy-on-select.lua` (required from `init.lua`)
+
+- herdr's behaviour: a mouse selection is copied to the `+` register the moment
+  the button is released. That covers a drag, a double-clicked word and a
+  triple-clicked line, in code buffers and in terminal columns. The selection
+  stays active, so a keyboard operator can still act on it. A `📋 Copied N
+  chars|lines` INFO toast confirms it, and `quiet` mutes it. Gated live on the
+  `copy_on_select` setting (default on, *Copy on select* row in `:NvSinnerMenu`).
+- **Observed through `vim.on_key`, never mapped.** A global Visual
+  `<LeftRelease>` map would sit under every buffer-local `<LeftRelease>` (the
+  modals and both explorers). It would also take over the release Vim uses to
+  finalise a selection (see *Mouse geometry* → **Coupling**). `on_key` only
+  watches, so no existing mouse behaviour changes.
+- **The gate is "a release that leaves Visual mode active".** Probed in an
+  `--embed` child with `nvim_input_mouse`: a plain click releases in Normal mode
+  and even ends an existing Visual selection. A drag releases as `<LeftRelease>`
+  and multi-clicks release as `<2-LeftRelease>` / `<3-LeftRelease>` (**not**
+  `<LeftRelease>`). In each of those Visual mode is already active. So a
+  keyboard-made `v` selection is never copied, and no "did it drag" flag is
+  needed. The copy is `vim.schedule`d, because `on_key` fires before the key is
+  processed.
+- **No `y` is fed.** `getregion()` + `setreg("+", lines, regtype)` leaves the
+  cursor and selection where they are. It goes through `'clipboard'` /
+  `vim.g.clipboard`, so OSC 52 over SSH (`core/options.lua`) works unchanged.
+- **Known trade-off.** `clipboard=unnamedplus` makes `p` read `+`. So
+  "mouse-select a word, then `p` to replace it" pastes the word over itself,
+  which is X11 primary-selection behaviour. Turn the setting off for that flow.
+- **Honest limit.** In a terminal column the selection only happens when the
+  program inside has NOT enabled mouse reporting. A TUI that captures the mouse
+  gets the drag itself, and Neovim never enters Visual mode.
+- Seams: `M.copy()` (copies the active Visual selection, returns the lines or
+  nil), `M.ns`. Spec: `tests/core/copy_on_select_spec.lua`.
+
 ## Treesitter query compat — `ts-compat.lua` (NOT required from `init.lua`)
 
 - **What it fixes.** Neovim 0.12 changed the treesitter predicate/directive

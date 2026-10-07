@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.11.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.12.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.11.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.12.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.11.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.12.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -340,6 +340,14 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     runs only while a dashboard is visible and the editor has focus. A
     continuous fall was tried first and dropped — measured in a real PTY, the
     figure showed split across the top and bottom edges.
+    **v3.12.0** adds copy on select, the way herdr does it: a mouse drag, a
+    double-clicked word or a triple-clicked line goes to the system clipboard
+    on release, in code buffers and terminal columns alike, and the selection
+    stays on screen. It watches the key stream instead of mapping the release,
+    so no existing mouse behaviour changes, and keyboard selections are never
+    copied (*Copy on select* in `:NvSinnerMenu` turns it off). Toasts are now
+    one line: the title folds into the message instead of sitting on its own
+    header row.
 
 ## Status
 

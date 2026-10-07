@@ -28,6 +28,7 @@ require("core.keymaps")
 require("core.autoreload")
 require("core.ai-edits") -- underline AI-written lines after a disk reload, until the user takes over
 require("core.ui-touch")
+require("core.copy-on-select") -- herdr-style: a mouse selection is copied to the system clipboard on release
 require("core.neotree-hover") -- mouse-hover row wash on neo-tree rows (driven from ui-touch's <MouseMove>)
 require("core.filebadge") -- native per-window file badge (winbar): focus dot + filename (+ "Open view" chip on markdown)
 require("core.ai-activity") -- start polling so the terminal winbar shows agent activity
