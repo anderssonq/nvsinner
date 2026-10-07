@@ -118,6 +118,11 @@ any existing `~/.config/nvim` without touching it.
   is a float, so it never disturbs your window layout, and it leaves the edge
   free for satellite's hunk/diagnostic ruler — minimap and overview ruler side
   by side, the way an IDE does it.
+- **Copy on select** — like herdr, sweeping text with the mouse copies it: a
+  drag, a double-clicked word or a triple-clicked line lands in the system
+  clipboard the moment you let go, and the selection stays on screen. It works
+  in code buffers and in the AI/terminal columns. Turn it off with the *Copy on
+  select* row in `:NvSinnerMenu`. Keyboard selections (`v`…) are never copied.
 - **Dashboard wallpaper** — a fallen-angel image painted *behind* the start
   screen, faded toward the theme background so the menu stays readable, and
   floating gently up and down while the dashboard is open. It is on by default; hide it with `:NvSinnerWallpaper off` (no argument toggles) or the
@@ -598,7 +603,9 @@ infocmp -x xterm-ghostty | ssh HOST -- tic -x -
 The system clipboard also works remotely without a GUI provider: inside an SSH
 session (`$SSH_TTY` set) `lua/core/options.lua` routes the `+`/`*` registers
 through **OSC 52**, which Ghostty supports, so `y`/`p` reach your local
-clipboard. Local (non-SSH) sessions keep using `pbcopy`/`pbpaste`.
+clipboard. Local (non-SSH) sessions keep using `pbcopy`/`pbpaste`. Copy on
+select goes through the same path, so a mouse selection over SSH also reaches
+your local clipboard.
 
 ## 📁 Folder structure
 
@@ -629,6 +636,7 @@ lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems t
 lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
 lua/core/image-open.lua        Image files open in macOS Quick Look
 lua/core/minimap.lua           Code minimap pane (:NvSinnerMinimap, <leader>xn) — braille overview + click to jump
+lua/core/copy-on-select.lua    herdr-style copy on select: a mouse selection lands in the clipboard on release
 lua/core/wallpaper.lua         Dashboard wallpaper (:NvSinnerWallpaper on|off) — pure-Lua image painted behind alpha
 lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
 settings/prompts.json          The prompt library (committed, hand-editable)

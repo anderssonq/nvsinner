@@ -14,6 +14,11 @@ return {
 			-- keeps that fade smooth.
 			stages = "fade",
 			fps = 60,
+			-- One-line toasts: "compact" folds the icon + title into the
+			-- message line ("<icon> | <title>: <message>") instead of the
+			-- default's separate header row. A multi-line message still keeps
+			-- its extra lines — only the header is folded away.
+			render = "compact",
 		})
 		vim.notify = notify
 	end,

@@ -120,6 +120,12 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   Neovim 0.12.x transient floats (same reason `core/ui-touch.lua` renders
   hover as plain text); `K` keeps the native handler. Do not enable noice's
   lsp markdown paths.
+- `notify.lua` — `nvim-notify` owns `vim.notify` (noice's notify routing is
+  off). Toasts are short-lived (`timeout = 250` + the quick `fade` stage) and
+  **one line**: `render = "compact"` folds the icon + title into the message
+  line (`<icon> | <title>: <message>`) instead of the default renderer's
+  separate header row. Only the header is folded; a multi-line message keeps
+  its extra lines.
 - `mini-animate.lua` — `mini.animate`: eases window open/close/resize (the AI
   column slides in) + a short cursor trail. **Scroll is disabled here** —
   that's `neoscroll`'s job (`smooth-scroll.lua`); don't enable both.
