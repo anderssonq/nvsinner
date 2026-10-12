@@ -229,7 +229,9 @@ straight into the diff of the file you're reading (or the one selected in the
 tree), at the line you're on, pressing it again to hop between the diff and the
 file list, and `gf` to drop back out onto the editable buffer. `<leader>gd` is
 idempotent: press it as often as you like, you get the one diff tab back, never
-a second copy. Both diff panes scroll together, including with the mouse
+a second copy. The open diff follows the agent live: files it writes or
+creates show up in the file list within a moment, with no close-and-reopen
+(in another tab, the list catches up the moment you switch back). Both diff panes scroll together, including with the mouse
 wheel over the pane that doesn't have focus. And `<leader>gu` reads the same changes **unified** — the old
 lines inline above the new ones, right in the file you're editing.
 

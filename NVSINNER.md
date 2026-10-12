@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.12.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.13.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.12.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.13.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.12.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.13.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -348,6 +348,12 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     copied (*Copy on select* in `:NvSinnerMenu` turns it off). Toasts are now
     one line: the title folds into the message instead of sitting on its own
     header row.
+    **v3.13.0** makes the `<leader>gd` diff follow the agent live: files it
+    writes or creates show up in the file list on their own, with no
+    `<leader>gq` + `<leader>gd` round trip. diffview only watched
+    `.git/index`, so the view now watches the repo itself — push-only, one
+    coalesced refresh per burst of writes, and nothing runs while nothing
+    changes.
 
 ## Status
 
