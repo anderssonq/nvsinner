@@ -88,6 +88,139 @@ describe("diffview spec", function()
 		assert.are.equal(tabs, #vim.api.nvim_list_tabpages(), "no tab may open")
 	end)
 
+	-- Live refresh: an agent writing the working tree touches neither of
+	-- diffview's own triggers (.git/index, in-Neovim BufWritePost), so the spec
+	-- watches the repo itself. Exercised with fake view tables and a real temp
+	-- dir — the watcher is plain luv, no plugin needed.
+	describe("live refresh", function()
+		local live = _G.NvDiffview.live
+		local tmp, views
+
+		-- macOS FSEvents replays events from just before the watch started (the
+		-- temp dir's own creation, measured), so each case lets those land and
+		-- then zeroes the counters before acting.
+		local function settle(view)
+			vim.wait(400)
+			view.updates = 0
+			live.dirty[view] = nil
+		end
+
+		local function fake_view(opts)
+			local view = {
+				files = {},
+				set_file = function() end,
+				tabpage = vim.api.nvim_get_current_tabpage(),
+				adapter = { ctx = { toplevel = tmp } },
+				updates = 0,
+			}
+			view.update_files = function(self)
+				self.updates = self.updates + 1
+			end
+			for k, v in pairs(opts or {}) do
+				view[k] = v
+			end
+			table.insert(views, view)
+			return view
+		end
+
+		before_each(function()
+			tmp = vim.fn.resolve(vim.fn.tempname())
+			vim.fn.mkdir(tmp .. "/.git", "p")
+			views = {}
+			live.DELAY_MS = 150
+		end)
+
+		after_each(function()
+			for _, view in ipairs(views) do
+				live.unwatch(view)
+			end
+			vim.fn.delete(tmp, "rf")
+		end)
+
+		it("wires the three hooks it lives on", function()
+			local hooks = spec.opts.hooks
+			assert.are.equal("function", type(hooks.view_opened))
+			assert.are.equal("function", type(hooks.view_enter))
+			assert.are.equal("function", type(hooks.view_closed))
+		end)
+
+		it("ignores .git/ — diffview's own git status would refresh forever", function()
+			assert.is_true(live.ignored(".git"))
+			assert.is_true(live.ignored(".git/index.lock"))
+			assert.is_true(live.ignored("vendor/sub/.git/HEAD"))
+			assert.is_false(live.ignored("lua/core/a.lua"))
+			assert.is_false(live.ignored(".github/workflows/ci.yml"))
+			assert.is_false(live.ignored(".gitignore"))
+		end)
+
+		it("watches a DiffView and stops on close", function()
+			local view = fake_view()
+			spec.opts.hooks.view_opened(view)
+			assert.is_not_nil(live.watchers[view])
+			local handle = live.watchers[view]
+			spec.opts.hooks.view_closed(view)
+			assert.is_nil(live.watchers[view])
+			assert.is_true(handle:is_closing())
+		end)
+
+		it("leaves a FileHistoryView alone", function()
+			local view = fake_view({ files = false, set_file = false })
+			live.watch(view)
+			assert.is_nil(live.watchers[view])
+		end)
+
+		it("refreshes the current-tab view once per burst of writes", function()
+			local view = fake_view()
+			live.watch(view)
+			settle(view)
+			for i = 1, 5 do
+				vim.fn.writefile({ "x" }, tmp .. "/f" .. i .. ".txt")
+			end
+			assert.is_true(vim.wait(2000, function()
+				return view.updates > 0
+			end, 10))
+			vim.wait(400)
+			assert.are.equal(1, view.updates, "five writes must coalesce into one refresh")
+		end)
+
+		it("ignores writes under .git/", function()
+			local view = fake_view()
+			live.watch(view)
+			settle(view)
+			vim.fn.writefile({ "x" }, tmp .. "/.git/index")
+			vim.wait(400)
+			assert.are.equal(0, view.updates)
+			assert.is_nil(live.dirty[view])
+		end)
+
+		it("holds a view in another tab dirty until view_enter", function()
+			vim.cmd("tabnew")
+			local other = vim.api.nvim_get_current_tabpage()
+			vim.cmd("tabprevious")
+			local view = fake_view({ tabpage = other })
+			live.watch(view)
+			settle(view)
+			vim.fn.writefile({ "x" }, tmp .. "/new.txt")
+			assert.is_true(vim.wait(2000, function()
+				return live.dirty[view] == true
+			end, 10))
+			vim.wait(100)
+			assert.are.equal(0, view.updates, "update_files would cancel itself off-tab")
+
+			spec.opts.hooks.view_enter(view)
+			assert.are.equal(1, view.updates)
+			assert.is_nil(live.dirty[view])
+			vim.cmd("tabclose " .. vim.api.nvim_tabpage_get_number(other))
+		end)
+
+		it("view_enter is a no-op when nothing changed", function()
+			local view = fake_view()
+			live.watch(view)
+			spec.opts.hooks.view_enter(view)
+			assert.are.equal(0, view.updates)
+		end)
+	end)
+
 	-- Click-to-preview in the file panels. Unlike neo-tree's window.mappings,
 	-- these are real spec data, so most of it is assertable directly.
 	describe("click-to-preview", function()

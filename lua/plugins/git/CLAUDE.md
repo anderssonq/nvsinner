@@ -158,6 +158,36 @@
     behaviour — the `editable_win` pre-positioning — moved onto `gf`. Do not
     reintroduce a second exit key.
 
+  **Live refresh — the open DiffView follows the disk.** diffview's own
+  triggers are an `fs_poll` on `.git/index` (`watch_index`) and `BufWritePost`
+  (writes made *inside* Neovim); an agent writing the working tree touches
+  neither, so new files and stats used to wait for `<leader>gq` +
+  `<leader>gd`. The `live` table in the spec fixes that through three hooks:
+  `view_opened` starts one recursive `vim.uv` fs_event on
+  `adapter.ctx.toplevel` (real DiffViews only — a FileHistoryView doesn't
+  change with the working tree), `view_enter` flushes a dirty view, and
+  `view_closed` stops + closes the handle. Rules:
+
+  - **Push, never poll.** No timer runs and no git process spawns while
+    nothing changes. The one timer is a one-shot coalescer (`live.DELAY_MS`)
+    armed by an event, so an agent writing twenty files costs one
+    `update_files`.
+  - **`.git/` is ignored, and that filter is load-bearing.** `update_files`
+    runs `git status`, which rewrites the index — reacting to it would refresh
+    forever. The index already has `watch_index`.
+  - **The fs_event callback is a fast event context**: it only writes plain
+    tables and (re)arms the uv timer; the flush is `vim.schedule_wrap`ped.
+  - **`update_files` cancels itself unless the view's tab is current**, so an
+    off-tab view stays `dirty` and `view_enter` lists it on the way in.
+  - **Linux degrades to top-level only** (inotify has no recursive watch);
+    `view_enter` and a `FocusGained` autocmd in the spec's `init` (only once
+    `diffview.lib` is already loaded — it must not pull the plugin in) cover
+    the rest. macOS FSEvents also **replays events from just before the watch
+    started** (measured), which is why the spec settles before counting.
+  - Seam: `_G.NvDiffview.live` (`ignored`, `watch`, `unwatch`, `touch`,
+    `flush`, `enter`, `watchers`, `dirty`). Spec: the "live refresh" block in
+    `tests/plugins/diffview_spec.lua`, against a real temp dir.
+
   **Click-to-preview in the file panels** — diffview's ONLY stock mouse
   binding is `{ "n", "<2-LeftMouse>", actions.select_entry }`
   (`diffview/config.lua`), so seeing a file's diff cost two clicks while

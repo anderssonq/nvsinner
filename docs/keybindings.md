@@ -113,7 +113,7 @@ Ask-AI modal.
 | `<leader>hS` / `<leader>hR` | n | Stage / reset whole buffer |
 | `<leader>hb` | n | Blame current line (full popup) |
 | *(automatic)* | — | Inline blame on the cursor line: ` summary • date • author • <sha>` plus ` branch #PR` for the merge that brought it in. `:NvSinnerBlameToggle` turns it off |
-| `<leader>gd` | n | Diffview: working tree vs index — **at most one tab**: pressed again it returns to the view already open (refreshing its file list) instead of stacking a second one |
+| `<leader>gd` | n | Diffview: working tree vs index — **at most one tab**: pressed again it returns to the view already open (refreshing its file list) instead of stacking a second one. The open view also follows disk changes live (an agent's edits appear on their own) |
 | `<leader>gh` / `<leader>gH` | n | Diffview: current-file / whole-repo history. `<leader>gH` is **one tab** like `<leader>gd`; `<leader>gh` opens one per file, since two files are two histories |
 | `<leader>gq` | n | Diffview: close |
 | `<leader>gi` | n | Diffview: **into** the diff — open on the current file (or the one selected in the tree) at the current line, focus the working-tree pane; inside the view, toggle diff ⇄ file list |

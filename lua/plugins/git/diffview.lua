@@ -23,6 +23,9 @@
 --               back to it, `<leader>gq` closes it). Wrapped here so the file
 --               lands in a code pane and not in neo-tree or the AI column.
 --
+-- While the diff is open it follows the disk: files an agent writes show up in
+-- the list on their own (see "Live refresh" below).
+--
 -- And, in the file panels, one click previews a file's diff — the same gesture
 -- and the same `tree_click` setting neo-tree uses (see the mouse section below).
 local api = vim.api
@@ -387,6 +390,115 @@ local function into_diff()
 	vim.cmd("DiffviewOpen --selected-file=" .. vim.fn.fnameescape(path))
 end
 
+-- ─── Live refresh: follow the agent's edits while the diff is open ───────────
+-- diffview refreshes its file list on its own only when `.git/index` changes
+-- (`watch_index`, an fs_poll) or a buffer is written INSIDE Neovim. An agent in
+-- the AI column writes the working tree, which touches neither, so new files
+-- and fresh stats used to wait for <leader>gq + <leader>gd. (The right-hand
+-- pane is the real file buffer, so core/autoreload already reloads its text —
+-- the stale part is the list.)
+--
+-- One recursive fs_event per open DiffView, push-only: no timer runs and no git
+-- process spawns while nothing changes. Events coalesce through one one-shot
+-- timer, so an agent writing twenty files costs one refresh. `update_files`
+-- cancels itself unless the view's tab is current, so a view in another tab
+-- stays dirty and is flushed by `view_enter`. Linux's inotify cannot watch
+-- recursively — there the watcher sees top-level writes only, and the
+-- `view_enter` / FocusGained refreshes cover the rest.
+local live = {
+	DELAY_MS = 300,
+	watchers = {}, -- view -> uv fs_event handle (anchored here against luv GC)
+	dirty = {}, -- view -> true while a change has not been listed yet
+	timer = nil, -- the shared coalescer, created on first use
+}
+
+---A path (relative to the watched toplevel) the refresh must ignore. `.git/`
+---is load-bearing, not tidiness: diffview's own `git status` rewrites the
+---index, so reacting to it would refresh forever. The index already has
+---diffview's `watch_index`.
+---@param path string|nil
+---@return boolean
+function live.ignored(path)
+	if not path or path == "" then
+		return false
+	end
+	return path == ".git" or path:match("^%.git/") ~= nil or path:match("/%.git/") ~= nil
+end
+
+---Refresh every dirty view whose tab is current; the others wait for
+---`view_enter`. Views whose tab is gone are dropped.
+function live.flush()
+	for view in pairs(live.dirty) do
+		if not (view.tabpage and api.nvim_tabpage_is_valid(view.tabpage)) then
+			live.dirty[view] = nil
+		elseif view.tabpage == api.nvim_get_current_tabpage() then
+			live.dirty[view] = nil
+			pcall(view.update_files, view)
+		end
+	end
+end
+
+---Mark `view` dirty and (re)arm the coalescer. Called from the fs_event
+---callback — a fast event context — so it touches only plain tables and uv
+---timer ops.
+function live.touch(view)
+	live.dirty[view] = true
+	if not live.timer then
+		live.timer = vim.uv.new_timer()
+	end
+	live.timer:stop()
+	live.timer:start(live.DELAY_MS, 0, vim.schedule_wrap(live.flush))
+end
+
+---Start watching the repo behind a real DiffView (a FileHistoryView does not
+---change with the working tree, so it is left alone).
+function live.watch(view)
+	if not (view and view.files and view.set_file) or live.watchers[view] then
+		return
+	end
+	local root = view.adapter and view.adapter.ctx and view.adapter.ctx.toplevel
+	if not root or root == "" then
+		return
+	end
+	local handle = vim.uv.new_fs_event()
+	if not handle then
+		return
+	end
+	local ok = pcall(handle.start, handle, root, { recursive = true }, function(err, path)
+		if not err and not live.ignored(path) then
+			live.touch(view)
+		end
+	end)
+	if ok then
+		live.watchers[view] = handle
+	elseif not handle:is_closing() then
+		handle:close()
+	end
+end
+
+function live.unwatch(view)
+	local handle = live.watchers[view]
+	live.watchers[view] = nil
+	live.dirty[view] = nil
+	if handle and not handle:is_closing() then
+		handle:stop()
+		handle:close()
+	end
+end
+
+---Entering the view's tab (or regaining focus in it): list what changed while
+---it was not current. `force` refreshes even without a recorded event — the
+---FocusGained path, which covers what a non-recursive watcher missed.
+function live.enter(view, force)
+	if view and live.watchers[view] and (force or live.dirty[view]) then
+		live.dirty[view] = nil
+		pcall(view.update_files, view)
+	end
+end
+
+-- Test seam, beside `open` on the same global.
+_G.NvDiffview.live = live
+
 -- ─── Mouse: click-to-preview in the file panels ──────────────────────────────
 -- diffview's ONLY stock mouse binding is `{ "n", "<2-LeftMouse>", select_entry }`
 -- (diffview/config.lua), so seeing a file's diff cost two clicks while neo-tree
@@ -525,6 +637,18 @@ return {
 				end
 			end,
 		})
+		-- Live refresh's catch-all: coming back to the editor while the diff tab
+		-- is current re-lists it. Only once diffview has loaded — the check must
+		-- not pull the plugin in.
+		vim.api.nvim_create_autocmd("FocusGained", {
+			group = group,
+			callback = function()
+				local lib = package.loaded["diffview.lib"]
+				if lib then
+					live.enter(lib.get_current_view(), true)
+				end
+			end,
+		})
 	end,
 	opts = {
 		-- Brighter, word-level diff highlights so changes stand out clearly.
@@ -570,9 +694,18 @@ return {
 					end
 				end)
 			end,
-			-- Never let a stale jump leak into the next view.
-			view_closed = function()
+			-- Live refresh (see the section above): watch on open, flush on enter.
+			view_opened = function(view)
+				live.watch(view)
+			end,
+			view_enter = function(view)
+				live.enter(view)
+			end,
+			-- Never let a stale jump leak into the next view, nor a watcher
+			-- outlive its view.
+			view_closed = function(view)
 				pending = nil
+				live.unwatch(view)
 			end,
 		},
 	},
