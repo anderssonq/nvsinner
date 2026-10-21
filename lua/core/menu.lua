@@ -72,6 +72,7 @@ local ITEMS = {
 	{ key = "minimap", label = "Minimap", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "wallpaper_on", label = "Wallpaper", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "copy_on_select", label = "Copy on select", values = { false, true }, show = bool_show("on", "off") },
+	{ key = "image_preview", label = "Image preview", values = { "inline", "quicklook" } },
 	-- herdr reporting: both rows no-op unless a herdr server owns this pane.
 	{ key = "herdr", label = "herdr reporting", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "herdr_detail", label = "herdr detail", values = { "state", "tokens", "full" } },

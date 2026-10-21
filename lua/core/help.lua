@@ -46,6 +46,7 @@ vim.api.nvim_create_autocmd("ColorScheme", {
 -- command's own desc can't carry). Anything not listed falls back to the desc
 -- registered with nvim_create_user_command.
 local DESCS = {
+	NvSinnerAgentMode = "Agent mode — git diff beside the AI column, following its edits (<leader>ga)",
 	NvSinnerIA = "AI hub — completion on/off, model, Ask-AI, prompts (<leader>xi)",
 	NvSinnerMenu = "Settings modal — theme, accent, panel sides (<leader>xm)",
 	NvSinnerMinimap = "Code minimap — braille overview on the right edge (<leader>xn)",
@@ -72,6 +73,7 @@ local EXCLUDE = {
 local SECTIONS = { "ai", "editor", "settings", "maintenance", "other" }
 local SECTION_OF = {
 	NvSinnerIA = "ai",
+	NvSinnerAgentMode = "editor",
 	NvSinnerReplace = "editor",
 	NvSinnerMinimap = "editor",
 	NvSinnerSymbols = "editor",

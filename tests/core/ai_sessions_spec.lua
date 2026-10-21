@@ -431,6 +431,69 @@ describe("core.ai-sessions", function()
 		assert.are.equal(vim.log.levels.INFO, toasts[2].level)
 	end)
 
+	it("show_here() delegates to the clearer's show_here (agent mode)", function()
+		local moved = {}
+		sessions.set_clearer({
+			list = function()
+				return {}
+			end,
+			clear = function()
+				return false
+			end,
+			show_here = function(n, opts)
+				moved[#moved + 1] = { n = n, opts = opts }
+				return true
+			end,
+		})
+		assert.is_true(sessions.show_here(3, { existing = true }))
+		assert.is_true(sessions.show_here())
+		assert.are.same({ { n = 3, opts = { existing = true } }, { n = 1 } }, moved, "opts pass through; nil n is 1")
+	end)
+
+	it("show_here() warns and returns false without a clearer show_here", function()
+		sessions.set_clearer(nil)
+		local toasts = {}
+		local orig = vim.notify
+		vim.notify = function(msg, level)
+			toasts[#toasts + 1] = { msg = msg, level = level }
+		end
+		local ok = sessions.show_here(1)
+		vim.notify = orig
+		assert.is_false(ok)
+		assert.are.equal(vim.log.levels.WARN, toasts[1].level)
+	end)
+
+	it("focus_column() goes through show_here, so it never leaves the tab", function()
+		local shown = {}
+		sessions.set_clearer({
+			list = function()
+				return {}
+			end,
+			clear = function()
+				return false
+			end,
+			show_here = function(n)
+				shown[#shown + 1] = n
+				return true
+			end,
+		})
+		assert.is_true(sessions.focus_column(2, { window = -1 }))
+		assert.are.same({ 2 }, shown)
+	end)
+
+	it("focus_column() falls back to the plain window jump without a clearer", function()
+		sessions.set_clearer(nil)
+		local here = vim.api.nvim_get_current_win()
+		vim.cmd("vsplit")
+		local other = vim.api.nvim_get_current_win()
+		vim.api.nvim_set_current_win(here)
+		assert.is_true(sessions.focus_column(1, { window = other }))
+		assert.are.equal(other, vim.api.nvim_get_current_win())
+		vim.cmd("stopinsert")
+		vim.api.nvim_win_close(other, true)
+		assert.is_false(sessions.focus_column(1, { window = other }), "an invalid window is not focused")
+	end)
+
 	it("hide_all() is a quiet no-op without an injected clearer", function()
 		sessions.set_clearer(nil)
 		local orig = vim.notify

@@ -57,7 +57,7 @@ lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + check
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
 lua/core/version.lua         Version state: current/display access + once-per-session async remote check against raw main (dashboard footer update prompt, :NvSinnerHelp title) (native)
 lua/core/health.lua          Missing/incompatible-tool detection: :checkhealth nvsinner + one-time first-run toast (native)
-lua/core/image-open.lua      Open image files in macOS Quick Look + metadata placeholder (native)
+lua/core/image-open.lua      Open image files: painted inline in the buffer as `▄` half-blocks (macOS sips → BMP → wallpaper pipeline), metadata header; placeholder + Quick Look fallback; `image_preview` setting (native)
 lua/core/git-blame.lua       Inline git blame for the cursor line, async porcelain → eol virt_text (native, replaces git-blame.nvim)
 lua/core/illuminate.lua      Symbol-occurrence underline: LSP document_highlight + visible-range fallback (native, replaces vim-illuminate)
 lua/core/sessions.lua        :mksession sessions per cwd — :NvSinnerSession*, <leader>Sc/Sl/SQ (native, replaces persistence.nvim)
@@ -210,7 +210,8 @@ The full keybindings reference lives in **[docs/keybindings.md](docs/keybindings
   **at most one tab** — pressed again it returns to the view already open;
   `gi` = into the diff for the current file at the current line, and inside the
   view a diff ⇄ file-list toggle; diffview's own `gf` is the exit, leaving the
-  tab standing; plus gitsigns' `gu` = the unified inline diff) · `h` hunks
+  tab standing; `ga` = agent mode, the diff beside the AI column; plus
+  gitsigns' `gu` = the unified inline diff) · `h` hunks
   (gitsigns) · `j` ai sessions (toggleterm columns; `jx<N>` = focus-or-open
   primed with `@`-mentions of the visible buffers) · `l` lsp · `r` replace
   (`rn` = LSP rename symbol; `rw` = the word-replace modal, n + visual) ·

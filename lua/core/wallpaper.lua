@@ -48,15 +48,17 @@ local function rgb2hex(c)
 	return string.format("#%02x%02x%02x", c[1], c[2], c[3])
 end
 
--- Pull `c` toward `base` (c at weight `a`), quantized to STEP. nil → base.
-function M.mix(c, base, a)
+-- Pull `c` toward `base` (c at weight `a`), quantized to `step` (default STEP).
+-- nil → base.
+function M.mix(c, base, a, step)
 	if not c then
 		return { base[1], base[2], base[3] }
 	end
+	step = step or M.STEP
 	local o = {}
 	for j = 1, 3 do
 		local v = base[j] + (c[j] - base[j]) * a
-		o[j] = math.max(0, math.min(255, math.floor(v / M.STEP + 0.5) * M.STEP))
+		o[j] = math.max(0, math.min(255, math.floor(v / step + 0.5) * step))
 	end
 	return o
 end
@@ -109,6 +111,62 @@ function M.parse_ppm(raw)
 		return nil
 	end
 	return { w = w, h = h, data = data }
+end
+
+-- Parse a BMP → { w, h, data } (RGB, top-down) or nil. Handles 24- and 32-bit
+-- (BGR / BGRA; alpha is dropped), compression 0 or BI_BITFIELDS (3), and both
+-- row orders: a negative height means top-down, a positive one bottom-up. This
+-- is the shape macOS `sips -s format bmp` writes (32-bit, bitfields, top-down),
+-- which is how lua/core/image-open.lua feeds arbitrary images into this
+-- pipeline. Palette formats (<= 8 bpp) and RLE are rejected.
+function M.parse_bmp(raw)
+	if type(raw) ~= "string" or #raw < 34 or raw:sub(1, 2) ~= "BM" then
+		return nil
+	end
+	local byte = string.byte
+	-- LuaJIT has no string.unpack: little-endian reads by hand.
+	local function u16(p)
+		local a, b = byte(raw, p, p + 1)
+		return a + b * 256
+	end
+	local function u32(p)
+		local a, b, c, d = byte(raw, p, p + 3)
+		return a + b * 256 + c * 65536 + d * 16777216
+	end
+	local function i32(p)
+		local v = u32(p)
+		return v >= 2147483648 and v - 4294967296 or v
+	end
+	local offset, w, h, bpp, comp = u32(11), i32(19), i32(23), u16(29), u32(31)
+	local top_down = h < 0
+	h = math.abs(h)
+	if w <= 0 or h == 0 or (bpp ~= 24 and bpp ~= 32) or (comp ~= 0 and comp ~= 3) then
+		return nil
+	end
+	local bytes = bpp / 8
+	local stride = math.floor((bpp * w + 31) / 32) * 4
+	if offset + (h - 1) * stride + w * bytes > #raw then
+		return nil
+	end
+	local pat = bpp == 32 and "(.)(.)(.)." or "(.)(.)(.)"
+	local rows = {}
+	for y = 0, h - 1 do
+		local src = offset + y * stride + 1
+		local row = raw:sub(src, src + w * bytes - 1):gsub(pat, "%3%2%1")
+		rows[top_down and y + 1 or h - y] = row
+	end
+	return { w = w, h = h, data = table.concat(rows) }
+end
+
+-- Contain-fit: the largest cell box that holds `img` whole (no crop) inside a
+-- `cols` × `rows` area, plus its centring offsets. Returns dc, dr (cells), then
+-- col0, row0 (cells from the area's top-left). Feed dc, dr to M.pixels: the
+-- cover-fit it runs is then an exact fit (at most a pixel of crop).
+function M.contain(img, cols, rows)
+	local scale = math.min(cols / img.w, rows * 2 / img.h)
+	local dc = math.max(1, math.min(cols, math.floor(img.w * scale + 0.5)))
+	local dr = math.max(1, math.min(rows, math.floor(img.h * scale / 2 + 0.5)))
+	return dc, dr, math.floor((cols - dc) / 2), math.floor((rows - dr) / 2)
 end
 
 -- Resample `img` to `cols` × `rows * 2` pixels (two pixel rows per cell),
@@ -284,56 +342,83 @@ local function transparent(c)
 	return c == nil or (c[1] <= M.KEY_MAX and c[2] <= M.KEY_MAX and c[3] <= M.KEY_MAX)
 end
 
--- Lay `grid` onto `buf` as shown in `win`.
-function M.paint_grid(win, buf, grid, strength)
-	local w, h = vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win)
-	vim.api.nvim_buf_clear_namespace(buf, M.ns, 0, -1)
+-- Lay `grid` onto `buf` as shown in `win`. `opts` (all optional; the defaults
+-- are the wallpaper's behaviour exactly) lets another consumer reuse the paint:
+--   ns       extmark namespace (default M.ns)
+--   priority extmark priority (default M.PRIORITY)
+--   key      false → no black-is-transparent key (a photo has real blacks)
+--   step     colour quantization step (default M.STEP)
+--   col0/row0 the grid's top-left cell inside the window's text area (default 0)
+--   width/height the text area to paint in (default the whole window)
+-- Returns how many distinct highlight groups the paint used.
+function M.paint_grid(win, buf, grid, strength, opts)
+	opts = opts or {}
+	local ns = opts.ns or M.ns
+	local priority = opts.priority or M.PRIORITY
+	local keyed = opts.key ~= false
+	local step = opts.step
+	local col0, row0 = opts.col0 or 0, opts.row0 or 0
+	local w = opts.width or vim.api.nvim_win_get_width(win)
+	local h = opts.height or vim.api.nvim_win_get_height(win)
+	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 	pad_lines(buf, h)
 	local base = hex2rgb(require("core.carbon").colors().base00)
 	local top = vim.api.nvim_win_call(win, function()
 		return vim.fn.line("w0")
 	end) - 1
-	local lines = vim.api.nvim_buf_get_lines(buf, top, top + h, false)
+	local lines = vim.api.nvim_buf_get_lines(buf, top + row0, top + h, false)
 	local set = vim.api.nvim_buf_set_extmark
-	for r = 1, math.min(h, #grid, #lines) do
-		local row, lnum = grid[r], top + r - 1
+	local used, nused = {}, 0 -- distinct groups this paint touched (returned)
+	local function use(fg_, bg_)
+		local name = group(fg_, bg_)
+		if not used[name] then
+			used[name], nused = true, nused + 1
+		end
+		return name
+	end
+	for r = 1, math.min(h - row0, #grid, #lines) do
+		local row, lnum = grid[r], top + row0 + r - 1
 		local tc = text_cells(lines[r])
 		local chunks, start = {}, nil
 		local function flush()
 			if start then
-				set(buf, M.ns, lnum, 0, { virt_text = chunks, virt_text_win_col = start, priority = M.PRIORITY })
+				set(buf, ns, lnum, 0, { virt_text = chunks, virt_text_win_col = start, priority = priority })
 				chunks, start = {}, nil
 			end
 		end
-		for c = 0, math.min(w, #row) - 1 do
+		for c = 0, math.min(w - col0, #row) - 1 do
 			local cell = row[c + 1]
+			local col = c + col0
 			-- Pure-black pixels are TRANSPARENT: they become nil, which mixes to
 			-- base, and a cell that is transparent on both halves gets no mark at
 			-- all, so the editor's real Normal bg shows (theme-proof).
 			-- (Not `transparent(x) and nil or x`: a nil in the middle of an
 			-- and/or chain always falls through to the `or` branch.)
 			local cfg, cbg = cell.fg, cell.bg
-			if transparent(cfg) then
-				cfg = nil
+			if keyed then
+				if transparent(cfg) then
+					cfg = nil
+				end
+				if transparent(cbg) then
+					cbg = nil
+				end
 			end
-			if transparent(cbg) then
-				cbg = nil
-			end
-			local fg, bg = M.mix(cfg, base, strength), M.mix(cbg, base, strength)
-			local t = tc[c]
+			local fg, bg = M.mix(cfg, base, strength, step), M.mix(cbg, base, strength, step)
+			local t = tc[col]
 			if not cfg and not cbg then
 				flush()
 			elseif t then
 				flush()
-				local avg = M.mix({ (fg[1] + bg[1]) / 2, (fg[2] + bg[2]) / 2, (fg[3] + bg[3]) / 2 }, base, 1)
-				set(buf, M.ns, lnum, t[1], { end_col = t[2], hl_group = group(nil, avg), priority = M.PRIORITY })
+				local avg = M.mix({ (fg[1] + bg[1]) / 2, (fg[2] + bg[2]) / 2, (fg[3] + bg[3]) / 2 }, base, 1, step)
+				set(buf, ns, lnum, t[1], { end_col = t[2], hl_group = use(nil, avg), priority = priority })
 			else
-				start = start or c
-				chunks[#chunks + 1] = { cell.ch, group(fg, bg) }
+				start = start or col
+				chunks[#chunks + 1] = { cell.ch, use(fg, bg) }
 			end
 		end
 		flush()
 	end
+	return nused
 end
 
 -- Paint the wallpaper onto the dashboard in `win`/`buf`, or clear it when off.

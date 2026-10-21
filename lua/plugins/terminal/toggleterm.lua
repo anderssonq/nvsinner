@@ -61,17 +61,38 @@ return {
 		-- captured at keypress time: by the time the panel opens, focus (and
 		-- the "current" buffer) has already moved into the terminal.
 		local pending_prime = {}
+		-- A panel's terminal buffer exists (spawned, not wiped).
+		local function spawned(term)
+			return term.bufnr ~= nil and vim.api.nvim_buf_is_valid(term.bufnr)
+		end
+		-- The window showing `term`'s buffer in the CURRENT tab, if any. A
+		-- session's buffer can sit in a window per tab (agent mode, <leader>ga,
+		-- shows it in the diff tab too), and `term.window` may be the other
+		-- tab's — touching that one would switch the tabpage out from under the
+		-- caller.
+		local function win_here(term)
+			if not spawned(term) then
+				return nil
+			end
+			for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+				if vim.api.nvim_win_get_buf(w) == term.bufnr then
+					return w
+				end
+			end
+		end
 		local function restore_layout()
 			for _, t in pairs(h_panels) do
-				if t:is_open() then
-					vim.api.nvim_set_current_win(t.window)
+				local w = win_here(t)
+				if w then
+					vim.api.nvim_set_current_win(w)
 					vim.cmd("wincmd J")
 					vim.cmd("resize " .. h_height())
 				end
 			end
 			for _, t in pairs(ai_panels) do
-				if t:is_open() then
-					vim.api.nvim_set_current_win(t.window)
+				local w = win_here(t)
+				if w then
+					vim.api.nvim_set_current_win(w)
 					vim.cmd(ai_side() == "left" and "wincmd H" or "wincmd L")
 					vim.cmd("vertical resize " .. AI_WIDTH)
 				end
@@ -251,7 +272,16 @@ return {
 		local AI_CLIS = { "claude", "kiro-cli", "opencode" }
 		local picker_ns = vim.api.nvim_create_namespace("nvsinner_ai_picker")
 
+		local picker_wins = {} -- n → the open picker's window: one picker per session
 		local function pick_ai_cmd(n, on_choice, on_cancel)
+			-- A second press while session n's picker is still up re-focuses it
+			-- instead of stacking another one beside it.
+			local open = picker_wins[n]
+			if open and vim.api.nvim_win_is_valid(open) then
+				vim.api.nvim_set_current_tabpage(vim.api.nvim_win_get_tabpage(open))
+				vim.api.nvim_set_current_win(open)
+				return
+			end
 			local entries = {}
 			for _, cli in ipairs(AI_CLIS) do
 				table.insert(entries, { cmd = cli, name = cli, ok = vim.fn.executable(cli) == 1 })
@@ -260,6 +290,7 @@ return {
 
 			vim.cmd(ai_side() == "left" and "topleft vsplit" or "botright vsplit")
 			local win = vim.api.nvim_get_current_win()
+			picker_wins[n] = win
 			vim.api.nvim_win_set_width(win, AI_WIDTH)
 			local buf = vim.api.nvim_create_buf(false, true)
 			vim.api.nvim_win_set_buf(win, buf)
@@ -394,10 +425,43 @@ return {
 			render()
 		end
 
+		-- One session, many tabs. A column is ONE terminal buffer (one job), but
+		-- agent mode (<leader>ga) shows it in the diff tab too, so the same buffer
+		-- can sit in a window per tab. toggleterm tracks a single `term.window`,
+		-- so the current tab's window is (re)adopted as that one before any
+		-- toggle/focus — every key then acts on the column you can see, never on
+		-- a window in a tab you are not looking at.
+		local function adopt_here(term)
+			local w = win_here(term)
+			if w then
+				term.window = w
+			end
+			return w
+		end
+		-- toggleterm's close returns focus to its origin window — which, once a
+		-- column lives in two tabs, can be in the OTHER tab. Stay in this one.
+		local function in_tab(fn)
+			local tab = vim.api.nvim_get_current_tabpage()
+			local ok, res = pcall(fn)
+			if vim.api.nvim_tabpage_is_valid(tab) and vim.api.nvim_get_current_tabpage() ~= tab then
+				vim.api.nvim_set_current_tabpage(tab)
+			end
+			return ok and res
+		end
+
+		local show_here -- defined below; toggle_ai_panel and it call each other
+
 		local function toggle_ai_panel(n)
 			n = n or 1
-			if ai_panels[n] then
-				ai_panels[n]:toggle()
+			local term = ai_panels[n]
+			if term then
+				if adopt_here(term) then
+					in_tab(function()
+						term:close()
+					end)
+				else
+					show_here(n) -- shown elsewhere stays shown there; this tab gets it too
+				end
 				return
 			end
 			pick_ai_cmd(n, function(choice)
@@ -421,11 +485,8 @@ return {
 			n = n or 1
 			local text = require("core.ai-sessions").buffer_mentions()
 			local term = ai_panels[n]
-			if term and term:is_open() then
-				if term.window and vim.api.nvim_win_is_valid(term.window) then
-					vim.api.nvim_set_current_win(term.window)
-					vim.cmd("startinsert!")
-				end
+			if term and spawned(term) then
+				show_here(n)
 				if text then
 					prime_session(term, text)
 				end
@@ -513,6 +574,42 @@ return {
 			end, { desc = "AI session " .. n .. " — focus + @-mention visible buffers" })
 		end
 
+		-- Show session n's column in the CURRENT tab and focus it. Already here →
+		-- focus. Otherwise a window on the SAME buffer here (same job, same chat),
+		-- adopted as the managed one; a column in another tab stays as it is.
+		-- Never opened → the first-open CLI picker, here — unless
+		-- `opts.existing` (agent mode): then nothing opens and it returns false;
+		-- agent mode never creates a session, it only shows one that exists.
+		show_here = function(n, opts)
+			local term = ai_panels[n]
+			if not term then
+				if opts and opts.existing then
+					return false
+				end
+				toggle_ai_panel(n)
+				return true
+			end
+			if adopt_here(term) then
+				vim.api.nvim_set_current_win(term.window)
+				vim.cmd("startinsert!")
+				return true
+			end
+			if not spawned(term) then
+				term:open() -- buffer wiped (e.g. :bd!) → toggleterm respawns it
+				return true
+			end
+			-- The window is built here, not by term:open(): toggleterm's opener
+			-- splits next to ANY open toggleterm window, in whatever tab it is.
+			vim.cmd(ai_side() == "left" and "topleft vsplit" or "botright vsplit")
+			local win = vim.api.nvim_get_current_win()
+			vim.api.nvim_win_set_buf(win, term.bufnr)
+			vim.wo[win].winfixwidth = true
+			term.window = win
+			pcall(require("toggleterm.ui").hl_term, term)
+			on_panel_open(term) -- side + width, winbar label, MRU, focus + insert
+			return true
+		end
+
 		-- Let the bridge open a session when a send finds none alive (and let
 		-- the <leader>ja picker reopen a hidden one).
 		require("core.ai-sessions").set_opener(function(n)
@@ -543,14 +640,22 @@ return {
 				ai_panels[n] = nil
 				return true
 			end,
+			-- Agent mode (<leader>ga): show session n's column in the CURRENT
+			-- tab, leaving it open wherever else it is (see show_here).
+			show_here = function(n, opts)
+				return show_here(n, opts)
+			end,
 			-- <leader>jh: close the column's window only — the job and the memo
 			-- survive, so the next toggle re-shows the same CLI.
 			hide = function(n)
 				local term = ai_panels[n]
-				if not (term and term:is_open()) then
-					return false
+				if not (term and adopt_here(term)) then
+					return false -- nothing to hide in THIS tab (another tab keeps its column)
 				end
-				return (pcall(term.close, term))
+				return in_tab(function()
+					term:close()
+					return true
+				end)
 			end,
 		})
 	end,

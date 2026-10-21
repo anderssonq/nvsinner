@@ -188,6 +188,38 @@
     `flush`, `enter`, `watchers`, `dirty`). Spec: the "live refresh" block in
     `tests/plugins/diffview_spec.lua`, against a real temp dir.
 
+  **Agent mode — the diff beside the AI column** (`agent` table in the spec;
+  `<leader>ga`, `:NvSinnerAgentMode` created in the spec's `init`, and the
+  statusline diff icon). One toggle:
+
+  - **On**: `open_diff()` (so the one-tab rule holds), then
+    `core.ai-sessions.show_here(n)` shows the active AI session's column in
+    that tab — `n` is `ai-sessions.target()`, else 1. It is the SAME session
+    (same job, same buffer, a second window), never a new column, and the
+    editor tab keeps its own window on it. **Agent mode never creates a
+    session** (`show_here(n, { existing = true })`): with none open yet, it
+    shows the diff alone — no column, no CLI picker. The tab agent mode started from is remembered as
+    `agent.origin`.
+  - **While on**: the fs_event callback records the last written path in
+    `live.last` (a plain table write — fast context), and a `files_updated`
+    listener (`live.on_updated`) runs after each coalesced re-list: if that
+    file is in the diff it switches the view to it (`set_file(entry, false)`,
+    no focus change), then `agent.reveal_last_hunk` scrolls the working-tree
+    pane with `G[czz`. A file already shown is only scrolled; a fresh swap is
+    scrolled from `diff_buf_win_enter` once the new buffer exists.
+  - **Off**: back to `agent.origin`, where `show_here` makes sure the column
+    is shown too — so a session first opened in agent mode survives leaving
+    it. Nothing is closed: the diff tab (and its window on the column) stays,
+    like `gf`. **Closing the diff view turns it off** (`view_closed`) — the one-tab
+    rule killed the tab and its window on the column; the editor tab's column
+    stays.
+  - **The statusline icon clicks the command, not the key**: before diffview
+    loads, `<leader>ga` is lazy.nvim's stub that re-feeds keys, which from a
+    focused AI column would be typed into the CLI (see `core.statusmark`).
+  - Seam: `_G.NvDiffview.agent` (`toggle`, `active`, `reveal_last_hunk`, state
+    fields); lualine reads `active()` to turn the icon green. Spec: the "agent
+    mode" cases in `tests/plugins/diffview_spec.lua`.
+
   **Click-to-preview in the file panels** — diffview's ONLY stock mouse
   binding is `{ "n", "<2-LeftMouse>", actions.select_entry }`
   (`diffview/config.lua`), so seeing a file's diff cost two clicks while

@@ -161,18 +161,25 @@ local function open_view(lib)
 	end
 end
 
----Focus the layout's main window — `.b`, the right/working-tree side for the
+---The layout's main window — `.b`, the right/working-tree side for the
 ---default `diff2_horizontal`. Layout-agnostic: Diff1 has only `.b`, Diff3/4 add
 ---more, and `get_main_win()` picks the right one for each.
 ---@param view table
 ---@return integer|nil winid
-local function focus_main(view)
+local function main_win(view)
 	local layout = view and view.cur_layout
 	local win = layout and layout.get_main_win and layout:get_main_win()
 	if win and win.id and api.nvim_win_is_valid(win.id) then
-		api.nvim_set_current_win(win.id)
 		return win.id
 	end
+end
+
+local function focus_main(view)
+	local winid = main_win(view)
+	if winid then
+		api.nvim_set_current_win(winid)
+	end
+	return winid
 end
 
 ---@param winid integer|nil
@@ -466,11 +473,20 @@ function live.watch(view)
 	end
 	local ok = pcall(handle.start, handle, root, { recursive = true }, function(err, path)
 		if not err and not live.ignored(path) then
+			if path and path ~= "" then
+				live.last = root .. "/" .. path -- agent mode follows it (plain table write: fast context)
+			end
 			live.touch(view)
 		end
 	end)
 	if ok then
 		live.watchers[view] = handle
+		-- Agent mode's "follow" runs once the coalesced re-list has landed.
+		if view.emitter then
+			view.emitter:on("files_updated", function()
+				live.on_updated(view)
+			end)
+		end
 	elseif not handle:is_closing() then
 		handle:close()
 	end
@@ -495,6 +511,99 @@ function live.enter(view, force)
 		pcall(view.update_files, view)
 	end
 end
+
+-- ─── Agent mode: the diff beside the AI column ───────────────────────────────
+-- <leader>ga / :NvSinnerAgentMode / the statusline diff icon. One toggle:
+--   on   open the one diff tab (`open_diff`) and show the active AI column in
+--        it (`core.ai-sessions.show_here`): the SAME session — same CLI, same
+--        chat — never a new one, and the column stays open in the editor tab;
+--   off  back to the tab agent mode was started from, showing the column there
+--        too (so a session first opened in agent mode survives leaving it). The
+--        diff tab stays, like `gf` leaves it.
+-- While on, every live re-list points the view at the file the agent wrote
+-- last and scrolls its working-tree pane to the last hunk — without taking
+-- focus from the CLI.
+local agent = {
+	on = false,
+	n = nil, -- the AI session shown in the diff tab
+	origin = nil, -- the tabpage to return to
+	reveal = nil, -- true while a followed file waits for its buffer swap
+}
+
+---After a live re-list: show the last written file, if it is part of the diff.
+function live.on_updated(view)
+	local path = live.last
+	live.last = nil
+	if not (agent.on and path) then
+		return
+	end
+	local entry = find_entry(view, path)
+	if not entry then
+		return
+	end
+	if entry ~= view.cur_entry then
+		agent.reveal = true -- served by `diff_buf_win_enter` once the buffer swaps
+		view:set_file(entry, false)
+	else
+		agent.reveal_last_hunk(view)
+	end
+end
+
+---Scroll the working-tree pane to its last change, from outside that window.
+function agent.reveal_last_hunk(view)
+	local winid = main_win(view)
+	if winid then
+		api.nvim_win_call(winid, function()
+			pcall(vim.cmd, "normal! G[czz")
+		end)
+	end
+end
+
+local function refresh_statusline()
+	pcall(function()
+		require("lualine").refresh()
+	end)
+end
+
+function agent.toggle()
+	local sessions = require("core.ai-sessions")
+	if agent.on then
+		agent.on = false
+		live.last = nil
+		local back = agent.origin
+		agent.origin = nil
+		if back and api.nvim_tabpage_is_valid(back) then
+			api.nvim_set_current_tabpage(back)
+			sessions.show_here(agent.n, { existing = true })
+		end
+		refresh_statusline()
+		return
+	end
+
+	local ok, lib = pcall(require, "diffview.lib")
+	if not ok then
+		return
+	end
+	local target = sessions.target()
+	agent.n = target and target.n or 1
+	local from = api.nvim_get_current_tabpage()
+	open_diff()
+	local view = diff_view(lib)
+	if not (view and api.nvim_get_current_tabpage() == view.tabpage) then
+		return
+	end
+	agent.origin = from ~= view.tabpage and from or nil
+	agent.on = true
+	sessions.show_here(agent.n, { existing = true })
+	refresh_statusline()
+end
+
+---@return boolean
+function agent.active()
+	return agent.on
+end
+
+_G.NvDiffview.agent = agent
 
 -- Test seam, beside `open` on the same global.
 _G.NvDiffview.live = live
@@ -585,6 +694,7 @@ return {
 		{ "<leader>gH", open_repo_history, desc = "Diff: history of whole repo" },
 		{ "<leader>gq", "<cmd>DiffviewClose<cr>", desc = "Diff: close view" },
 		{ "<leader>gi", into_diff, desc = "Diff: into the diff (toggle diff/file list)" },
+		{ "<leader>ga", agent.toggle, desc = "Diff: agent mode (diff beside the AI column)" },
 	},
 	-- Click, never drag-select in the two file panels. Like neo-tree's tree they
 	-- are pickers, not text, so a press-and-sweep across entries should highlight
@@ -605,6 +715,9 @@ return {
 	-- 'scrollbind', not diffview, so a native `:diffthis` split gets it too; the
 	-- wheel itself is never remapped.
 	init = function()
+		vim.api.nvim_create_user_command("NvSinnerAgentMode", agent.toggle, {
+			desc = "Agent mode: the git diff beside the AI column, following its edits",
+		})
 		local group = vim.api.nvim_create_augroup("nvsinner_diffview_mouse", { clear = true })
 		vim.api.nvim_create_autocmd("FileType", {
 			group = group,
@@ -662,6 +775,12 @@ return {
 			-- Fired once per diff window as it opens. `symbol` is the layout slot:
 			-- "a" is the index/old side, "b" the working-tree/new side.
 			diff_buf_win_enter = function(bufnr, winid, ctx)
+				if agent.reveal and ctx and ctx.symbol == "b" then
+					agent.reveal = nil
+					vim.schedule(function()
+						agent.reveal_last_hunk(require("diffview.lib").get_current_view())
+					end)
+				end
 				if not pending then
 					return
 				end
@@ -706,6 +825,13 @@ return {
 			view_closed = function(view)
 				pending = nil
 				live.unwatch(view)
+				if agent.on and view.files then
+					-- The one diff tab is gone (one-tab rule), and its window on the
+					-- column with it; the editor tab's column stays.
+					agent.on = false
+					agent.origin = nil
+					refresh_statusline()
+				end
 			end,
 		},
 	},
