@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/dashboard.png" width="760" alt="NvSinner dashboard" />
+  <img src="assets/demo.gif" width="760" alt="NvSinner demo: dashboard, command palette, fuzzy find, file tree, symbols, minimap, Ask-AI and the AI column" />
 </p>
 
 ---
@@ -32,10 +32,6 @@ watches what it does.
 
 It installs as its own app (`NVIM_APPNAME=nvsinner`), so your existing
 `~/.config/nvim` is never touched.
-
-<p align="center">
-  <img src="assets/demo.gif" width="760" alt="NvSinner demo: dashboard, command palette, fuzzy find, file tree, symbols, minimap, Ask-AI and the AI column" />
-</p>
 
 ---
 
