@@ -647,8 +647,7 @@ function M.focus()
 	M.close()
 	local win = it.term and it.term.window
 	if it.open and win and vim.api.nvim_win_is_valid(win) then
-		vim.api.nvim_set_current_win(win)
-		vim.cmd("startinsert!")
+		require("core.ai-sessions").focus_column(it.n, it.term)
 	else
 		require("core.ai-sessions").open_session(it.n)
 	end

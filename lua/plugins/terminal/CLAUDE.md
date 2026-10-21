@@ -112,12 +112,37 @@
 - **Bridge integration**: `toggleterm.lua` pushes sessions into
   `core/ai-sessions.lua` (`register` on create, `touch` on open + a
   `TermEnter` autocmd, `unregister` on exit, `set_opener` for the fallback,
-  `set_clearer` for `<leader>jc`'s clear — a `{ list, clear }` pair over
+  `set_clearer` for `<leader>jc`'s clear — a `{ list, clear, hide, show_here }` table over
   `ai_panels`, because after a CLI exits the core registry has already
   dropped the session and ONLY this closure can still see the memoised
   Terminal) and sets `b:nv_term_label` in `on_panel_open` for the activity
   winbar. Full bridge/labeling contracts: `lua/core/CLAUDE.md` §AI and
   §Agent activity.
+- **`show_here(n)` is the clearer's agent-mode seam** (`ai-sessions.show_here`,
+  used by `<leader>ga` in `lua/plugins/git/diffview.lua`): it shows session
+  `n`'s column in the CURRENT tab and leaves it open wherever else it is — one
+  terminal buffer (one job) can sit in a window per tab. A never-opened
+  session takes the normal first-open path (the CLI picker) — except with
+  `opts.existing` (agent mode): then nothing opens and it returns `false` —
+  agent mode never creates a session.
+- **One picker per session** (`picker_wins`): a second press while session
+  `n`'s picker is up re-focuses it instead of stacking another split.
+- **One session, many tabs — the rules that make it safe.** toggleterm tracks
+  ONE `term.window`, so every toggle/focus/hide first `adopt_here`s the current
+  tab's window on the buffer as that one: keys act on the column you can see.
+  Once a session is spawned, `show_here` builds the window itself (`vsplit` +
+  `nvim_win_set_buf` + `on_panel_open`) instead of `term:open()`, whose opener
+  splits next to ANY open toggleterm window — in whatever tab it is. And
+  toggleterm's `close` returns focus to its origin window, which can be in the
+  other tab, so closes run through `in_tab()`, which stays in the current tab.
+  `hide` (`<leader>jh`) only hides a column shown in THIS tab. Focus jumps from
+  outside the closure (send-to-AI, `<leader>ja`, the cockpit) go through
+  `ai-sessions.focus_column(n, term)` → `show_here`, so they never switch tabs.
+- **`restore_layout()` is tab-scoped** (`win_here`): it only touches panels
+  with a window on their buffer in the current tab — not `term.window`, which
+  may be the other tab's. With a column also shown in the diff tab,
+  `nvim_set_current_win` on a window in another tab would switch tabpages out
+  from under the caller.
 - **herdr env isolation**: BOTH `Terminal:new` call sites (the AI columns and
   the `<leader>t` horizontals) pass `env = require("core.herdr").child_env()`
   with `clear_env = false`. Without it a spawned process inherits Neovim's

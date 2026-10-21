@@ -211,6 +211,14 @@ end
 
 M.terminal_click = M.map_click("<leader>t")
 M.agents_click = M.map_click("<leader>xa")
+-- Agent mode goes through its command, not `map_click("<leader>ga")`: until
+-- diffview loads, that map is lazy.nvim's stub, which re-feeds the keys — and
+-- clicked from a focused AI column they would be typed into the CLI.
+function M.agent_mode_click(_, button)
+	if button == "l" then
+		vim.cmd("NvSinnerAgentMode")
+	end
+end
 
 -- ── Loop ─────────────────────────────────────────────────────────────────
 -- Repaint the statusline row only. nvim__redraw, not :redrawstatus — the

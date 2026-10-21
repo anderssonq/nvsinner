@@ -27,7 +27,7 @@ local M = {}
 -- order depend on pairs() iteration.
 local registry = {}
 local opener -- injected by toggleterm: function(n) → toggle/open session n
-local clearer -- injected by toggleterm: { list = fn() → sorted {n,…}, clear = fn(n) → bool, hide = fn(n) → bool }
+local clearer -- injected by toggleterm: { list = fn() → sorted {n,…}, clear = fn(n) → bool, hide = fn(n) → bool, show_here = fn(n) → bool }
 local mru_clock = 0
 local function stamp()
 	mru_clock = mru_clock + 1
@@ -190,6 +190,33 @@ function M.clear(n)
 	return cleared
 end
 
+-- Show session n's column in the current tab, keeping it open in any other tab
+-- (agent mode, lua/plugins/git/diffview.lua). Through the injected clearer for
+-- the same reason as hide: only toggleterm's closure owns the Terminal objects.
+-- opts.existing: show only a session that exists — never create one (false).
+function M.show_here(n, opts)
+	if not (clearer and clearer.show_here) then
+		vim.notify("No AI session column handler registered", vim.log.levels.WARN)
+		return false
+	end
+	return clearer.show_here(n or 1, opts)
+end
+
+-- Focus session n's column without leaving the current tab: through the
+-- clearer's show_here when injected (the session may be shown in another tab
+-- too — agent mode), else the plain window jump.
+function M.focus_column(n, term)
+	if clearer and clearer.show_here then
+		return clearer.show_here(n)
+	end
+	if term and term.window and vim.api.nvim_win_is_valid(term.window) then
+		vim.api.nvim_set_current_win(term.window)
+		vim.cmd("startinsert!")
+		return true
+	end
+	return false
+end
+
 -- Hide every open AI column at once (<leader>jh). Hiding, not clearing: each
 -- CLI keeps running and <leader>j / <leader>jN brings its column back. Goes
 -- through the injected clearer's `hide` because a column whose CLI exited is
@@ -262,8 +289,7 @@ function M.send_to(e, text, opts)
 	vim.fn.chansend(e.term.job_id, M._payload(text))
 	M.touch(e.n)
 	if opts.focus ~= false and e.term.window and vim.api.nvim_win_is_valid(e.term.window) then
-		vim.api.nvim_set_current_win(e.term.window)
-		vim.cmd("startinsert!")
+		M.focus_column(e.n, e.term)
 	end
 	return true
 end
@@ -428,8 +454,7 @@ vim.keymap.set("n", "<leader>ja", function()
 			return
 		end
 		if s.open and s.term.window and vim.api.nvim_win_is_valid(s.term.window) then
-			vim.api.nvim_set_current_win(s.term.window)
-			vim.cmd("startinsert!")
+			M.focus_column(s.n, s.term)
 		else
 			M.open_session(s.n)
 		end

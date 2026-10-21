@@ -77,6 +77,16 @@ edits files on disk (see *Auto-reload* below).
   unregister is idempotent, so the late echo is harmless). The command is
   EXCLUDEd from `:NvSinnerHelp` and surfaced as an action row in the
   `:NvSinnerIA` hub instead.
+- **`M.show_here(n)` — agent-mode seam.** Shows session `n`'s column (default 1)
+  in the current tab, keeping it open in any other tab (same session, a
+  second window); it goes through the
+  injected clearer's optional `show_here(n)` for the same reason as `hide` —
+  only toggleterm's closure owns the Terminal objects. No clearer or no
+  `show_here` → WARN + `false`. Caller: `<leader>ga` (`lua/plugins/git/CLAUDE.md`).
+- **`M.focus_column(n, term)`** — focus a column without leaving the current
+  tab: the clearer's `show_here` when injected, else the plain `term.window`
+  jump. `send_to`'s focus, the `<leader>ja` picker and the cockpit's focus
+  (`core/agents.lua`) use it, because a session may be shown in two tabs.
 
 ### Ask-AI modal — `ai-ask.lua` (required from `init.lua`)
 - The IDE-style "select → ask" flow: visual `<leader>x` (free — trouble's
@@ -660,7 +670,10 @@ semantic colors and are not wrapped. A left click on the mark opens
 the two icons at the left of the bar run a keymap on a left click —
 `M.terminal_click` (`<leader>t`) and `M.agents_click` (`<leader>xa`), both built
 by `M.map_click(lhs)`: `maparg` lookup, then the callback or a `<Cmd>…<CR>` rhs;
-no-op when the map is absent.
+no-op when the map is absent. The agent-mode icon's `M.agent_mode_click` runs
+`:NvSinnerAgentMode` instead of `map_click("<leader>ga")` **because** until
+diffview loads that map is lazy.nvim's stub, which re-feeds the keys — clicked
+from a focused AI column they would be typed into the CLI.
 Required and started by `lua/plugins/ui/lualine.lua`'s `config()` (the shimmer
 only exists when lualine does); layout/centring notes live in
 `lua/plugins/ui/CLAUDE.md`.
@@ -1357,20 +1370,52 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
 
 ## Image viewer — `image-open.lua` (required from `init.lua`)
 
-- Opening an image file shows it instead of dumping binary bytes. iTerm2 (this
-  config's terminal) uses its own inline-image escapes, **not** the Kitty
-  graphics protocol that in-buffer image plugins need, so the image is popped
-  into **macOS Quick Look** (`qlmanage -p`, async/non-blocking) and the buffer
-  shows a small placeholder (icon, filename, `sips` dimensions, size).
+- Opening an image file shows it instead of dumping binary bytes. By default
+  (setting `image_preview = "inline"`, `:NvSinnerMenu` → *Image preview*) the
+  picture is painted **inside the buffer** as `▄` half-block extmarks, reusing
+  `wallpaper.lua`'s pipeline (`parse_bmp` → `pixels` → `paint_grid`; see the
+  `nvsinner-image-rendering` skill). `"quicklook"` restores the old behaviour:
+  a text placeholder plus **macOS Quick Look** (`qlmanage -p`).
+- **Decode path, no new dependency**: macOS `sips -s format bmp [-Z M.MAXPX]
+  <in> --out <cache>.part` (async `vim.system`, renamed on success) into
+  `stdpath("cache")/nvsinner/img/<sha256(path, mtime, size)>.bmp`
+  (`M.cache_path`). Probed output: 32-bit `BI_BITFIELDS`, **top-down**
+  (negative height), BGRA; `wallpaper.parse_bmp` also reads 24-bit and
+  bottom-up. `-Z` is skipped when the image is already within `M.MAXPX`, so
+  small pixel art isn't upscaled. A cache hit skips the process; alpha is
+  dropped (a transparent PNG shows whatever RGB sips left under it).
+- **Fit and paint**: `wallpaper.contain` (no crop, centred) inside the window's
+  text area *below the 3-line header* (filename, `dims · size · EXT` + key hints,
+  blank), strength **1.0** (no fade), the **black-is-transparent key OFF**
+  (`opts.key = false` — a photo has real blacks), own namespace
+  (`nvsinner_image_preview`), `M.STEP` 12. Window size comes from `getwininfo`
+  (`height`, `width - textoff`), not `nvim_win_get_*`, which count the winbar row
+  and the sign/number columns. `paint_grid` returns its distinct-group count; a
+  paint over `M.MAX_GROUPS` (3000) repaints with a doubled step (≤ 48), bounding
+  the `NvWallpaper_*` groups a noisy photo creates (the groups from the
+  discarded pass linger until the next `ColorScheme`).
+- **Lifecycle**: a debounced (`M.DEBOUNCE_MS`) repaint on `WinResized` /
+  `VimResized` / `WinScrolled`, an immediate one on `BufWinEnter`, a repaint on
+  `ColorScheme` (scheduled, so it runs after wallpaper's own synchronous cache
+  reset; `:hi clear` wiped the groups), state dropped on `BufWipeout`. State is per buffer (`M._state`).
+- **SVG is not an image here**: it is XML text, so it is left out of `M.exts`
+  and opens as its source code, editable like any file.
+- **Fallbacks → the text placeholder + Quick Look**: heic / heif
+  (`M.NO_INLINE`), no `sips`, `image_preview = "quicklook"`, a `sips` failure or
+  an unreadable BMP (the async callback swaps the header for the placeholder).
+  Quick Look does **not** auto-pop when the inline paint is in charge.
 - **`BufReadCmd` takes over the read** for the image extensions (`png`, `jpg`,
-  `webp`, `svg`, …, both cases) and sets `buftype = "nofile"` so `:w` can never
+  `webp`, …, both cases; never `svg`) and sets `buftype = "nofile"` so `:w` can never
   overwrite the image with the placeholder text. Setting `filetype` last fires
-  the `nvsinner_image` `FileType` autocmd, which binds `<cr>` (reopen Quick
-  Look) and `gO` (open in Preview.app).
-- **Auto-preview is interactive-only** — it bails when `#nvim_list_uis() == 0`
-  (headless/tests) and skips **floating** windows
-  (`win_config.relative ~= ""`), so telescope's preview doesn't spawn a Quick
-  Look storm; a `b:` flag makes it pop once per buffer.
+  the `nvsinner_image` `FileType` autocmd, which binds `<cr>` (Quick Look) and
+  `gO` (Preview.app).
+- **Auto Quick Look is interactive-only** — it bails when `#nvim_list_uis() == 0`
+  (headless/tests) and skips **floating** windows (`win_config.relative ~= ""`),
+  so telescope's preview doesn't spawn a Quick Look storm; a `b:` flag makes it
+  pop once per buffer.
+- Seams: `M.cache_path`, `M.mode`, `M.inline_possible`, `M.decode`, `M.paint`,
+  `M._state`. Spec: `tests/core/image_open_spec.lua` (the real-`sips` cases skip
+  themselves when `sips` isn't executable).
 
 ## Inline git blame — `git-blame.lua` (required from `init.lua`)
 
@@ -1896,7 +1941,14 @@ built-ins. Don't reintroduce them without asking.
     edges, and the owner preferred the float. Measured in a real PTY (pyte):
     the float keeps the figure on the same ~35 rows before and after `:e` →
     `:Alpha`, with no output while a file is open.
-- Seams: `M.parse_ppm`, `M.pixels`, `M.frame`, `M.sample`, `M.float_offset`,
+- **Shared with the image preview** (`image-open.lua`): `M.parse_bmp(raw)` (24/32
+  bpp, top-down or bottom-up, same `{ w, h, data }` shape as `parse_ppm`),
+  `M.contain(img, cols, rows)` (no-crop fit + centring), `M.mix(c, base, a,
+  step)` and `M.paint_grid(win, buf, grid, strength, opts)` where `opts` =
+  `ns` / `priority` / `key` / `step` / `col0` / `row0` / `width` / `height`
+  (returns the distinct group count). Every default
+  reproduces the wallpaper exactly — the dashboard passes no `opts`.
+- Seams: `M.parse_ppm`, `M.parse_bmp`, `M.contain`, `M.pixels`, `M.frame`, `M.sample`, `M.float_offset`,
   `M.tick(now)`, `M.mix`, `M.paint_grid`, `M.path`, `M.grid`, `M.enabled`,
   `M.paint`, `M.refresh`, `M.attach_alpha`, `M.command`, `M._headless`,
   `M._reset`. Spec: `tests/core/wallpaper_spec.lua`.

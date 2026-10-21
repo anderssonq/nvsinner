@@ -398,7 +398,7 @@ lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkh
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems toast
 lua/core/version.lua           Once-per-session update check (dashboard footer + :NvSinnerHelp title)
-lua/core/image-open.lua        Image files open in macOS Quick Look
+lua/core/image-open.lua        Image files paint inline, Quick Look fallback
 lua/core/minimap.lua           Code minimap pane (:NvSinnerMinimap, <leader>xn) — braille overview + click to jump
 lua/core/copy-on-select.lua    herdr-style copy on select: a mouse selection lands in the clipboard on release
 lua/core/wallpaper.lua         Dashboard wallpaper (:NvSinnerWallpaper on|off) — pure-Lua image painted behind alpha

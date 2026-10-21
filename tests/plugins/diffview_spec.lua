@@ -33,7 +33,7 @@ describe("diffview spec", function()
 	end)
 
 	-- which-key renders the <leader>g group from each mapping's own desc.
-	for _, lhs in ipairs({ "<leader>gd", "<leader>gh", "<leader>gH", "<leader>gq", "<leader>gi" }) do
+	for _, lhs in ipairs({ "<leader>gd", "<leader>gh", "<leader>gH", "<leader>gq", "<leader>gi", "<leader>ga" }) do
 		it("maps " .. lhs .. " with a desc", function()
 			local key = by_lhs[lhs]
 			assert.is_not_nil(key, lhs .. " must be mapped")
@@ -218,6 +218,117 @@ describe("diffview spec", function()
 			live.watch(view)
 			spec.opts.hooks.view_enter(view)
 			assert.are.equal(0, view.updates)
+		end)
+
+		it("records the absolute path of the last write (agent mode follows it)", function()
+			local view = fake_view()
+			live.watch(view)
+			settle(view)
+			live.last = nil
+			vim.fn.writefile({ "x" }, tmp .. "/written.txt")
+			assert.is_true(vim.wait(2000, function()
+				return live.last ~= nil
+			end, 10))
+			assert.are.equal(tmp .. "/written.txt", live.last)
+		end)
+	end)
+
+	-- Agent mode: the diff tab with the AI column beside it, following the
+	-- agent's writes. diffview's runtime is absent here, so the follow logic is
+	-- driven through fake views and the toggle through a stub mover.
+	describe("agent mode", function()
+		local agent, live = _G.NvDiffview.agent, _G.NvDiffview.live
+
+		local function entry_view(paths, cur)
+			local entries = {}
+			for _, p in ipairs(paths) do
+				entries[#entries + 1] = { absolute_path = p }
+			end
+			local view = {
+				files = {
+					iter = function()
+						return ipairs(entries)
+					end,
+				},
+				cur_entry = cur and entries[cur] or nil,
+				set_file_calls = {},
+			}
+			view.set_file = function(self, entry, focus)
+				table.insert(self.set_file_calls, { entry = entry, focus = focus })
+			end
+			return view, entries
+		end
+
+		after_each(function()
+			agent.on, agent.origin, agent.reveal, live.last = false, nil, nil, nil
+		end)
+
+		it("is reachable as :NvSinnerAgentMode before diffview loads", function()
+			spec.init()
+			assert.are.equal(2, vim.fn.exists(":NvSinnerAgentMode"))
+		end)
+
+		it("switches the view to the last written file, keeping focus where it is", function()
+			local view, entries = entry_view({ "/r/a.lua", "/r/b.lua" }, 1)
+			agent.on, live.last = true, "/r/b.lua"
+			live.on_updated(view)
+			assert.are.equal(1, #view.set_file_calls)
+			assert.are.equal(entries[2], view.set_file_calls[1].entry)
+			assert.is_false(view.set_file_calls[1].focus, "the CLI keeps focus")
+			assert.is_true(agent.reveal, "the last hunk is revealed once the buffer swaps")
+			assert.is_nil(live.last, "a path is followed once")
+		end)
+
+		it("does not swap when the written file is already shown", function()
+			local view = entry_view({ "/r/a.lua" }, 1)
+			agent.on, live.last = true, "/r/a.lua"
+			live.on_updated(view)
+			assert.are.equal(0, #view.set_file_calls)
+		end)
+
+		it("ignores writes outside the diff and does nothing while off", function()
+			local view = entry_view({ "/r/a.lua" })
+			agent.on, live.last = true, "/r/untracked-ignored.log"
+			live.on_updated(view)
+			agent.on, live.last = false, "/r/a.lua"
+			live.on_updated(view)
+			assert.are.equal(0, #view.set_file_calls)
+		end)
+
+		it("turns off when the diff view closes", function()
+			agent.on = true
+			spec.opts.hooks.view_closed({ files = {} })
+			assert.is_false(agent.active())
+		end)
+
+		it("toggling off shows the column in the tab it came from", function()
+			local sessions = require("core.ai-sessions")
+			local shown = {}
+			sessions.set_clearer({
+				list = function()
+					return {}
+				end,
+				clear = function()
+					return false
+				end,
+				show_here = function(n, opts)
+					shown[#shown + 1] = { n = n, tab = vim.api.nvim_get_current_tabpage(), opts = opts }
+					return true
+				end,
+			})
+			local origin = vim.api.nvim_get_current_tabpage()
+			vim.cmd("tabnew")
+			agent.on, agent.n, agent.origin = true, 2, origin
+			agent.toggle()
+			assert.is_false(agent.active())
+			assert.are.equal(origin, vim.api.nvim_get_current_tabpage())
+			assert.are.same(
+				{ { n = 2, tab = origin, opts = { existing = true } } },
+				shown,
+				"agent mode only shows an existing session"
+			)
+			vim.cmd("tabonly")
+			sessions.set_clearer(nil)
 		end)
 	end)
 

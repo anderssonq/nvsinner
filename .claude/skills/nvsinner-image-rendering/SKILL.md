@@ -8,7 +8,8 @@ description: >
   wallpaper or splash image, a logo or avatar drawn in cells, image previews,
   thumbnails, sprites, pixel art, a heatmap or chart drawn as colored cells,
   or any "paint a picture behind/under buffer text" effect. Also load it when
-  asked to change the wallpaper asset, to author a new PPM, or when a picture
+  asked to change the wallpaper asset, to author a new PPM, to change how an
+  opened image FILE is previewed inline (lua/core/image-open.lua), or when a picture
   painted with extmarks looks blurred, tinted, boxed-in behind text, or cut
   around the hover pill. Covers authoring the asset offline (Python/PIL →
   binary P6 PPM), decoding and cover-fit bilinear resampling in pure Lua, the
@@ -16,8 +17,7 @@ description: >
   float or an image protocol, the black-is-transparent key, text-cell rules,
   repainting after a host that clears every namespace, the highlight-group
   budget, and the dead ends that were tried and rejected. Do NOT load it for
-  opening image FILES (lua/core/image-open.lua hands those to macOS Quick
-  Look), for the carbon palette rules themselves (nvsinner-contract), or for
+  the Quick Look / placeholder fallback of image files alone, for the carbon palette rules themselves (nvsinner-contract), or for
   the minimap's braille encoder (lua/core/minimap.lua — a different cell
   trick, documented in lua/core/CLAUDE.md).
 ---
@@ -38,7 +38,7 @@ load-bearing for any similar feature, and what was tried and dropped.
 
 | You want… | Go to |
 |---|---|
-| Open a PNG/JPG the user `:e`-ed | `lua/core/image-open.lua` (Quick Look; iTerm2 has no Kitty graphics protocol) |
+| Open a PNG/JPG the user `:e`-ed | `lua/core/image-open.lua` — §6 below is the inline-preview consumer; Quick Look is its fallback (iTerm2 has no Kitty graphics protocol) |
 | The wallpaper's current knobs and paint rules | `lua/core/CLAUDE.md` § *Dashboard wallpaper* |
 | Palette roles, the no-hardcoded-hex rule | `nvsinner-contract` |
 | Proving a redraw/extmark behavior before relying on it | `nvsinner-empirical-verification` |
@@ -242,9 +242,50 @@ must still be pure black.
 | An asset smaller than the screen's half-block size | upscaled → blurred |
 | A continuous fall (image wrapping top ↔ bottom) | the figure showed split across both edges; the owner chose a float instead |
 
+## 6. Second consumer: the inline image preview (`image-open.lua`)
+
+Any image the user `:e`s is painted into its own buffer by the same pipeline.
+The differences from the wallpaper are all parameters of the shared functions
+(defaults reproduce the wallpaper, so the dashboard passes none):
+
+```
+image file (any format sips reads)
+  │  RUNTIME: macOS `sips -s format bmp [-Z px] in --out cache.part`, async
+  ▼
+stdpath("cache")/nvsinner/img/<hash of path+mtime+size>.bmp
+  │  M.parse_bmp(raw)          24/32 bpp, top-down or bottom-up → { w, h, data }
+  ▼
+M.contain(img, cols, rows)     no-crop fit + centring (the wallpaper is cover-fit)
+M.pixels / M.frame             same resample, same ▄ cells
+M.paint_grid(win, buf, grid, 1.0, opts)
+                               opts: ns, key=false, step, col0/row0, width/height
+```
+
+- **`sips` is the decoder, so there is no Lua PNG/JPEG code.** Asking it for a
+  BMP gives the one container simple enough to parse in ~30 lines; `-Z`
+  pre-scales a 4K photo so Lua never resamples it. Probe the real header
+  (`sips -s format bmp … --out x.bmp; xxd x.bmp | head`) before trusting a
+  layout claim: it was BI_BITFIELDS, negative height (top-down), BGRA, pixels
+  at the offset the header names.
+- **LuaJIT has no `string.unpack`** — read the little-endian fields by hand.
+  Reorder a whole row with one `gsub("(.)(.)(.).", "%3%2%1")`, not per pixel.
+- **Preview ≠ backdrop**: strength 1.0 (no fade), and the black key OFF — a
+  photo has real black, and the key would punch holes in it.
+- **Measure the window with `getwininfo`** (`height`, `width - textoff`):
+  `nvim_win_get_height` counts the winbar row and `get_width` the gutter.
+- **Highlight budget**: a noisy photo at full-screen size used thousands of
+  distinct groups at the base step. `paint_grid` returns the distinct-group
+  count so the caller can repaint with a coarser step above a cap.
+- **Repaint triggers**: a debounced resize/scroll hook, `BufWinEnter`, and
+  `ColorScheme` (repaint scheduled, so it runs after wallpaper's own cache reset). Clear on `BufWipeout`.
+- **Fallback is part of the design**: heic/heif, no `sips`, or a decode failure
+  keep the text placeholder + Quick Look. Setting: `image_preview`.
+- Verified headless against the real `sips`; the spec skips when it isn't
+  executable. `grep -n 'MAXPX\|MAX_GROUPS\|NO_INLINE' lua/core/image-open.lua`.
+
 ## Provenance and maintenance
 
-**Facts verified: 2026-10-06** — by reading `lua/core/wallpaper.lua`,
+**Facts verified: 2026-10-06 (§6 added 2026-10-20: sips header probed, preview run headless against real `sips`)** — by reading `lua/core/wallpaper.lua`,
 `tests/core/wallpaper_spec.lua`, `lua/core/CLAUDE.md` § *Dashboard wallpaper*
 and commit `5101de0`'s message; `scripts/make-wallpaper.py` was run on a
 synthetic 640×1138 source and its output decoded and sampled by

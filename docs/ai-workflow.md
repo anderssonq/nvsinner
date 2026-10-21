@@ -149,6 +149,24 @@ spinner *plus* each CLI's own on-screen prompts; the per-CLI patterns live in
 `M.SIGNS` at the top of `lua/core/agents.lua`, so teaching it a new CLI — or
 correcting one that reworded its prompt — is a one-line edit.
 
+### Agent mode
+
+`<leader>ga` (or `:NvSinnerAgentMode`, or the git-compare icon in the
+statusline, green while on) puts the git diff beside the AI column. It opens
+the one diff tab (the same view as `<leader>gd`) and shows the active AI
+session's column there too. It is the same session (same CLI, same chat), not a
+new column, and the editor tab keeps its column. If no AI session exists yet,
+it opens only the diff: agent mode never starts a session or shows the CLI
+picker. Open one with `<leader>j` and it shows up the next time.
+
+While it is on, each time the diff re-lists after the agent writes to disk, the
+view switches to the last file the agent wrote (if it is in the diff) and
+scrolls the working-tree pane to its last hunk. Focus stays in the CLI.
+
+Press it again to go back to the tab you started from, with the column shown
+there too — a session you first opened in agent mode stays when you leave it.
+Nothing closes: the diff tab stays open, like `gf`. Closing the diff view also turns agent mode off.
+
 ### Running under herdr
 
 [herdr](https://herdr.dev) is a terminal multiplexer built for AI agents: it

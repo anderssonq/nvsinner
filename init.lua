@@ -42,7 +42,7 @@ require("core.update") -- defines :NvSinnerUpdate (git pull + restore plugins + 
 require("core.sync") -- defines :NvSinnerSync (opt-in :Lazy sync + Mason package updates)
 require("core.version") -- version state: current/display + once-per-session remote check (dashboard footer, :NvSinnerHelp title)
 require("core.health") -- :checkhealth nvsinner + a one-time first-run "missing tools" toast
-require("core.image-open") -- open images in macOS Quick Look instead of showing binary bytes
+require("core.image-open") -- open images: inline paint, Quick Look fallback
 require("core.menu") -- :NvSinnerMenu — the settings modal over core/settings.lua
 require("core.prompts") -- :NvSinnerPrompts — prompt library modal (settings/prompts.json → clipboard)
 require("core.help") -- :NvSinnerHelp — command palette listing every NvSinner command (pick → run)

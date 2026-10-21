@@ -83,6 +83,18 @@ return {
 							color = { fg = c.base09 },
 							on_click = mark.agents_click,
 						},
+						-- Agent mode (<leader>ga): the git diff beside the AI column.
+						-- Green while on, so the bar says the diff is following the agent.
+						{
+							function()
+								return "\u{f47f}" -- nf-oct-git_compare
+							end,
+							color = function()
+								local on = _G.NvDiffview and _G.NvDiffview.agent and _G.NvDiffview.agent.active()
+								return { fg = on and c.base13 or c.base09 }
+							end,
+							on_click = mark.agent_mode_click,
+						},
 						{ "branch", fmt = mark.fmt(1) },
 					},
 					-- Project name (the cwd's root folder) ahead of the filename, so
