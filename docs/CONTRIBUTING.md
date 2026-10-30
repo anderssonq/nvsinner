@@ -207,23 +207,20 @@ describing what your spec pins.
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`:
 
-- **format** (blocking): `stylua --check init.lua colors lua tests`.
+- **lint** (blocking): `stylua --check init.lua colors lua tests`, then
+  `selene` (configured by `selene.toml` and `vim.yml`). selene fails the job on
+  errors only; warnings are printed.
 - **test** (blocking): the pinned plugins are restored, `lazy-lock.json` must
-  not drift, the config boots headless, and `make test` passes. It runs on the
-  declared floor and `stable` on Linux plus `stable` on macOS, and repeats the
-  restore + boot under `NVIM_APPNAME=nvsinner`, the distro's real launch mode.
-- **install-smoke** (blocking): `install.sh` into a temporary `HOME`, a boot of
-  the installed launcher, then `uninstall.sh --yes` must leave nothing behind.
-- **nightly** (report-only): the `test` job on Neovim nightly. A red run is a
-  finding, not a blocked merge.
-- **lint** (report-only): `selene`, configured by `selene.toml` and `vim.yml`.
+  not drift, the config boots headless, and `make test` passes. It runs on
+  Linux on the declared floor and on `stable`, and repeats the restore + boot
+  under `NVIM_APPNAME=nvsinner`, the distro's real launch mode.
 
 Gaps worth knowing before you rely on a green check:
 
-1. **Nightly and selene do not gate.** Read them, but they cannot block a merge.
+1. **macOS, nightly and the installer are not exercised.** CI covers Linux on
+   the floor and `stable` only; `install.sh` / `uninstall.sh` have no CI job.
 2. **Headless cannot judge rendering.** What a bar or float looks like needs a
    manual pass.
-3. **The smoke job is the happy path.** Updating an existing clone is not tested.
 
 ## Plugin versions
 

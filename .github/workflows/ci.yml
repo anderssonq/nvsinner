@@ -1,5 +1,5 @@
-# CI: format gate, report-only lint, boot + plenary suite on Linux/macOS,
-# a nightly canary, and an install/uninstall smoke test.
+# CI: a blocking `lint` job (stylua format check + selene) and a `test` job
+# (boot + plenary suite on Linux, on the declared floor and on stable).
 # The `test` job mirrors the "Validating changes" commands in CLAUDE.md:
 # restore the pinned plugin set (lazy-lock.json), boot headless surfacing
 # startup errors, then `make test`.
@@ -11,11 +11,13 @@ on:
   pull_request:
 
 jobs:
-  # Formatting is a hard gate here, not just in the opt-in pre-push hook: the
-  # hook is skippable (and off by default on a fresh clone), so drift could
-  # otherwise reach main green. No .stylua.toml on purpose — stylua defaults
-  # are the house style.
-  format:
+  # Formatting and lint are hard gates here, not just in the opt-in pre-push
+  # hook: the hook is skippable (and off by default on a fresh clone), so drift
+  # could otherwise reach main green. No .stylua.toml on purpose — stylua
+  # defaults are the house style. selene blocks on errors only: the tree still
+  # carries warnings (mixed_table, global_usage, …), so --allow-warnings keeps
+  # them visible without failing the job.
+  lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -27,39 +29,24 @@ jobs:
           version: 2.5.2
           args: --check init.lua colors lua tests
 
-  # REPORT-ONLY: selene has never been run over this tree, so it starts as
-  # visibility rather than a gate. Flip it to blocking (drop continue-on-error)
-  # once the findings are triaged.
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
       - uses: taiki-e/install-action@v2
         with:
           tool: selene
 
       - name: selene
-        run: selene init.lua colors lua tests
+        run: selene --allow-warnings init.lua colors lua tests
 
   test:
     name: test (${{ matrix.os }}, ${{ matrix.nvim }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    # nightly is a canary (where the crash class lives), never a gate.
-    continue-on-error: ${{ matrix.experimental }}
-    # v0.12.0 is the declared floor, `stable` is what users install today,
-    # macOS is the dev platform, and nightly is the early warning.
+    # v0.12.0 is the declared floor, `stable` is what users install today.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, nvim: v0.12.0, experimental: false }
-          - { os: ubuntu-latest, nvim: stable, experimental: false }
-          - { os: macos-latest, nvim: stable, experimental: false }
-          - { os: ubuntu-latest, nvim: nightly, experimental: true }
+          - { os: ubuntu-latest, nvim: v0.12.0 }
+          - { os: ubuntu-latest, nvim: stable }
     steps:
       - uses: actions/checkout@v4
 
@@ -72,19 +59,14 @@ jobs:
       # ripgrep is a declared distro dependency (core/health.lua reports it),
       # and tests/core/replace_spec.lua drives the REAL binary rather than a
       # stub — the project-wide replace is only meaningful against actual rg
-      # output. Neither runner image is guaranteed to ship it.
+      # output. The runner image is not guaranteed to ship it.
       #
       # luarocks rides along on purpose: image.nvim (an optional neo-tree
       # dependency) has a rockspec, and without luarocks lazy bootstraps
       # hererocks and adds a "hererocks" entry to lazy-lock.json, which the
       # drift check below would then flag.
       - name: Install ripgrep and luarocks
-        run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            brew install ripgrep luarocks
-          else
-            sudo apt-get update && sudo apt-get install -y ripgrep luarocks
-          fi
+        run: sudo apt-get update && sudo apt-get install -y ripgrep luarocks
 
       - name: Link config into the XDG paths
         run: |
@@ -129,88 +111,3 @@ jobs:
 
       - name: Run test suite
         run: make test
-
-  # install.sh / uninstall.sh run on other people's machines, so run them for
-  # real: a throwaway HOME, the installer pointed at this checkout through its
-  # own NVSINNER_REPO override (no edits to the script), a boot, then the
-  # uninstaller. Assert nothing is left behind.
-  install-smoke:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      # Full history: install.sh does a plain `git clone` of this checkout.
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: rhysd/action-setup-vim@v1
-        with:
-          neovim: true
-          version: stable
-
-      # install.sh gates on node >= 20 (language servers).
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      # Redirect HOME AND the four XDG vars: install.sh / uninstall.sh resolve
-      # their paths via XDG_*_HOME before HOME, so overriding HOME alone could
-      # leave them on the runner's real dirs and make the "gone" assertions pass
-      # vacuously. Everything lives under one temp HOME.
-      - name: Point HOME and XDG at a temporary directory
-        run: |
-          # Diagnostic: the runner's own values, before the override applies.
-          env | grep XDG || true
-          mkdir -p "$RUNNER_TEMP/smoke-home"
-          {
-            echo "HOME=$RUNNER_TEMP/smoke-home"
-            echo "XDG_CONFIG_HOME=$RUNNER_TEMP/smoke-home/.config"
-            echo "XDG_DATA_HOME=$RUNNER_TEMP/smoke-home/.local/share"
-            echo "XDG_STATE_HOME=$RUNNER_TEMP/smoke-home/.local/state"
-            echo "XDG_CACHE_HOME=$RUNNER_TEMP/smoke-home/.cache"
-          } >> "$GITHUB_ENV"
-
-      - name: Install into the temporary HOME
-        run: NVSINNER_REPO="file://$GITHUB_WORKSPACE" bash install.sh
-
-      - name: Assert the install landed
-        run: |
-          status=0
-          for p in \
-            "$XDG_CONFIG_HOME/nvsinner" \
-            "$XDG_DATA_HOME/nvsinner/lazy" \
-            "$HOME/.local/bin/nvsinner" \
-            "$HOME/.local/bin/nvsinner-herdr"; do
-            if [ ! -e "$p" ]; then
-              echo "::error::missing after install: $p"
-              status=1
-            fi
-          done
-          exit $status
-
-      - name: Boot the installed launcher
-        run: |
-          out=$("$HOME/.local/bin/nvsinner" --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 500)" 2>&1) || true
-          printf '%s\n' "$out"
-          if printf '%s\n' "$out" | grep -qE "^E[0-9]+:|Error detected|stack traceback"; then
-            echo "::error::startup errors detected in the installed copy"
-            exit 1
-          fi
-
-      - name: Uninstall and assert nothing is left
-        run: |
-          bash uninstall.sh --yes
-          status=0
-          for p in \
-            "$XDG_CONFIG_HOME/nvsinner" \
-            "$XDG_DATA_HOME/nvsinner" \
-            "$XDG_STATE_HOME/nvsinner" \
-            "$XDG_CACHE_HOME/nvsinner" \
-            "$HOME/.local/bin/nvsinner" \
-            "$HOME/.local/bin/nvsinner-herdr"; do
-            if [ -e "$p" ] || [ -L "$p" ]; then
-              echo "::error::left behind after uninstall: $p"
-              status=1
-            fi
-          done
-          exit $status

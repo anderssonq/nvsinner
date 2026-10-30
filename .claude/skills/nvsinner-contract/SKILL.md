@@ -334,11 +334,11 @@ keymaps also in `docs/keybindings.md`'s "Full keybindings reference".
 **What runs without you.** `.github/workflows/ci.yml` re-runs Gate 2, Gate 4
 and Gate 6 on every PR and every push to `main`, on a clean machine against the
 pinned lockfile, and adds a lockfile drift check, the `NVIM_APPNAME=nvsinner`
-boot, an install/uninstall smoke job, and report-only nightly + selene jobs.
+boot, and blocks on `selene` errors (warnings are printed, not gating).
 `.githooks/pre-push` runs `stylua --check`, `selene` (non-fatal) and
 `make test` locally — but **only if you opted in with `make hooks`**. Nothing
-wires it for you; `install.sh` does not. Nightly and selene are visibility,
-not gates; read them, they cannot block a merge.
+wires it for you; `install.sh` does not. There is no CI job for the installer
+scripts, macOS or nightly.
 
 ### Pre-merge checklist
 
@@ -380,7 +380,8 @@ not gates; read them, they cannot block a merge.
   months. The structural answer is in §1: state where a value lives and how to
   read it, never a frozen copy.
 - **Nightly and macOS are unexercised.** CI runs the declared floor and current
-  stable on ubuntu only, and nightly is exactly where the crash class lives.
+  stable on ubuntu only (read the matrix in `ci.yml`), and nightly is exactly
+  where the crash class lives.
 - **Layout determinism depends on a repair function.** `restore_layout()` in
   `toggleterm.lua` re-asserts the split geometry after every panel open because
   toggleterm's own placement is order-dependent — a workaround, not a fix.
