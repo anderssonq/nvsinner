@@ -426,16 +426,12 @@ PR when you touch `ai-activity`, `ui-touch`, `autoreload` or `toggleterm`.
 
 - **The local pre-push hook is opt-in.** `make hooks` (`git config
   core.hooksPath .githooks`) wires it; nothing else does, `install.sh` included,
-  and it is skippable with `--no-verify`. CI is the real gate: it runs
-  `stylua --check`, the suite on floor/stable/macOS, a lockfile drift check,
-  the `NVIM_APPNAME=nvsinner` boot, and an install/uninstall smoke job.
-- **Nightly and selene are report-only.** Both jobs are `continue-on-error`:
-  a red one is a finding to read, not a blocked merge. Nightly is where the
-  crash class lives; selene has not been triaged against the tree.
-- **The smoke job covers the happy path only.** It installs into a temporary
-  `HOME` and asserts uninstall leaves nothing; update-over-existing-clone,
-  non-git config dirs and Linux-only/macOS-only branches of the scripts are
-  untested.
+  and it is skippable with `--no-verify`. CI is the real gate: a `lint` job
+  (`stylua --check` + `selene`, errors only) and a `test` job (the suite on
+  floor/stable, a lockfile drift check, the `NVIM_APPNAME=nvsinner` boot).
+- **macOS, nightly and the installer have no CI job.** Nightly is where the
+  crash class lives, and nothing runs `install.sh` / `uninstall.sh` or
+  exercises update-over-existing-clone or non-git config dirs.
 - **Headless cannot verify rendering.** Anything about what a bar *looks* like
   needs §7's interactive matrix.
 
@@ -457,5 +453,5 @@ find tests -name '*_spec.lua' | wc -l
 for s in boot-check keymap-audit palette-audit; do \
   .claude/skills/nvsinner-testing-and-qa/scripts/$s.sh >/dev/null && echo "$s OK"; done
 grep -n 'hooksPath\|githooks' install.sh || echo "install.sh wires no hook (correct)"
-grep -nE '^  [a-z-]+:$|continue-on-error' .github/workflows/ci.yml
+grep -nE '^  [a-z-]+:$|continue-on-error|nvim:' .github/workflows/ci.yml
 ```

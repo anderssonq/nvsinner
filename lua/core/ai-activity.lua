@@ -262,15 +262,13 @@ function M._on_osc(buf, seq)
 		return
 	end
 	local mark = seq:match("133;([A-D])")
-	if mark == "B" then
-		-- Prompt-input start (fires AFTER the prompt is drawn, so the prompt's
-		-- own rendering can't clobber it via on_lines) → wants the user.
-		s.awaiting, s.busy = true, false
-	elseif mark == "C" then
+	if mark == "C" then
 		-- Command execution started → no longer waiting on the user.
 		s.awaiting = false
-	elseif seq:match("^\27%]9;") or seq:match("^\27%]777;") then
-		-- Terminal notification → treat as "wants attention / input".
+	elseif mark == "B" or seq:match("^\27%]9;") or seq:match("^\27%]777;") then
+		-- Prompt-input start (OSC 133;B fires AFTER the prompt is drawn, so the
+		-- prompt's own rendering can't clobber it via on_lines), or a terminal
+		-- notification (OSC 9 / 777) → wants the user's attention / input.
 		s.awaiting, s.busy = true, false
 	else
 		return

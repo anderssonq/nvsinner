@@ -257,17 +257,16 @@ Also useful interactively: `:Lazy`, `:checkhealth`, `:Mason`.
 
 **What runs automatically.** `.github/workflows/ci.yml` re-runs the boot check
 and `make test` on every pull request and every push to `main`, on a clean
-machine against the pinned `lazy-lock.json`. Its gates: `stylua --check`
-(blocking), `make test` on the declared floor, `stable` and macOS, a lockfile
-drift check after the restore, the same restore + boot under
-`NVIM_APPNAME=nvsinner`, and an `install.sh` → boot → `uninstall.sh` smoke job
-in a temporary `HOME`. Two jobs are report-only (`continue-on-error`): a Neovim
-nightly canary and a `selene` lint (`selene.toml` + the `vim.yml` std). Locally,
-`.githooks/pre-push` runs `stylua --check`, `selene` (non-fatal) and `make test`
-— but **only once you opt in with `make hooks`** (`git config core.hooksPath
-.githooks`); nothing wires it for you, and it is skippable with `--no-verify`.
-Remaining gaps: nightly and selene are visibility, not gates, and headless CI
-cannot judge rendering.
+machine against the pinned `lazy-lock.json`. It has two blocking jobs: `lint`
+(`stylua --check`, then `selene` with `selene.toml` + the `vim.yml` std; errors
+fail it, warnings do not) and `test` (`make test` on Linux on the declared floor
+and `stable`, a lockfile drift check after the restore, and the same restore +
+boot under `NVIM_APPNAME=nvsinner`). Read the workflow for the exact matrix.
+Locally, `.githooks/pre-push` runs `stylua --check`, `selene` (non-fatal) and
+`make test` — but **only once you opt in with `make hooks`** (`git config
+core.hooksPath .githooks`); nothing wires it for you, and it is skippable with
+`--no-verify`. Remaining gaps: macOS, nightly and the installer scripts have no
+CI job, and headless CI cannot judge rendering.
 
 ## Tests
 
