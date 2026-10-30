@@ -77,7 +77,8 @@
   tellable apart at a glance. A subtle shimmer sweeps the statusline text every
   few seconds. Two clickable icons at the left of the statusline: the terminal
   toggles the bottom terminal (same as `<leader>t`) and the robot opens the
-  agent cockpit (same as `<leader>xa`). The name is the repo root, so it stays
+  agent cockpit (same as `<leader>xa`); the robot also shows how many AI
+  columns are running (hidden ones included), and the bare icon means none. The name is the repo root, so it stays
   put when you `cd` into a subdirectory — and in a monorepo it reports the repo,
   not the package.
 - **Native-first** — focus glow, mouse-hover docs, agent activity, the

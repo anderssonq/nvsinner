@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.15.1).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.16.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.15.1"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.16.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.15.1` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.16.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -382,6 +382,19 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     CI installs luarocks so image.nvim no longer drags a `hererocks` entry into
     the lockfile. The `git_blame` spec is now immune to inherited `GIT_*`
     variables.
+    **v3.16.0** adds themes, fonts and motion. Ten new background themes
+    (gruvbox, dracula, kanagawa, solarized-dark, github-dark, ayu-dark,
+    catppuccin-latte, gruvbox-light, rose-pine-dawn, github-light) join the
+    menu, and the statusline shows a live AI-column count beside the robot (an
+    AI column is re-registered after a `:bd!` respawn). Maple Mono NF ships
+    bundled; a `:NvSinnerMenu` "Font" row switches Ghostty (through the
+    NvSinner-owned include file `~/.config/ghostty/nvsinner-font` plus
+    `reload_config`) or Neovide (`guifont`), and `install.sh` / `uninstall.sh`
+    add and remove the fonts via a manifest and offer the Ghostty include
+    line. An "Animations" on/off row joins the menu, and `<leader>e` neo-tree,
+    `<leader>j` AI columns and `<leader>t` terminals now slide in
+    (`lua/core/slide.lua`; AI columns slide a placeholder so the CLI screen is
+    never truncated).
 
 ## Status
 

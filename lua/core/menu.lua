@@ -72,6 +72,8 @@ local ITEMS = {
 	{ key = "minimap", label = "Minimap", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "wallpaper_on", label = "Wallpaper", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "copy_on_select", label = "Copy on select", values = { false, true }, show = bool_show("on", "off") },
+	{ key = "font_family", label = "Font", values = require("core.font").FAMILIES },
+	{ key = "animations", label = "Animations", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "image_preview", label = "Image preview", values = { "inline", "quicklook" } },
 	-- herdr reporting: both rows no-op unless a herdr server owns this pane.
 	{ key = "herdr", label = "herdr reporting", values = { false, true }, show = bool_show("on", "off") },
@@ -86,6 +88,8 @@ local ITEMS = {
 	},
 	{ key = "quiet", label = "Notifications", values = { false, true }, show = bool_show("hidden", "shown") },
 }
+
+M._items = ITEMS -- test seam: the option rows
 
 local WIDTH = 46
 local HINT = "j/k move · h/l change · 1-9 jump · q close"

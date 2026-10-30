@@ -39,9 +39,9 @@ describe(".claude docs", function()
 	end)
 
 	it("quotes no hex literal outside the incident registry", function()
-		-- Every color is a role in lua/core/carbon.lua, which now carries 10
-		-- themes x 4 accent packs: a literal in prose is wrong for at least nine
-		-- of them, and cannot be checked by palette-audit.sh (that one only scans
+		-- Every color is a role in lua/core/carbon.lua, which carries every
+		-- background theme x every accent pack: a literal in prose is wrong for every
+		-- combination but one, and cannot be checked by palette-audit.sh (that one only scans
 		-- lua/). Name the role and the file instead.
 		local offenders = {}
 		for _, file in ipairs(files) do

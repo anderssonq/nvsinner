@@ -27,7 +27,7 @@ lockfile entry means a revert lands on an untested commit.
 
 ## Traps — rationale lives in `lua/plugins/ui/CLAUDE.md`
 - **Never hardcode a hex.** `require("core.carbon").colors()`, reference a role.
-  10 themes × 4 accent packs: a literal is right for at most one of them.
+  Every background theme × every accent pack: a literal is right for at most one of them.
   `.claude/skills/nvsinner-testing-and-qa/scripts/palette-audit.sh` enforces it.
 - **noice's LSP hover/signature stay off** *pending their own evaluation* — NOT
   because of the old 0.12 markdown crash (that was nvim-treesitter's frozen

@@ -76,6 +76,58 @@ local function cycle_tab(state, step)
 	end
 end
 
+-- ─── Slide-in ────────────────────────────────────────────────────────────────
+-- A NEW sidebar window slides in from its edge (core/slide.lua) up to the width
+-- neo-tree just gave it. neo-tree fires window_after_open for a window it
+-- REUSES too (switching the source shown in the same sidebar), so the windows
+-- present at window_before_open are remembered and only a window that did not
+-- exist then slides. Floats and position=current never do.
+--
+-- window_after_open fires before neo-tree draws, so the first render lays its
+-- rows out for the ~1-column window the slide starts from (render_tree reads
+-- `state.win_width`, recorded at draw time). Only neo-tree's 500 ms resize
+-- monitor would fix that, so the slide's on_done re-records the real width and
+-- redraws (renderer.redraw alone would re-render at the stale width).
+local wins_before_open = {}
+
+local function redraw_at_width(source, win)
+	local ok, manager = pcall(require, "neo-tree.sources.manager")
+	if not ok then
+		return
+	end
+	local renderer = require("neo-tree.ui.renderer")
+	local utils = require("neo-tree.utils")
+	manager._for_each_state(source, function(state)
+		if state.winid == win and vim.api.nvim_win_is_valid(win) then
+			state.win_width = utils.get_inner_win_width(win)
+			renderer.redraw(state)
+		end
+	end)
+end
+
+local function remember_wins()
+	wins_before_open = {}
+	for _, w in ipairs(vim.api.nvim_list_wins()) do
+		wins_before_open[w] = true
+	end
+end
+
+local function slide_new_sidebar(args)
+	local win = args and args.winid
+	if not (win and (args.position == "left" or args.position == "right")) then
+		return
+	end
+	if wins_before_open[win] or not vim.api.nvim_win_is_valid(win) then
+		return
+	end
+	local source = args.source
+	require("core.slide").open(win, "width", {
+		on_done = function(w)
+			redraw_at_width(source, w)
+		end,
+	})
+end
+
 return {
 	"nvim-neo-tree/neo-tree.nvim",
 	branch = "v3.x",
@@ -139,6 +191,10 @@ return {
 			end,
 		})
 		require("neo-tree").setup({
+			event_handlers = {
+				{ event = "neo_tree_window_before_open", handler = remember_wins },
+				{ event = "neo_tree_window_after_open", handler = slide_new_sidebar },
+			},
 			-- Source tabs in the tree's winbar: Files / Buffers. The
 			-- tree's winbar is unowned (ui-touch's SKIP_FT lists "neo-tree",
 			-- filebadge only claims markdown), so this takes it uncontested.

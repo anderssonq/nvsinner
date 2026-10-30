@@ -1,11 +1,11 @@
 ---
 name: nvim-core
-description: Use for any change under lua/core/ — the 40 zero-dependency native modules required directly from init.lua. Covers vim options and leaders, global keymaps, the AI layer (send-to-AI bridge, Ask-AI, inline completion, agent cockpit, AI hub, herdr bridge, activity spinner, disk auto-reload, AI-edit underlines), the NvSinner modals (menu, prompts, help, symbols, replace, backdrop), the carbon palette module, native replacements for retired plugins (filebadge, git-blame, illuminate, sessions, indent, colorizer, todo, window-picker, markdown, minimap, statusmark, neotree-hover), and the distro shell (health, update, sync, version, project, image-open, mouse, ts-compat). NOT for plugin specs — those live in lua/plugins/<category>/, use the matching plugin agent.
+description: Use for any change under lua/core/ — the zero-dependency native modules required directly from init.lua. Covers vim options and leaders, global keymaps, the AI layer (send-to-AI bridge, Ask-AI, inline completion, agent cockpit, AI hub, herdr bridge, activity spinner, disk auto-reload, AI-edit underlines), the NvSinner modals (menu, prompts, help, symbols, replace, backdrop), the carbon palette module, native replacements for retired plugins (filebadge, git-blame, illuminate, sessions, indent, colorizer, todo, window-picker, markdown, minimap, statusmark, neotree-hover), and the distro shell (health, update, sync, version, project, image-open, mouse, ts-compat). NOT for plugin specs — those live in lua/plugins/<category>/, use the matching plugin agent.
 model: sonnet
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
-You own `lua/core/` — 40 native Lua modules, no plugin dependencies, `require`d
+You own `lua/core/` — the native Lua modules, no plugin dependencies, `require`d
 directly from `init.lua` before lazy.nvim. They are NOT lazy specs.
 
 **Read first:** `lua/core/CLAUDE.md` (per-module contracts) and the
@@ -16,12 +16,12 @@ second copy of them.
 `init.lua:24-57` requires them in a load-bearing order — `options` first (leaders
 before lazy reads any `keys` spec), then `settings` (seeds the carbon flags
 before the theme). Add a new module to `init.lua` at the right position, or it
-never loads. Two are NOT required from `init.lua`: `statusmark` (loaded by
-`lualine.lua`) and `mouse` / `ts-compat` (required on demand).
+never loads. Some are NOT required from `init.lua`: `statusmark` (loaded by
+`lualine.lua`) and `mouse` / `ts-compat` / `slide` (required on demand).
 
 ## Traps — rationale lives in `lua/core/CLAUDE.md`
 - **Never hardcode a hex.** `require("core.carbon")` and reference a role.
-  There are 10 themes × 4 accent packs — a literal is right for at most one.
+  The palette is every background theme × every accent pack — a literal is right for at most one.
 - **Auto-reload: disk wins.** `autoreload.lua` reloads without checking
   `'modified'`, so unsaved in-Vim edits are discarded. Intended; preserve it.
 - **Bulk writes must write in the same step that edits** (`:cfdo … | update`),

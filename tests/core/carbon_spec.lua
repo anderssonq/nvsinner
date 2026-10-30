@@ -161,6 +161,16 @@ describe("core.carbon", function()
 			nightfox = 0x192330,
 			dayfox = 0xf6f2ee,
 			cyberdream = 0x16181a,
+			gruvbox = 0x282828,
+			dracula = 0x282a36,
+			kanagawa = 0x1f1f28,
+			["solarized-dark"] = 0x002b36,
+			["github-dark"] = 0x0d1117,
+			["ayu-dark"] = 0x0b0e14,
+			["catppuccin-latte"] = 0xeff1f5,
+			["gruvbox-light"] = 0xfbf1c7,
+			["rose-pine-dawn"] = 0xfaf4ed,
+			["github-light"] = 0xffffff,
 		}
 		for name, bg in pairs(expected) do
 			vim.g.nvsinner_theme = name

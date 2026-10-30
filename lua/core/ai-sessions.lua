@@ -131,6 +131,19 @@ function M.sessions()
 	return out
 end
 
+-- Number of registered sessions whose CLI job is still running (hidden columns
+-- included). Cheap on purpose: the statusline robot calls it on every lualine
+-- refresh (event-driven + 1 s fallback): a table walk + one jobwait each.
+function M.live_count()
+	local n = 0
+	for _, e in pairs(registry) do
+		if job_alive(e.term and e.term.job_id) then
+			n = n + 1
+		end
+	end
+	return n
+end
+
 -- Label for the clear picker: registered sessions reuse the <leader>ja
 -- formula (winbar label + activity status); a panel the registry no longer
 -- knows (its CLI already exited — on_exit unregistered it) is marked so.

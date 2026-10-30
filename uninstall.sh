@@ -19,6 +19,9 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/$APP"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/$APP"
 LAUNCHER="$HOME/.local/bin/$APP"
 HERDR_CLIENT="$HOME/.local/bin/$APP-herdr"
+FONT_MANIFEST="$DATA_DIR/installed-fonts.txt"
+GHOSTTY_MARK="$DATA_DIR/ghostty-include.txt"
+GHOSTTY_FONT_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/ghostty/nvsinner-font"
 
 info() { printf '\033[36m▸ %s\033[0m\n' "$1"; }
 ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
@@ -44,6 +47,48 @@ for arg in "$@"; do
     *) warn "Unknown argument: $arg (try --help)"; exit 1 ;;
   esac
 done
+
+# >>> fonts (extracted by tests/scripts/font_install_spec.lua)
+# Fonts + Ghostty include: undo ONLY what install.sh / the Font row recorded.
+# Must run before the data dir (which holds the manifests) is deleted.
+cleanup_fonts() {
+  local f gcfg gline gblank gtmp
+  if [ -f "$FONT_MANIFEST" ]; then
+    while IFS= read -r f || [ -n "$f" ]; do
+      # Only files install.sh copied: absolute path, a .ttf, and still present.
+      case "$f" in /*.ttf) if [ -f "$f" ]; then rm -f "$f"; ok "Removed font $f"; fi ;; esac
+    done < "$FONT_MANIFEST"
+  fi
+  if [ -f "$GHOSTTY_MARK" ]; then
+    gcfg="$(sed -n 1p "$GHOSTTY_MARK")"
+    gline="$(sed -n 2p "$GHOSTTY_MARK")"
+    gblank="$(sed -n 3p "$GHOSTTY_MARK")"
+    if [ -f "$gcfg" ] && [ -n "$gline" ]; then
+      gtmp="$(mktemp)"
+      # Drop the LAST occurrence of the line and, only when the installer added a
+      # separator, the blank line right above it. Other blank lines stay.
+      awk -v line="$gline" -v blank="$gblank" '
+        { a[NR] = $0 }
+        END {
+          hit = 0
+          for (i = NR; i >= 1; i--) if (a[i] == line) { hit = i; break }
+          for (i = 1; i <= NR; i++) {
+            if (i == hit) continue
+            if (hit > 1 && blank == "1" && i == hit - 1 && a[i] == "") continue
+            print a[i]
+          }
+        }' "$gcfg" > "$gtmp"
+      cat "$gtmp" > "$gcfg"   # keep the file's inode + permissions
+      rm -f "$gtmp"
+      ok "Removed the NvSinner include line from $gcfg"
+    fi
+  fi
+  if [ -f "$GHOSTTY_FONT_FILE" ]; then
+    rm -f "$GHOSTTY_FONT_FILE"
+    ok "Removed $GHOSTTY_FONT_FILE"
+  fi
+}
+# <<< fonts
 
 targets=("$CONFIG_DIR" "$DATA_DIR" "$STATE_DIR" "$CACHE_DIR" "$LAUNCHER" "$HERDR_CLIENT")
 
@@ -74,6 +119,8 @@ if [ "$FORCE" -ne 1 ] && [ -d "$CONFIG_DIR" ] && [ ! -L "$CONFIG_DIR" ] && [ ! -
 fi
 
 if [ ${#present[@]} -eq 0 ]; then
+  # No app dirs left, but an orphaned Ghostty font file may still be ours.
+  cleanup_fonts
   if [ ${#kept[@]} -gt 0 ]; then
     ok "Nothing else to remove — the manual-copy config was left in place."
   else
@@ -97,7 +144,7 @@ printf '\n'
 if [ "$ASSUME_YES" -ne 1 ]; then
   if [ -t 0 ]; then
     printf 'Proceed? [y/N] '
-    read -r reply
+    read -r reply || reply=""
     case "$reply" in
       y|Y|yes|YES) ;;
       *) warn "Aborted — nothing was removed."; exit 1 ;;
@@ -108,6 +155,8 @@ if [ "$ASSUME_YES" -ne 1 ]; then
     exit 1
   fi
 fi
+
+cleanup_fonts
 
 for t in "${present[@]}"; do
   if [ -L "$t" ]; then

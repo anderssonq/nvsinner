@@ -56,21 +56,25 @@ install. Everything else (ripgrep, stylua, prettier, eslint_d, shfmt) is
 surfaced later by `:checkhealth nvsinner` — features no-op silently without
 them, they don't block install.
 
-### 1b. Bundled Nerd Font  [manual — needs a human for the GUI step]
+### 1b. Bundled Nerd Fonts  [automatic copy — picking the font is manual]
 
-Three FiraCode Nerd Font `.ttf` files ship in `fonts/`
-(Regular / Medium / Retina):
+`fonts/` ships two families (FiraCode Nerd Font and Maple Mono NF, plus
+`OFL.txt`; list them with `ls fonts/`). `install.sh` step 2b copies every
+`fonts/*.ttf` into `~/Library/Fonts` (macOS) or `~/.local/share/fonts` +
+`fc-cache -f` (Linux), skipping files already there, and records only what it
+copied in `~/.local/share/nvsinner/installed-fonts.txt` (`uninstall.sh` removes
+exactly those). It then OFFERS (y/N, default N, skipped without a terminal) to
+append the Ghostty `config-file = ?<abs path>/nvsinner-font` line; with no
+Ghostty config it only prints the hint. Dry-run it with a temp `HOME` and
+`NVSINNER_FONT_DIR=<tmp>` — never against the real font dirs
+(`tests/scripts/font_install_spec.lua` does exactly that).
 
-```bash
-cp fonts/*.ttf ~/Library/Fonts/                                # macOS
-# Linux: cp fonts/*.ttf ~/.local/share/fonts/ && fc-cache -f
-```
-
-Then set the terminal (or GUI) font to **"FiraCode Nerd Font"** — a GUI step no
-agent can do. Note: the health check reports the Nerd Font as **info-only**
-(`vim.health.info`), never pass/fail, because a terminal font can't be probed
-from inside Neovim; it is also excluded from the first-run toast's missing
-count (`lua/core/health.lua`).
+Then pick the font: the terminal's own font setting (a GUI step no agent can
+do), or `:NvSinnerMenu` -> *Font* (Ghostty/Neovide; `lua/core/font.lua`). Note:
+the health check reports the Nerd Font as **info-only** (`vim.health.info`),
+never pass/fail, because a terminal font can't be probed from inside Neovim; it
+is also excluded from the first-run toast's missing count
+(`lua/core/health.lua`).
 
 ### 1c. AI CLI  [manual — interactive auth]
 

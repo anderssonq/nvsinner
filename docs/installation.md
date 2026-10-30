@@ -67,14 +67,34 @@ only enables each one when its executable is available; restart after installing
 nvim --headless "+MasonInstall solargraph" +qa
 ```
 
-## 5. Install the bundled Nerd Font  [manual]
+## 5. Install the bundled Nerd Fonts  [automatic copy + manual selection]
+
+`fonts/` ships two families: **FiraCode Nerd Font** and **Maple Mono NF**
+(Maple Mono v7.9 NF unhinted build; its license is `fonts/OFL.txt`).
+`install.sh` copies every `fonts/*.ttf` into `~/Library/Fonts` (macOS) or
+`~/.local/share/fonts` + `fc-cache -f` (Linux). It skips files already present
+and records only what it copied, so `uninstall.sh` removes exactly those.
+From a clone, by hand:
 
 ```bash
 cp fonts/*.ttf ~/Library/Fonts/                              # macOS
 # Linux: cp fonts/*.ttf ~/.local/share/fonts/ && fc-cache -f
 ```
 
-Then set the terminal's font to **"FiraCode Nerd Font"** (GUI step).
+Then pick the font. Either set your terminal's font to **"FiraCode Nerd
+Font"** or **"Maple Mono NF"** (GUI step), or let `:NvSinnerMenu` → *Font*
+switch it in Ghostty and Neovide (see [settings.md](settings.md)). For Ghostty
+the Font row writes only `~/.config/ghostty/nvsinner-font`; your Ghostty
+config must include it with this line (the installer offers to append it,
+default No):
+
+```
+config-file = ?/Users/<you>/.config/ghostty/nvsinner-font
+```
+
+(use the absolute path; the menu prints the exact line if it is missing).
+`uninstall.sh` removes that line only if the installer added it, and deletes
+`nvsinner-font`.
 
 ## 6. Set up an AI CLI  [manual]
 
@@ -141,7 +161,7 @@ Code (`claude`).
 | `git` | lazy.nvim plugin fetch |
 | `ripgrep` | Telescope live grep |
 | Node **20+** | JS/TS/Vue language servers, `prettier` / `eslint_d` |
-| A **Nerd Font** | icons (FiraCode Nerd Font is bundled in `fonts/`) |
+| A **Nerd Font** | icons (FiraCode Nerd Font and Maple Mono NF are bundled in `fonts/`) |
 | `eslint_d`, `prettier`, `stylua`, `shfmt` | none-ls formatting/linting (auto-installed via Mason on first boot) |
 | an AI CLI, e.g. `claude` | AI terminal column (optional) |
 
@@ -275,8 +295,9 @@ or `:Lazy`.
 
 ### Icons render as boxes or question marks
 
-Your terminal is not using a Nerd Font. NvSinner bundles one in `fonts/` —
-install it and select it in your terminal's profile:
+Your terminal is not using a Nerd Font. NvSinner bundles two in `fonts/`
+(FiraCode Nerd Font, Maple Mono NF) — install one and select it in your
+terminal's profile:
 
 ```bash
 # macOS

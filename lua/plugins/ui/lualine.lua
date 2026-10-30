@@ -51,7 +51,8 @@ return {
 					-- No refresh override: lualine's default is event-driven
 					-- (WinEnter/BufEnter/CursorMoved/ModeChanged/…, 16ms coalescing)
 					-- with a 1s fallback timer. The 100ms override existed only to
-					-- keep the removed AI badge counts live.
+					-- keep the removed AI badge counts live. The robot's count is
+					-- pushed instead (see nv_lualine_agent_count below), not polled.
 				},
 				-- Shimmer: every gray text component carries `fmt = mark.fmt(<id>)`,
 				-- which hands lualine a core/statusmark.lua expression instead of
@@ -78,7 +79,13 @@ return {
 						},
 						{
 							function()
-								return "\u{f06a9}" -- nf-md-robot
+								-- Live AI columns (hidden included) right after the glyph;
+								-- the bare robot when there are none.
+								local n = require("core.ai-sessions").live_count()
+								if n > 0 then
+									return "\u{f06a9} " .. n -- nf-md-robot
+								end
+								return "\u{f06a9}"
 							end,
 							color = { fg = c.base09 },
 							on_click = mark.agents_click,
@@ -145,6 +152,22 @@ return {
 			group = vim.api.nvim_create_augroup("nv_lualine_carbon", { clear = true }),
 			pattern = "*",
 			callback = apply,
+		})
+		-- The robot's count changes on session register/unregister (open, <leader>jc,
+		-- CLI exit), all announced on this existing channel: push a repaint, no timer.
+		vim.api.nvim_create_autocmd("User", {
+			group = vim.api.nvim_create_augroup("nv_lualine_agent_count", { clear = true }),
+			pattern = "NvSinnerAgentState",
+			callback = function(args)
+				-- ai-activity emits reason "activity" on every working<->idle flip;
+				-- those never change the count, only register/unregister do.
+				if args.data and args.data.reason == "activity" then
+					return
+				end
+				vim.schedule(function()
+					pcall(require("lualine").refresh)
+				end)
+			end,
 		})
 	end,
 }

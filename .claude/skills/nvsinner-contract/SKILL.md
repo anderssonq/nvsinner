@@ -58,7 +58,7 @@ disagree, CLAUDE.md wins and this skill needs the fix.
 
 | Layer | Where | Nature |
 |---|---|---|
-| **Core native modules** | `lua/core/*.lua` (40 files) | Zero-dependency Lua `require`d before lazy. Not plugin specs; only `vim.*` / `vim.uv`. The AI workflow, the modals, the native replacements for retired plugins, and the distro shell helpers all live here. |
+| **Core native modules** | `lua/core/*.lua` | Zero-dependency Lua `require`d before lazy. Not plugin specs; only `vim.*` / `vim.uv`. The AI workflow, the modals, the native replacements for retired plugins, and the distro shell helpers all live here. |
 | **Plugin specs** | `lua/plugins/<category>/<name>.lua` | One plugin per file, each returning a lazy spec. Six categories: `ui/ lsp/ git/ editor/ navigation/ terminal/`. Lazy-loaded wherever possible; only `theme.lua` and `toggleterm.lua` are deliberately eager. |
 | **Distro shell** | `bin/nvsinner`, `install.sh`, `uninstall.sh`, `lua/nvsinner/` | Makes the config an installable, named distribution. `bin/nvsinner` is one line: `exec env NVIM_APPNAME=nvsinner nvim "$@"`. `lua/nvsinner/health.lua` exists only so `:checkhealth nvsinner` resolves; it delegates to `core.health`. `lua/nvsinner/init.lua` holds the single semver source of truth. |
 
@@ -91,7 +91,7 @@ table, that command *is* the documentation.
 | Leaders, core vim options, `timeoutlen`, `pumblend` | `lua/core/options.lua` | `grep -nE 'mapleader\|timeoutlen\|pumblend' lua/core/options.lua` |
 | The one allowed `vim.cmd([[…]])` block | `lua/core/options.lua` | `grep -c 'vim.cmd' lua/core/options.lua` — expect 1 |
 | Tunable constants per core module | top-of-file `local UPPER_CASE` | `grep -rnE '^local [A-Z_]+ =' lua/core/` |
-| The carbon palette: roles, 10 themes, accent packs, folder packs, slots | `lua/core/carbon.lua` | `grep -nE '^M\.[a-z_]+ =\|^function M\.' lua/core/carbon.lua` |
+| The carbon palette: roles, background themes, accent packs, folder packs, slots | `lua/core/carbon.lua` | `grep -nE '^M\.[a-z_]+ =\|^function M\.' lua/core/carbon.lua` |
 | Persisted user settings (`:NvSinnerMenu`) | `lua/core/settings.lua` | `grep -n 'defaults\|M.get' lua/core/settings.lua` |
 | Lazy-load triggers for every spec | each spec | `grep -nE 'event\s*=\|cmd\s*=\|keys\s*=\|ft\s*=\|lazy\s*=\|enabled\s*=' lua/plugins/*/*.lua` |
 | Which specs are tombstones | each spec | `grep -lE '^\s{0,2}enabled = false' lua/plugins/*/*.lua` |
@@ -185,7 +185,7 @@ as one instrument panel and each colored pixel means exactly one thing.
 Off-palette plugin defaults (incline's blue, barbecue's tokyonight colors) were
 removed for this reason.
 
-**Do not quote hex values in docs.** There are 10 themes × 4 accent packs; a
+**Do not quote hex values in docs.** The palette is every background theme × every accent pack; a
 literal is right for at most one of them, and hardcoded hexes in prose are what
 produced the 2026-07 documentation drift. `grep` the role out of
 `lua/core/carbon.lua`, or run
@@ -259,7 +259,7 @@ Line numbers drift; the greps in §1 don't. Verify, don't trust the column.
 | 1 | `core.options` is the first require in `init.lua`, before `lazy.setup` | Every `<leader>` plugin keymap binds to `\` |
 | 2 | `core.settings` is required before the theme spec reads the carbon flags | The theme boots on defaults, then flips |
 | 3 | Every `lua/plugins/<category>/` folder has a matching `{ import = … }` in `init.lua` | That category's plugins silently never load — no error |
-| 4 | Every color consumer references `lua/core/carbon.lua` roles; no literal hexes outside it and the dashboard ramp | An inline hex forks the palette and is wrong for 9 of the 10 themes |
+| 4 | Every color consumer references `lua/core/carbon.lua` roles; no literal hexes outside it and the dashboard ramp | An inline hex forks the palette and is wrong for every theme but one |
 | 5 | toggleterm ids: AI panels reserve `99 + n` (100–108); horizontals use 1–9 | An AI panel claims id 1 and `<leader>t` re-toggles the AI column (FA-08) |
 | 6 | The `on_lines` callback touches only the plain Lua state table + `uv.now()` — never `vim.*` | Errors or corruption inside libuv callbacks |
 | 7 | The terminal winbar expression bakes the buffer number in; winbar code never relies on `vim.g.statusline_winid` | Bar renders empty in real use (FA-02) |

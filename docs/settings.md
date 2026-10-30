@@ -13,7 +13,7 @@ hovering moves the selection and a click cycles the row's value.
 
 | Row | Values |
 |-----|--------|
-| Background theme | **dark:** `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` · **light:** `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` — role-palette ports of each upstream scheme, not the plugins themselves |
+| Background theme | **dark:** `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` / `gruvbox` / `dracula` / `kanagawa` / `solarized-dark` / `github-dark` / `ayu-dark` · **light:** `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` / `catppuccin-latte` / `gruvbox-light` / `rose-pine-dawn` / `github-light` — role-palette ports of each upstream scheme, not the plugins themselves |
 | Transparency | `off` / `on` |
 | Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent, never the gray surfaces |
 | Folder color | `accent` / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` — recolors Neo-tree's folder names + icons |
@@ -27,10 +27,19 @@ hovering moves the selection and a click cycles the row's value.
 | AI completion | `on` / `off` — inline ghost-text completion (OpenCode Zen only; needs `$OPENCODE_API_KEY` — see the AI workflow section) |
 | Inlay hints | `on` / `off` (default `off`) — LSP inlay hints (parameter names, inferred types) as virtual text. Off by default because they change how every line reads; `<leader>lh` is the same switch |
 | Image preview | `inline` (default) / `quicklook` — how an opened image shows. `inline` paints it inside the buffer as half-block cells (macOS only: converted with the built-in `sips`, cached under `~/.cache/…/nvsinner/img/`), fitted to the window without cropping, under a short info header. `quicklook` shows a text placeholder and pops macOS Quick Look. HEIC/HEIF, a missing `sips` or a decode failure always fall back to the placeholder + Quick Look. SVG is text, so it opens as its source code |
+| Font | `terminal` (default — NvSinner leaves the font alone) / `FiraCode Nerd Font` / `Maple Mono NF` (both bundled in `fonts/`). In **Ghostty** (detected by `$TERM_PROGRAM` / `$GHOSTTY_RESOURCES_DIR`, also under herdr) it writes ONLY `~/.config/ghostty/nvsinner-font` and runs Ghostty's `reload_config` through `osascript` (macOS Automation permission may be asked once); your Ghostty config must contain `config-file = ?<that absolute path>` — if it does not, a notice prints the exact line and nothing is edited. Ghostty has no per-window family, so it applies to **all Ghostty windows**. In **Neovide** it sets `guifont`. Elsewhere it only shows a notice ("font settings apply to Ghostty and Neovide only"). `terminal` empties the file and reloads |
+| Animations | `on` (default) / `off` — the panel slide and mini.animate. `off` sets `vim.g.minianimate_disable` (applied at boot from the saved value), so panels open at their final size in one step |
 | herdr reporting | `on` / `off` (default `on`) — publish the AI columns' rolled-up `working` / `blocked` / `idle` state to a running [herdr](https://herdr.dev) server, so the multiplexer hosting this editor can see the agents inside it. Does nothing unless herdr owns this pane |
 | herdr detail | `state` / `tokens` (default) / `full` — how much herdr gets: the lifecycle state alone, plus a per-column token (`j1` … `j9`, each naming its CLI and status), or plus the project title and state labels |
 | Key timeout | `200ms` … `1000ms` (default `300ms`) — how long a key that is a prefix of a longer one waits for the rest before firing, i.e. the pause on `<leader>t`, `<leader>j`, `<leader>jx` and `<leader>f`. Lower = snappier; raise it if you type two-key sequences slowly and `<leader>t3` keeps opening terminal 1 |
 | Notifications | `shown` / `hidden` (hides info toasts; warnings/errors still show) |
+
+Besides mini.animate's open/close/resize easing and cursor trail, this switch
+also controls the panel slide-in: the file tree (`<leader>e`), an AI column
+(`<leader>j`, `<leader>j2`…`<leader>j9`, `<leader>ja`) and a terminal
+(`<leader>t`, `<leader>t2`…) slide in from their edge over ~120 ms instead of
+snapping. Off, every panel opens at its full size at once. Closing a panel is
+unchanged.
 
 ### Where it is stored, and what overrides it
 
@@ -100,7 +109,7 @@ value:
 
 | Flag | Values | Per launch | Persistent |
 |------|--------|-----------|------------|
-| Background theme | dark: `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox`; light: `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` | `NVSINNER_THEME=nord nvsinner` | `vim.g.nvsinner_theme = "nord"` |
+| Background theme | dark: `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` / `gruvbox` / `dracula` / `kanagawa` / `solarized-dark` / `github-dark` / `ayu-dark`; light: `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` / `catppuccin-latte` / `gruvbox-light` / `rose-pine-dawn` / `github-light` | `NVSINNER_THEME=nord nvsinner` | `vim.g.nvsinner_theme = "nord"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
 | Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
 | Folder color | `accent` (default) / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` | `NVSINNER_FOLDER=aqua nvsinner` | `vim.g.nvsinner_folder = "aqua"` |

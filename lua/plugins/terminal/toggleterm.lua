@@ -61,6 +61,10 @@ return {
 		-- captured at keypress time: by the time the panel opens, focus (and
 		-- the "current" buffer) has already moved into the terminal.
 		local pending_prime = {}
+		-- One-shot: the next on_panel_open snaps instead of sliding. Set when a
+		-- CLI column replaces the first-open picker, which already slid that
+		-- space in (see toggle_ai_panel).
+		local skip_slide = false
 		-- A panel's terminal buffer exists (spawned, not wiped).
 		local function spawned(term)
 			return term.bufnr ~= nil and vim.api.nvim_buf_is_valid(term.bufnr)
@@ -74,8 +78,18 @@ return {
 			if not spawned(term) then
 				return nil
 			end
+			-- Mid-slide an AI column's window shows core/slide.lua's placeholder,
+			-- not the terminal (a width slide must never resize the PTY), so the
+			-- column would read as hidden here. Land any such slide first; if
+			-- the swap-back is refused (cmdline window), the placeholder still
+			-- counts as the column, or <leader>j would open a second one.
+			local slide = package.loaded["core.slide"]
+			if slide then
+				slide.release(term.bufnr)
+			end
 			for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-				if vim.api.nvim_win_get_buf(w) == term.bufnr then
+				local b = vim.api.nvim_win_get_buf(w)
+				if b == term.bufnr or (slide and slide.held_term(b) == term.bufnr) then
 					return w
 				end
 			end
@@ -159,6 +173,18 @@ return {
 				vim.api.nvim_set_current_win(term.window)
 			end
 			vim.cmd("startinsert!")
+			-- Slide the panel in from its edge (core/slide.lua) up to the size
+			-- restore_layout just gave it. An AI column (width) slides a
+			-- placeholder and gets its terminal back at full width, so the CLI's
+			-- PTY never sees an intermediate size; the swap-back re-enters the
+			-- buffer, and autoreload restores terminal-insert from there. A
+			-- <leader>t terminal (height) slides itself. No-op when animations
+			-- are off (vim.g.minianimate_disable) or headless.
+			local snap = skip_slide
+			skip_slide = false
+			if not snap and term.window and vim.api.nvim_win_is_valid(term.window) then
+				require("core.slide").open(term.window, term.direction == "horizontal" and "height" or "width")
+			end
 		end
 
 		-- ─── Horizontal terminals (bottom) ───
@@ -226,6 +252,14 @@ return {
 		-- Panels are created lazily and memoised by session number, so a session
 		-- only spawns its process the first time it is opened — and the FIRST open
 		-- asks (in the column's own space) which CLI to run, via the picker below.
+		-- Register session n's Terminal with the core registry (send-to-AI bridge,
+		-- cockpit, statusline count). Plain-terminal sessions register too: piping
+		-- text into a shell is just as useful. Called on create AND after a
+		-- wiped-buffer respawn (on_exit unregistered the dead one).
+		local function register_panel(n)
+			require("core.ai-sessions").register(n, ai_panels[n])
+		end
+
 		local function create_ai_panel(n, choice)
 			ai_panels[n] = Terminal:new({
 				-- Reserved ids (100+) so they never collide with the <leader>t
@@ -249,17 +283,19 @@ return {
 				-- side and re-tucks any horizontal terminal bottom-left.
 				on_open = on_panel_open,
 				-- Drop the session from the bridge registry when its CLI dies.
-				on_exit = function()
-					require("core.ai-sessions").unregister(n)
+				-- Only the term's CURRENT job counts: after `:bd!` + a quick reopen
+				-- the respawned job is already registered, and the old job's late
+				-- exit must not unregister it.
+				on_exit = function(t, job)
+					if t.job_id == job then
+						require("core.ai-sessions").unregister(n)
+					end
 				end,
 			})
 			-- Winbar title: plain-terminal sessions read "term" (like the
 			-- horizontals); CLI sessions keep the "AI · N" identity.
 			ai_panels[n].__nv_label = (choice and choice.plain) and "term" or nil
-			-- Register with the core session registry (send-to-AI bridge +
-			-- cockpit). Plain-terminal sessions register too: piping text into
-			-- a shell is just as useful.
-			require("core.ai-sessions").register(n, ai_panels[n])
+			register_panel(n)
 			return ai_panels[n]
 		end
 
@@ -423,6 +459,9 @@ return {
 			map("<Esc>", cancel)
 
 			render()
+			-- The picker IS the column's space appearing: it slides in, and the
+			-- CLI column that replaces it takes over at full width (skip_slide).
+			require("core.slide").open(win, "width")
 		end
 
 		-- One session, many tabs. A column is ONE terminal buffer (one job), but
@@ -465,7 +504,14 @@ return {
 				return
 			end
 			pick_ai_cmd(n, function(choice)
-				create_ai_panel(n, choice):toggle()
+				skip_slide = true -- the picker already slid this space in
+				local ok, err = pcall(function()
+					create_ai_panel(n, choice):toggle()
+				end)
+				skip_slide = false -- reset on every path, or the next open would snap
+				if not ok then
+					error(err, 0)
+				end
 			end, function()
 				pending_prime[n] = nil -- a cancelled first open must not prime later
 			end)
@@ -518,6 +564,10 @@ return {
 		-- session you are typing in. Toggle THAT session, not always session 1.
 		local function toggle_current_or_first()
 			local buf = vim.api.nvim_get_current_buf()
+			-- Mid-slide the column shows core/slide.lua's placeholder: map it
+			-- back to the terminal it stands in for.
+			local slide = package.loaded["core.slide"]
+			buf = slide and slide.held_term(buf) or buf
 			for n, term in pairs(ai_panels) do
 				if term.bufnr == buf then
 					return toggle_ai_panel(n)
@@ -596,6 +646,7 @@ return {
 			end
 			if not spawned(term) then
 				term:open() -- buffer wiped (e.g. :bd!) → toggleterm respawns it
+				register_panel(n) -- on_exit unregistered the dead job; the new one must be visible again
 				return true
 			end
 			-- The window is built here, not by term:open(): toggleterm's opener
@@ -635,6 +686,12 @@ return {
 				local term = ai_panels[n]
 				if not term then
 					return false
+				end
+				-- A column still sliding shows a placeholder: put the terminal
+				-- back first so shutdown closes the column's window with it.
+				local slide = package.loaded["core.slide"]
+				if slide and term.bufnr then
+					slide.release(term.bufnr)
 				end
 				pcall(term.shutdown, term)
 				ai_panels[n] = nil

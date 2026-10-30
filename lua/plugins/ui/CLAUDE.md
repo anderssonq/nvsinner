@@ -37,11 +37,17 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   terminal `base11`); all other sections stay `base04` on `base00`. The
   AI cockpit badge that used to ride `lualine_x` was removed for performance
   (statusline components re-evaluate on every redraw); per-session status
-  lives in the terminal winbars and the `<leader>ja` picker.
+  lives in the terminal winbars and the `<leader>ja` picker. The robot's count
+  is different: it costs at most nine `jobwait(…, 0)` calls per refresh, does no
+  ai-activity aggregation, and repaints only on register/unregister (the
+  `reason = "activity"` flips are ignored).
   `lualine_b` opens with two **clickable icons** in `base09`: a terminal
   (`\u{f489}`, left click → `statusmark.terminal_click` = the `<leader>t` map,
   toggle horizontal terminal 1) and a robot (`\u{f06a9}`, →
-  `statusmark.agents_click` = the `<leader>xa` map, `:NvSinnerAgents`). Both
+  `statusmark.agents_click` = the `<leader>xa` map, `:NvSinnerAgents`; it shows the
+  live AI-column count after the glyph, `󰚩 3`, bare at 0, from
+  `ai-sessions.live_count()`, repainted by a `User NvSinnerAgentState`
+  autocmd calling `lualine.refresh` — no timer). Both
   come from `statusmark.map_click(lhs)`, which looks the map up with `maparg`
   and runs its callback or `<Cmd>…<CR>` rhs — never feedkeys, which would pay
   the `timeoutlen` wait. They are icons, so NOT shimmer-wrapped. **Write the
@@ -126,9 +132,12 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   line (`<icon> | <title>: <message>`) instead of the default renderer's
   separate header row. Only the header is folded; a multi-line message keeps
   its extra lines.
-- `mini-animate.lua` — `mini.animate`: eases window open/close/resize (the AI
-  column slides in) + a short cursor trail. **Scroll is disabled here** —
-  that's `neoscroll`'s job (`smooth-scroll.lua`); don't enable both.
+- `mini-animate.lua` — `mini.animate`: eases window open/close/resize + a
+  short cursor trail. The layout panels SLIDE in via `lua/core/slide.lua`
+  instead; the `open.winconfig` / `resize.subresize` predicates read
+  `slide.busy()` so mini never animates a sliding panel twice. **Scroll is
+  disabled here** — that's `neoscroll`'s job (`smooth-scroll.lua`); don't
+  enable both.
 - `smooth-scroll.lua` — `neoscroll.nvim`, the **single** scroll owner (FA-17).
   It maps only `<PageUp>` / `<PageDown>`: `setup()` is deliberately never
   called, so neoscroll's default `<C-d>`/`<C-u>`/`<C-f>`/`zz`… set is never
