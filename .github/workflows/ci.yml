@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: JohnnyMorganz/stylua-action@v4
         with:
@@ -48,7 +48,7 @@ jobs:
           - { os: ubuntu-latest, nvim: v0.12.0 }
           - { os: ubuntu-latest, nvim: stable }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Neovim (${{ matrix.nvim }}, floor is 0.12)
         uses: rhysd/action-setup-vim@v1
