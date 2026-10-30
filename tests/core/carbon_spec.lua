@@ -17,6 +17,22 @@ describe("core.carbon", function()
 		vim.o.background = "dark"
 	end)
 
+	describe("colour math helpers", function()
+		it("hex2rgb and rgb2hex round-trip", function()
+			assert.are.same({ 255, 0, 16 }, carbon.hex2rgb("#ff0010"))
+			assert.are.equal("#ff0010", carbon.rgb2hex({ 255, 0, 16 }))
+			assert.are.equal("#0a0b0c", carbon.rgb2hex(carbon.hex2rgb("#0a0b0c")))
+		end)
+
+		it("mix blends per channel, with exact endpoints", function()
+			assert.are.equal("#000000", carbon.mix("#000000", "#ffffff", 0))
+			assert.are.equal("#ffffff", carbon.mix("#000000", "#ffffff", 1))
+			-- 255 * 0.5 = 127.5 rounds half up to 128 (0x80).
+			assert.are.equal("#808080", carbon.mix("#000000", "#ffffff", 0.5))
+			assert.are.equal("#640a00", carbon.mix("#640a00", "#640a00", 0.7))
+		end)
+	end)
+
 	it("resolves the carbon role table by default and a named theme via the flag", function()
 		assert.are.equal("#161616", carbon.colors().base00)
 		vim.g.nvsinner_theme = "nord"

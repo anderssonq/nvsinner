@@ -1,7 +1,8 @@
-# CI: boot the config headless and run the plenary test suite.
-# Mirrors the "Validating changes" commands in CLAUDE.md: restore the pinned
-# plugin set (lazy-lock.json), boot headless surfacing startup errors, then
-# `make test`.
+# CI: format gate, report-only lint, boot + plenary suite on Linux/macOS,
+# a nightly canary, and an install/uninstall smoke test.
+# The `test` job mirrors the "Validating changes" commands in CLAUDE.md:
+# restore the pinned plugin set (lazy-lock.json), boot headless surfacing
+# startup errors, then `make test`.
 name: CI
 
 on:
@@ -10,16 +11,55 @@ on:
   pull_request:
 
 jobs:
-  test:
+  # Formatting is a hard gate here, not just in the opt-in pre-push hook: the
+  # hook is skippable (and off by default on a fresh clone), so drift could
+  # otherwise reach main green. No .stylua.toml on purpose — stylua defaults
+  # are the house style.
+  format:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: JohnnyMorganz/stylua-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: 2.5.2
+          args: --check init.lua colors lua tests
+
+  # REPORT-ONLY: selene has never been run over this tree, so it starts as
+  # visibility rather than a gate. Flip it to blocking (drop continue-on-error)
+  # once the findings are triaged.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: selene
+
+      - name: selene
+        run: selene init.lua colors lua tests
+
+  test:
+    name: test (${{ matrix.os }}, ${{ matrix.nvim }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    # Two entries so "Neovim 0.12+" is a TESTED claim, not just a declared one:
-    # v0.12.0 is the declared floor, `stable` is whatever users install today.
-    # Still one platform — macOS and nightly remain unexercised.
+    # nightly is a canary (where the crash class lives), never a gate.
+    continue-on-error: ${{ matrix.experimental }}
+    # v0.12.0 is the declared floor, `stable` is what users install today,
+    # macOS is the dev platform, and nightly is the early warning.
     strategy:
       fail-fast: false
       matrix:
-        nvim: [v0.12.0, stable]
+        include:
+          - { os: ubuntu-latest, nvim: v0.12.0, experimental: false }
+          - { os: ubuntu-latest, nvim: stable, experimental: false }
+          - { os: macos-latest, nvim: stable, experimental: false }
+          - { os: ubuntu-latest, nvim: nightly, experimental: true }
     steps:
       - uses: actions/checkout@v4
 
@@ -32,34 +72,140 @@ jobs:
       # ripgrep is a declared distro dependency (core/health.lua reports it),
       # and tests/core/replace_spec.lua drives the REAL binary rather than a
       # stub — the project-wide replace is only meaningful against actual rg
-      # output. The ubuntu-latest image does not ship it.
+      # output. Neither runner image is guaranteed to ship it.
       - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install ripgrep
+          else
+            sudo apt-get update && sudo apt-get install -y ripgrep
+          fi
 
-      - name: Link config into the XDG path
+      - name: Link config into the XDG paths
         run: |
           mkdir -p ~/.config
+          # Plain `nvim` path…
           ln -s "$GITHUB_WORKSPACE" ~/.config/nvim
+          # …and the distro's own NVIM_APPNAME=nvsinner path, which is how
+          # users actually launch it.
+          ln -s "$GITHUB_WORKSPACE" ~/.config/nvsinner
           nvim --version | head -1
 
       - name: Cache plugins (keyed on lazy-lock.json)
         uses: actions/cache@v4
         with:
-          path: ~/.local/share/nvim/lazy
+          path: |
+            ~/.local/share/nvim/lazy
+            ~/.local/share/nvsinner/lazy
           key: lazy-${{ runner.os }}-${{ matrix.nvim }}-${{ hashFiles('lazy-lock.json') }}
 
-      - name: Restore pinned plugins
-        run: nvim --headless "+Lazy! restore" +qa
-
-      - name: Headless boot check
+      # Run restore -> drift -> boot once per app name: plain `nvim`, and
+      # NVIM_APPNAME=nvsinner (the distro's real launch mode), which has its OWN
+      # data dir and so needs its own plugin install. lazy rewrites
+      # lazy-lock.json from the installed state, so a pin that cannot be
+      # restored (or a lockfile out of sync with the specs) shows up as a diff;
+      # fail instead of silently testing a different plugin set.
+      - name: Restore, lockfile drift check and headless boot (nvim, nvsinner)
         run: |
-          out=$(nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 500)" 2>&1) || true
-          printf '%s\n' "$out"
-          # Fail on startup errors / stack traces in :messages.
-          if printf '%s\n' "$out" | grep -qE "^E[0-9]+:|Error detected|stack traceback"; then
-            echo "::error::startup errors detected"
-            exit 1
-          fi
+          for app in nvim nvsinner; do
+            echo "::group::app=$app"
+            if [ "$app" = nvim ]; then unset NVIM_APPNAME; else export NVIM_APPNAME="$app"; fi
+            nvim --headless "+Lazy! restore" +qa
+            git diff --exit-code lazy-lock.json
+            out=$(nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 500)" 2>&1) || true
+            printf '%s\n' "$out"
+            # Fail on startup errors / stack traces in :messages.
+            if printf '%s\n' "$out" | grep -qE "^E[0-9]+:|Error detected|stack traceback"; then
+              echo "::error::startup errors detected ($app)"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done
 
       - name: Run test suite
         run: make test
+
+  # install.sh / uninstall.sh run on other people's machines, so run them for
+  # real: a throwaway HOME, the installer pointed at this checkout through its
+  # own NVSINNER_REPO override (no edits to the script), a boot, then the
+  # uninstaller. Assert nothing is left behind.
+  install-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # Full history: install.sh does a plain `git clone` of this checkout.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      # install.sh gates on node >= 20 (language servers).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Redirect HOME AND the four XDG vars: install.sh / uninstall.sh resolve
+      # their paths via XDG_*_HOME before HOME, so overriding HOME alone could
+      # leave them on the runner's real dirs and make the "gone" assertions pass
+      # vacuously. Everything lives under one temp HOME.
+      - name: Point HOME and XDG at a temporary directory
+        run: |
+          # Diagnostic: the runner's own values, before the override applies.
+          env | grep XDG || true
+          mkdir -p "$RUNNER_TEMP/smoke-home"
+          {
+            echo "HOME=$RUNNER_TEMP/smoke-home"
+            echo "XDG_CONFIG_HOME=$RUNNER_TEMP/smoke-home/.config"
+            echo "XDG_DATA_HOME=$RUNNER_TEMP/smoke-home/.local/share"
+            echo "XDG_STATE_HOME=$RUNNER_TEMP/smoke-home/.local/state"
+            echo "XDG_CACHE_HOME=$RUNNER_TEMP/smoke-home/.cache"
+          } >> "$GITHUB_ENV"
+
+      - name: Install into the temporary HOME
+        run: NVSINNER_REPO="file://$GITHUB_WORKSPACE" bash install.sh
+
+      - name: Assert the install landed
+        run: |
+          status=0
+          for p in \
+            "$XDG_CONFIG_HOME/nvsinner" \
+            "$XDG_DATA_HOME/nvsinner/lazy" \
+            "$HOME/.local/bin/nvsinner" \
+            "$HOME/.local/bin/nvsinner-herdr"; do
+            if [ ! -e "$p" ]; then
+              echo "::error::missing after install: $p"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Boot the installed launcher
+        run: |
+          out=$("$HOME/.local/bin/nvsinner" --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 500)" 2>&1) || true
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep -qE "^E[0-9]+:|Error detected|stack traceback"; then
+            echo "::error::startup errors detected in the installed copy"
+            exit 1
+          fi
+
+      - name: Uninstall and assert nothing is left
+        run: |
+          bash uninstall.sh --yes
+          status=0
+          for p in \
+            "$XDG_CONFIG_HOME/nvsinner" \
+            "$XDG_DATA_HOME/nvsinner" \
+            "$XDG_STATE_HOME/nvsinner" \
+            "$XDG_CACHE_HOME/nvsinner" \
+            "$HOME/.local/bin/nvsinner" \
+            "$HOME/.local/bin/nvsinner-herdr"; do
+            if [ -e "$p" ] || [ -L "$p" ]; then
+              echo "::error::left behind after uninstall: $p"
+              status=1
+            fi
+          done
+          exit $status

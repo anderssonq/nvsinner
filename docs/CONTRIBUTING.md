@@ -30,14 +30,12 @@ edits in your clone are live on the next launch — no copy step.
 clone. Enable it once per clone:
 
 ```bash
-git config core.hooksPath .githooks
-chmod +x .githooks/pre-push
+make hooks        # = git config core.hooksPath .githooks + chmod +x
 ```
 
-It runs `stylua --check` and `make test` before every push that touches a `.lua`
-file, and skips itself entirely when none do. This matters more than it looks:
-**CI does not check formatting at all**, so this hook is the only thing standing
-between formatting drift and `main`.
+It runs `stylua --check`, `selene` (report-only) and `make test` before every
+push that touches a `.lua` file, and skips itself entirely when none do. It
+catches a red CI before the push instead of after.
 
 Bypass one push with `git push --no-verify`; disable it for the repo with
 `git config --unset core.hooksPath`.
@@ -47,24 +45,22 @@ Bypass one push with `git push --no-verify`; disable it for the repo with
 A `pre-push` git hook lives in [`.githooks/pre-push`](../.githooks/pre-push).
 When you `git push`, it runs the test suite that
 [CI](../.github/workflows/ci.yml) also runs — so a red pipeline is caught
-*before* the push rather than after — plus a format check that CI does **not**
-have, making the hook the only thing standing between formatting drift and
-`main`:
+*before* the push rather than after:
 
 | Step | What it does |
 |------|--------------|
-| `stylua --check` | Format check over every tracked Lua path (`init.lua colors lua tests after`). ~0s. |
-| `make test` | The plenary suite. ~18s. |
+| `stylua --check` | Format check over every tracked Lua path (`init.lua colors lua tests`). Blocking. |
+| `selene` | Lint, report-only: findings are printed, never reject the push. |
+| `make test` | The plenary suite. Blocking. |
 
-Either one failing rejects the push. Test output is suppressed on success and
-printed in full on failure. The hook skips itself entirely when the push
-carries no `.lua` changes, and skips just the format step when `stylua` isn't
-on `PATH` (it's Mason-installed, so a fresh clone may not have it yet — CI
-still enforces the suite).
+Test output is suppressed on success and printed in full on failure. The hook
+skips itself entirely when the push carries no `.lua` changes, and skips the
+format and lint steps when `stylua` / `selene` aren't on `PATH` (stylua is
+Mason-installed, so a fresh clone may not have it yet — CI still enforces it).
 
 There's no `.stylua.toml` on purpose: stylua's defaults (tabs, 120 columns)
 already match the house style, and none-ls formats on save with those same
-defaults. If the hook reports drift, `stylua init.lua colors lua tests after`
+defaults. If the hook reports drift, `stylua init.lua colors lua tests`
 fixes it.
 
 ## Conventions
@@ -124,13 +120,14 @@ you type into a CLI for one `timeoutlen`. `<Esc>` is the terminal escape.
 
 ## Verifying a change
 
-Run these from the repo root. All four are what CI and the hook run.
+Run these from the repo root. They are what CI and the hook run.
 
 | Command | What it does |
 |---------|--------------|
-| `make test` | The whole suite — 40 spec files under a fresh headless Neovim |
+| `make test` | The whole suite, each spec in a fresh headless Neovim |
 | `make test-file FILE=tests/core/options_spec.lua` | One spec file |
-| `stylua --check lua/ tests/` | Formatting gate |
+| `stylua --check init.lua colors lua tests` | Formatting gate |
+| `selene init.lua colors lua tests` | Lint (report-only) |
 | `nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"` | Boot check — surfaces startup errors |
 
 To syntax-check a single file without loading anything:
@@ -141,7 +138,7 @@ nvim --headless -c "lua assert(loadfile('lua/plugins/ui/lualine.lua'))" -c "qa"
 
 There is no `.stylua.toml`: **stylua's defaults are the house style** (tabs for
 indentation, which is what the existing code uses). Format with
-`stylua lua/ tests/`.
+`stylua init.lua colors lua tests`.
 
 Interactively, `:Lazy`, `:checkhealth` and `:Mason` are the other three things
 worth looking at.
@@ -209,21 +206,24 @@ describing what your spec pins.
 ## What CI covers, and what it does not
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`:
-it checks out, installs Neovim `v0.12.0` **and** `stable` (a two-entry matrix,
-so the declared 0.12 floor is actually exercised, not merely claimed), restores
-the pinned plugins, runs the boot check, then `make test`.
 
-Three gaps worth knowing before you rely on a green check:
+- **format** (blocking): `stylua --check init.lua colors lua tests`.
+- **test** (blocking): the pinned plugins are restored, `lazy-lock.json` must
+  not drift, the config boots headless, and `make test` passes. It runs on the
+  declared floor and `stable` on Linux plus `stable` on macOS, and repeats the
+  restore + boot under `NVIM_APPNAME=nvsinner`, the distro's real launch mode.
+- **install-smoke** (blocking): `install.sh` into a temporary `HOME`, a boot of
+  the installed launcher, then `uninstall.sh --yes` must leave nothing behind.
+- **nightly** (report-only): the `test` job on Neovim nightly. A red run is a
+  finding, not a blocked merge.
+- **lint** (report-only): `selene`, configured by `selene.toml` and `vim.yml`.
 
-1. **CI does not check formatting.** Only the local pre-push hook does, and that
-   hook is opt-in and skippable. An unformatted commit can reach `main` green.
-2. **One platform: `ubuntu-latest` × Neovim `{v0.12.0, stable}`.** The floor
-   and current stable both run, but nothing exercises macOS — where the config
-   is primarily developed and where the Quick Look image preview only works —
-   and nothing exercises nightly.
-3. **CI symlinks the checkout to `~/.config/nvim`**, not `~/.config/nvsinner`,
-   so the `NVIM_APPNAME` isolation the distro is built around is never itself
-   tested.
+Gaps worth knowing before you rely on a green check:
+
+1. **Nightly and selene do not gate.** Read them, but they cannot block a merge.
+2. **Headless cannot judge rendering.** What a bar or float looks like needs a
+   manual pass.
+3. **The smoke job is the happy path.** Updating an existing clone is not tested.
 
 ## Plugin versions
 

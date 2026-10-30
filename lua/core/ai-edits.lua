@@ -33,16 +33,9 @@ local snapshots = {}
 -- clear_groups[buf] = augroup id of the armed take-over autocmds.
 local clear_groups = {}
 
--- Mix `fg` into `bg` at `alpha` (highlights have no real opacity, so the
--- "translucent" wash is computed: bg + (accent - bg) * alpha per channel).
-local function mix(bg, fg, alpha)
-	local function ch(i)
-		local b = tonumber(bg:sub(i, i + 1), 16)
-		local f = tonumber(fg:sub(i, i + 1), 16)
-		return math.floor(b + (f - b) * alpha + 0.5)
-	end
-	return string.format("#%02x%02x%02x", ch(2), ch(4), ch(6))
-end
+-- The "translucent" wash is computed (highlights have no real opacity) by the
+-- shared per-channel blend in core.carbon.
+local mix = require("core.carbon").mix
 
 -- CursorLine-style full-line wash in the USER'S accent (base09 follows the
 -- :NvSinnerMenu accent pack), blended into the editor bg at low alpha so the

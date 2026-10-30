@@ -116,17 +116,17 @@ falsifiable milestone. All are **open**; none is promised.
 - **Shipped:** CI (`.github/workflows/ci.yml` — boot check + `make test` on
   every PR and push to `main`) and versioned releases with a remote update
   check.
-- **Gaps that remain:** CI is `ubuntu-latest` × `{v0.12.0, stable}` — one
-  platform, no macOS (the dev platform, and where `image-open.lua`'s
-  `qlmanage`/`sips` path lives), no nightly (precisely where the crash class
-  lives). `stylua --check` is not a CI step, only a local opt-in hook. CI
-  symlinks the checkout to `~/.config/nvim`, so the `NVIM_APPNAME` path is
-  never exercised. `install.sh` / `uninstall.sh` have zero automated coverage.
-- **First steps:** widen the matrix to {macOS, ubuntu} × {v0.12.0, stable,
-  nightly}; add a `stylua --check` step; bats-style tests for the install
-  scripts against a sandboxed `$HOME`/`$XDG_*`.
-- **Result when:** the widened matrix and a formatting step are green on a
-  tagged release, with the badge in the README.
+- **Done:** a blocking `stylua --check` job, macOS in the matrix, a report-only
+  nightly canary, a lockfile drift check, the `NVIM_APPNAME=nvsinner` boot, and
+  an install → boot → uninstall smoke job in a sandboxed `HOME`/`XDG_*`.
+- **Gaps that remain:** nightly and `selene` are report-only (neither gates);
+  the smoke job covers only the happy path (no update-over-existing-clone, no
+  non-git config dir); the nightly job runs on Linux only; there is no README
+  badge.
+- **First steps:** triage the selene findings and drop its
+  `continue-on-error`; extend the smoke job to the update path; add the badge.
+- **Result when:** the matrix is green on a tagged release, with the badge in
+  the README.
 
 ## 5. The busy/idle solution menu (ranked, for F1)
 
@@ -170,7 +170,7 @@ a dated note plus an archaeology entry.
 | "Deepest AI-terminal integration" | F1 or F2 shipped + a dated feature-matrix check against ≥3 named distros |
 | "Beat Cursor in-terminal" | A written task-level comparison (agent visibility, edit review, multi-session) with dates and versions |
 | "Native-first" | The count of native modules vs chrome plugins published with the counting rule (9 replacements already justify the claim; publish the rule, not just the number) |
-| "Distro rigor" | F4's widened matrix is green on a tagged release, with the badge in the README. CI exists but is one OS × two Neovims and skips formatting — that is not yet "rigor" in public |
+| "Distro rigor" | F4's matrix is green on a tagged release, with the badge in the README. CI now gates format, lockfile drift and an install/uninstall smoke, but nightly and lint are report-only and there is no badge — not yet "rigor" in public |
 | Any startup number | Median-of-3 re-measure documented in the same commit that states it |
 
 ## Provenance and maintenance

@@ -1,0 +1,9 @@
+# Keep the pinned GitHub Actions in .github/workflows current. Plugins are NOT
+# covered here: lazy-lock.json is the tested set and moves only via
+# :NvSinnerSync.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

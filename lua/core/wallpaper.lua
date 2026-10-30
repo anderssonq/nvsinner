@@ -40,13 +40,10 @@ end
 
 -- ─── Colour ──────────────────────────────────────────────────────────────────
 
-local function hex2rgb(h)
-	return { tonumber(h:sub(2, 3), 16), tonumber(h:sub(4, 5), 16), tonumber(h:sub(6, 7), 16) }
-end
-
-local function rgb2hex(c)
-	return string.format("#%02x%02x%02x", c[1], c[2], c[3])
-end
+-- hex <-> rgb conversion is shared with the other colour consumers. (M.mix
+-- below is a different function: it quantizes and works on rgb triples.)
+local carbon = require("core.carbon")
+local hex2rgb, rgb2hex = carbon.hex2rgb, carbon.rgb2hex
 
 -- Pull `c` toward `base` (c at weight `a`), quantized to `step` (default STEP).
 -- nil → base.
@@ -362,7 +359,7 @@ function M.paint_grid(win, buf, grid, strength, opts)
 	local h = opts.height or vim.api.nvim_win_get_height(win)
 	vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 	pad_lines(buf, h)
-	local base = hex2rgb(require("core.carbon").colors().base00)
+	local base = hex2rgb(carbon.colors().base00)
 	local top = vim.api.nvim_win_call(win, function()
 		return vim.fn.line("w0")
 	end) - 1

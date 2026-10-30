@@ -136,6 +136,61 @@ describe("core.ai-activity", function()
 
 		vim.api.nvim_buf_delete(buf, { force = true })
 	end)
+	describe("a failing state subscriber", function()
+		it("never reaches the spinner and is reported once, scheduled", function()
+			vim.cmd("terminal cat")
+			local buf = vim.api.nvim_get_current_buf()
+			ai._emit_warned = false
+
+			local notes = {}
+			local orig_notify, orig_exec = vim.notify, vim.api.nvim_exec_autocmds
+			vim.notify = function(msg, level)
+				notes[#notes + 1] = { msg = msg, level = level }
+			end
+			-- Make the emit itself throw (the worst case a subscriber can cause).
+			vim.api.nvim_exec_autocmds = function()
+				error("boom")
+			end
+			local ok1 = pcall(ai._on_osc, buf, "\27]133;B")
+			local ok2 = pcall(ai._on_osc, buf, "\27]133;C")
+			vim.wait(200, function()
+				return #notes > 0
+			end, 10)
+			vim.notify, vim.api.nvim_exec_autocmds = orig_notify, orig_exec
+
+			assert.is_true(ok1 and ok2, "the emit error must not propagate")
+			assert.are.equal(1, #notes, "reported once, not per failure")
+			assert.are.equal(vim.log.levels.WARN, notes[1].level)
+			assert.matches("boom", notes[1].msg)
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end)
+
+		it("keeps the spinner timer ticking with a throwing User subscriber", function()
+			vim.cmd("terminal cat")
+			local buf = vim.api.nvim_get_current_buf()
+			local job = vim.b[buf].terminal_job_id
+			local id = vim.api.nvim_create_autocmd("User", {
+				pattern = "NvSinnerAgentState",
+				callback = function()
+					error("subscriber bug")
+				end,
+			})
+			vim.fn.chansend(job, "hello\n")
+			assert.is_true(vim.wait(3000, function()
+				return ai.status(buf) == "working"
+			end, 20))
+			-- Idle flip happens inside tick(); it only runs if the timer survived.
+			assert.is_true(
+				vim.wait(4000, function()
+					return ai.status(buf) == "idle"
+				end, 50),
+				"tick must keep running after a subscriber throws"
+			)
+			vim.api.nvim_del_autocmd(id)
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end)
+	end)
+
 	-- ─── The state-change channel (User NvSinnerAgentState) ──────────────────
 	--
 	-- core/herdr.lua subscribes to this instead of polling terminal buffers,

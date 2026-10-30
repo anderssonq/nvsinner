@@ -38,6 +38,7 @@ lua/core/replace.lua         :NvSinnerReplace / <leader>rw — word replace moda
 lua/core/backdrop.lua        Dimming backdrop + interaction guard behind the NvSinner modals (full-screen winblend float that swallows mouse events, WinEnter focus trap, auto-closes with the modal) (native)
 settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
 lua/core/carbon.lua          Carbon base16 role palette + background themes + accent packs — the ONE source of truth for every color
+lua/core/debounce.lua        Per-buffer debounced callback (timer map, re-arm, BufWipeout cleanup) shared by colorizer/todo/markdown; required on demand, not from init.lua (native)
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, until the user takes over (native)
@@ -256,15 +257,17 @@ Also useful interactively: `:Lazy`, `:checkhealth`, `:Mason`.
 
 **What runs automatically.** `.github/workflows/ci.yml` re-runs the boot check
 and `make test` on every pull request and every push to `main`, on a clean
-machine against the pinned `lazy-lock.json`. Before that, `.githooks/pre-push`
-runs `stylua --check` + `make test` locally — but **only once you opt in with
-`git config core.hooksPath .githooks`**; nothing wires it for you, so a fresh
-clone has no local gate at all. Three gaps worth knowing: **CI does not check
-formatting** — only the hook does, and it is skippable with `--no-verify`; CI is
-`ubuntu-latest` × `{v0.12.0, stable}`, so the declared floor and current stable
-are both exercised but **macOS and nightly are not**; and CI symlinks the
-checkout to `~/.config/nvim`, so the `NVIM_APPNAME=nvsinner` path itself is never
-exercised.
+machine against the pinned `lazy-lock.json`. Its gates: `stylua --check`
+(blocking), `make test` on the declared floor, `stable` and macOS, a lockfile
+drift check after the restore, the same restore + boot under
+`NVIM_APPNAME=nvsinner`, and an `install.sh` → boot → `uninstall.sh` smoke job
+in a temporary `HOME`. Two jobs are report-only (`continue-on-error`): a Neovim
+nightly canary and a `selene` lint (`selene.toml` + the `vim.yml` std). Locally,
+`.githooks/pre-push` runs `stylua --check`, `selene` (non-fatal) and `make test`
+— but **only once you opt in with `make hooks`** (`git config core.hooksPath
+.githooks`); nothing wires it for you, and it is skippable with `--no-verify`.
+Remaining gaps: nightly and selene are visibility, not gates, and headless CI
+cannot judge rendering.
 
 ## Tests
 

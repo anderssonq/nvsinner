@@ -8,6 +8,10 @@
 -- ~/.config/nvsinner is a symlink to this repo, and a manual/copied install has
 -- no remote to pull from — either way there's nothing to `git pull`.
 --
+-- Before pulling it aborts with a warning on a dirty tracked tree, and it
+-- decides "updated" vs "no-op" by comparing HEAD before/after the pull (never
+-- by git's localised message).
+--
 -- NOTE: the pull rewrites the Lua files on disk, but the RUNNING Neovim keeps the
 -- old modules loaded, so the update only fully takes effect after a restart. The
 -- final toast says so.
@@ -35,6 +39,11 @@ local function restore_and_check()
 	end)
 end
 
+-- Test seams (swapped by table field in the spec): the job runner and the
+-- restore step, so the suite never touches git remotes or lazy.
+M._system = vim.system
+M._restore = restore_and_check
+
 ---@param opts? { dir?: string } test seam: override the config dir to pull.
 function M.update(opts)
 	local dir = (opts and opts.dir) or vim.fn.stdpath("config")
@@ -49,37 +58,70 @@ function M.update(opts)
 		return
 	end
 
-	vim.notify("Pulling latest…", vim.log.levels.INFO, { title = TITLE })
+	-- Run one git command in `dir`, then call back on the main loop. Every call
+	-- goes through M._system (a table field, so specs swap it) and is async so
+	-- the editor stays responsive.
+	local function git(args, cb)
+		local cmd = { "git", "-C", dir }
+		vim.list_extend(cmd, args)
+		M._system(cmd, { text = true }, vim.schedule_wrap(cb))
+	end
 
-	-- Async so the editor stays responsive; --ff-only never invents a merge
-	-- commit and fails loudly if the local clone has diverged.
-	vim.system(
-		{ "git", "-C", dir, "pull", "--ff-only" },
-		{ text = true },
-		vim.schedule_wrap(function(res)
-			if res.code ~= 0 then
-				vim.notify(
-					"git pull failed:\n" .. vim.trim((res.stderr ~= "" and res.stderr) or res.stdout or ""),
-					vim.log.levels.ERROR,
-					{ title = TITLE }
-				)
-				return
-			end
+	local function fail(what, res)
+		vim.notify(
+			what .. " failed:\n" .. vim.trim((res.stderr ~= "" and res.stderr) or res.stdout or ""),
+			vim.log.levels.ERROR,
+			{ title = TITLE }
+		)
+	end
 
-			local out = vim.trim(res.stdout or "")
-			if out:find("Already up to date", 1, true) then
-				vim.notify("Already up to date.", vim.log.levels.INFO, { title = TITLE })
-				return
-			end
-
+	-- A dirty TRACKED tree makes `pull --ff-only` fail with a cryptic message, so
+	-- check first and say what to do. Untracked files are ignored: they only
+	-- matter on a path collision, which git itself reports.
+	git({ "status", "--porcelain", "--untracked-files=no" }, function(st)
+		if st.code ~= 0 then
+			return fail("git status", st)
+		end
+		if vim.trim(st.stdout or "") ~= "" then
 			vim.notify(
-				(out ~= "" and out or "Pulled.") .. "\nRestoring plugins…",
-				vim.log.levels.INFO,
+				("%s has uncommitted changes, so the update was not started.\n"):format(dir)
+					.. ("Commit or stash them (git -C %s stash), then run :NvSinnerUpdate again."):format(dir),
+				vim.log.levels.WARN,
 				{ title = TITLE }
 			)
-			restore_and_check()
+			return
+		end
+
+		vim.notify("Pulling latest…", vim.log.levels.INFO, { title = TITLE })
+
+		git({ "rev-parse", "HEAD" }, function(before)
+			-- --ff-only never invents a merge commit and fails loudly if the
+			-- local clone has diverged.
+			git({ "pull", "--ff-only" }, function(res)
+				if res.code ~= 0 then
+					return fail("git pull", res)
+				end
+
+				-- Decide "changed?" by comparing HEAD, never by matching git's
+				-- (localised) "Already up to date" text.
+				git({ "rev-parse", "HEAD" }, function(after)
+					local b, a = vim.trim(before.stdout or ""), vim.trim(after.stdout or "")
+					if before.code == 0 and after.code == 0 and b ~= "" and b == a then
+						vim.notify("Already up to date.", vim.log.levels.INFO, { title = TITLE })
+						return
+					end
+
+					local out = vim.trim(res.stdout or "")
+					vim.notify(
+						(out ~= "" and out or "Pulled.") .. "\nRestoring plugins…",
+						vim.log.levels.INFO,
+						{ title = TITLE }
+					)
+					M._restore()
+				end)
+			end)
 		end)
-	)
+	end)
 end
 
 vim.api.nvim_create_user_command("NvSinnerUpdate", function()

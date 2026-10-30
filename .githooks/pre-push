@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-push gate: format check (stylua) + test suite (make test). ~20s total.
+# Pre-push gate: format check (stylua), report-only lint (selene) and the test
+# suite (make test).
 #
 # Mirrors what .github/workflows/ci.yml enforces, so a red CI is caught here
 # instead of after the push. Only runs when the push actually touches Lua.
@@ -47,14 +48,29 @@ if command -v stylua > /dev/null 2>&1; then
   echo "[pre-push] format OK"
 else
   # Not fatal: stylua is Mason-installed (lua/plugins/lsp/mason-tools.lua) and
-  # may be missing on a fresh clone. CI still enforces the suite.
+  # may be missing on a fresh clone. CI still enforces the format and the suite.
   echo "[pre-push] stylua not found — skipping format check."
 fi
 
+# ── 1b. Lint (non-fatal) ─────────────────────────────────────────────────────
+# selene is report-only in CI too: the tree has not been triaged against it, so
+# findings are printed for visibility and never reject the push.
+if command -v selene > /dev/null 2>&1; then
+  echo "[pre-push] selene (report-only)…"
+  selene "${LUA_PATHS[@]}" || echo "[pre-push] selene reported findings (not blocking)."
+else
+  echo "[pre-push] selene not found — skipping lint."
+fi
+
 # ── 2. Tests ─────────────────────────────────────────────────────────────────
-# Quiet on success (275 passing lines is noise); the full output is printed only
+# Quiet on success (hundreds of passing lines are noise); the full output is printed only
 # when something breaks, which is when you actually want it.
 echo "[pre-push] make test…"
+# Git exports GIT_DIR (absolute inside a worktree) and friends to every hook.
+# Specs that build throwaway repos (tests/core/git_blame_spec.lua) would then
+# run their git commands against THIS repo instead. CI has no such vars.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
 TEST_LOG="$(mktemp)"
 trap 'rm -f "$TEST_LOG"' EXIT
 

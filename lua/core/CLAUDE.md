@@ -601,6 +601,11 @@ editing.
   consumer re-resolves `M.colors()` on `ColorScheme`, switching the accent is
   just `vim.g.nvsinner_accent = <pack>` + `:colorscheme carbon` (which is what
   `settings.lua` does).
+- **Colour math** — `M.hex2rgb` / `M.rgb2hex` / `M.mix(bg, fg, alpha)` live in
+  `carbon.lua` (pure, no requires of its own, so no cycle) and are the one
+  implementation behind `ai-edits.lua`, `statusmark.lua` and `wallpaper.lua`
+  (wallpaper's own `M.mix` is a different, quantizing rgb-triple function).
+  Spec: `tests/core/carbon_spec.lua`.
 - **Single-role color slots** — `M.slots` / `M.slot_choices` in `carbon.lua`
   generalize the pack idea to element classes that take ONE color: `notif`
   (the NotifyINFO* toast accent — WARN/ERROR keep their semantic colors),
@@ -1156,6 +1161,11 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   that send notification sequences (unverified for `claude`); the 1.2s idle
   heuristic remains the primary signal. `_on_osc` repaints via the same
   `nvim__redraw` path (the idle-skipping timer wouldn't).
+- **Subscriber failures never reach the spinner** — `emit()` is `pcall`-guarded
+  and reports the first failure once via a scheduled WARN notify
+  (`M._emit_warned`), so a broken `User NvSinnerAgentState` subscriber cannot
+  kill `tick()`. (Neovim itself already catches errors thrown inside a Lua
+  autocmd callback and echoes them; the guard covers the exec call failing.)
 - **Cockpit API** — `M.status(buf)` → `"working" | "awaiting" | "idle" |
   nil` (nil for untracked buffers) is the public per-buffer state, consumed
   by the `<leader>ja` picker labels and `ai-ask`'s session picker (the
@@ -1174,7 +1184,11 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   plus `checktime` on focus/window-enter events and a 1s `vim.uv` timer. The
   timer handle is anchored on the module table (`M._timer`) — an unreferenced
   active luv timer can be GC-reaped and silently stop the poll (same guard as
-  `ai-activity.lua`).
+  `ai-activity.lua`). **The poll is deliberately free-running from require**
+  (`M._timer`): gating it on live terminals was tried on 2026-10-30 and
+  rejected, because an agent running in an external pane (herdr/tmux) with no
+  terminal inside Neovim would stop live-reloading in the pane the user is
+  watching.
 - Trade-off: **disk wins** — unsaved in-Vim edits to a buffer the AI changes are
   discarded. Intended for the viewer-style workflow (edit in the AI pane).
 - **Edit toast** — a small `vim.notify` (`🤖 AI · edited <file>`) names the file
@@ -1253,6 +1267,16 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   checks for a `.git` dir OR file): the dev machine's `~/.config/nvsinner` is a
   symlink to this repo and a manual copy has no remote — neither can `git pull`.
   `M.update({ dir = … })` takes an optional dir override purely as a test seam.
+- **Dirty-tree guard** — before pulling it runs `git status --porcelain
+  --untracked-files=no` and aborts with a WARN (commit/stash, then re-run) if
+  tracked files are modified; untracked files are ignored (only a path
+  collision matters, and git reports that itself).
+- **"Updated" vs "no-op" is a `git rev-parse HEAD` compare** taken before and
+  after the pull — never git's English "Already up to date" text, which is
+  localised. Unreadable HEADs fall through to the update path (restore is
+  idempotent). Seams: `M._system` (job runner) and `M._restore`, swapped by
+  table field in `tests/core/update_spec.lua`, so no spec touches git remotes
+  or lazy.
 
 ## Plugin/Mason sync — `sync.lua` (required from `init.lua`)
 
@@ -1267,6 +1291,12 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `lazy/manage/init.lua`); it fires the `User LazySync` autocmd when the whole
   clean+install+update pipeline settles, so the Mason phase hooks that event
   with a one-shot autocmd.
+- **Failure is visible** — `lazy.sync()` is `pcall`ed: a throw notifies ERROR,
+  deletes the orphaned `LazySync` autocmd and skips Mason (previously the
+  Mason phase vanished without a word). A one-shot `vim.defer_fn` watchdog
+  (window = `M.TIMEOUT_MS`; skipped or silenced once `LazySync` has fired,
+  including synchronously inside `lazy.sync()` — not a poller) WARNs if
+  completion never arrives; it only warns, the hook stays armed.
 - **Mason phase** (mason 2.x API, verified against the installed plugin):
   loads `mason.nvim` via `require("lazy").load` (it's `cmd = "Mason"` lazy),
   `registry.refresh(cb)` (async; a failed refresh just falls back to cached
@@ -1544,6 +1574,22 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   markdown — prose has no indent scopes). Seams: `M._ns`, `M.refresh(buf,
   win)`, `M._scope(buf)`, `M._reset()`.
 
+## Per-buffer debounce — `debounce.lua` (NOT required from `init.lua`)
+
+- `require("core.debounce").per_buffer({ fn, delay, name })` returns
+  `{ timers, trigger(buf), cancel(buf) }`: the timer map, the stop+start re-arm
+  and the `BufWipeout` cleanup that `colorizer.lua`, `todo.lua` and
+  `markdown.lua` each carried a copy of. `delay` may be a function, read on
+  every trigger, so a consumer's `M.DEBOUNCE_MS` stays tunable; `name` suffixes
+  the cleanup augroup and must be unique per consumer. `timers` is also the luv
+  GC anchor, and each consumer exposes it as `M._debounce` (a test seam).
+- The three `eligible()` guards stay local on purpose: colorizer's and todo's
+  are identical one-liners, but markdown's also requires `filetype ==
+  "markdown"`, so a shared helper would need a parameter for a single line.
+- `image-open.lua` and `minimap.lua` debounce with ONE module-wide timer, not
+  one per buffer, so they do not use this.
+- Spec: `tests/core/debounce_spec.lua`.
+
 ## Hex color chips — `colorizer.lua` (required from `init.lua`)
 
 - Replaces nvim-colorizer.lua (spec kept disabled): `#rgb` / `#rrggbb` /
@@ -1560,8 +1606,8 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   char or another `#` (`abc#fff`, `##fff`); the alpha byte is dropped.
   Rescans: `BufWinEnter` / `InsertLeave` paint immediately; `TextChanged(I)` /
   `WinScrolled` coalesce through a per-buffer `M.DEBOUNCE_MS` (50 ms) one-shot
-  timer (anchored on `M._debounce`, dropped on `BufWipeout`) so typing/scroll
-  bursts land as one rescan; `buftype == ""` only. Seams: `M._ns`,
+  timer (`core/debounce.lua`'s per-buffer debouncer; `M._debounce` aliases its
+  timer map) so typing/scroll bursts land as one rescan; `buftype == ""` only. Seams: `M._ns`,
   `M.refresh(buf, win)` (immediate — the debounce lives in the autocmds).
 
 ## TODO keyword chips — `todo.lua` (required from `init.lua`)

@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.14.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.15.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.14.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.15.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.14.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.15.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -362,6 +362,18 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     buffer as half-block cells (macOS `sips` → BMP → the wallpaper pipeline),
     with Quick Look as the fallback (`image_preview` in `:NvSinnerMenu`). SVG
     opens as its source code.
+    **v3.15.0** hardens updating and removing. `:NvSinnerUpdate` aborts when
+    tracked files are modified (it names them) and decides "updated" by
+    comparing `HEAD` before and after the pull instead of parsing git's English
+    output; `:NvSinnerSync` reports a failing `lazy.sync()` and warns once if
+    `LazySync` never arrives. `uninstall.sh` keeps a config dir that is not a
+    git checkout (a manual copy) unless `--force` / `-f` is passed. CI gains
+    blocking stylua, a lockfile-unchanged check, a boot under
+    `NVIM_APPNAME=nvsinner`, an install/uninstall smoke test, a macOS leg and a
+    non-blocking nightly leg. Internally, `lua/core/debounce.lua` is now the one
+    debounce shared by colorizer, todo and markdown, the colour helpers
+    (`hex2rgb` / `rgb2hex` / `mix`) live in `core/carbon.lua`, and
+    `ai-activity` reports a failing emit once instead of silently.
 
 ## Status
 

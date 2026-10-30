@@ -25,12 +25,21 @@ ok()   { printf '\033[32m✓ %s\033[0m\n' "$1"; }
 warn() { printf '\033[33m! %s\033[0m\n' "$1"; }
 
 ASSUME_YES=0
+FORCE=0
 for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=1 ;;
+    -f|--force) FORCE=1 ;;
     -h|--help)
-      printf 'Usage: uninstall.sh [--yes]\n'
+      printf 'Usage: uninstall.sh [--yes] [--force]\n'
       printf 'Removes the nvsinner config/data/state/cache dirs and the launcher.\n'
+      printf '\n'
+      printf '  -y, --yes    skip the confirmation prompt (required when piped)\n'
+      printf '  -f, --force  also delete a config dir that is neither a git clone nor a\n'
+      printf '               symlink (a manual copy, which install.sh leaves untouched)\n'
+      printf '\n'
+      printf 'Flags are separate words: use "-y -f", not "-yf" (combined short flags\n'
+      printf 'are not supported).\n'
       exit 0 ;;
     *) warn "Unknown argument: $arg (try --help)"; exit 1 ;;
   esac
@@ -45,8 +54,31 @@ for t in "${targets[@]}"; do
   if [ -e "$t" ] || [ -L "$t" ]; then present+=("$t"); fi
 done
 
+# install.sh leaves a config dir that is neither a symlink nor a git clone alone
+# ("manual copy": the user's own files, possibly unversioned edits). Deleting it
+# here would be the one irreversible step, so skip it unless --force is given.
+# "Git clone" is tested exactly as install.sh does (`-d .git`), so the two
+# scripts agree: a worktree-style dir whose .git is a FILE counts as a manual copy.
+kept=()
+if [ "$FORCE" -ne 1 ] && [ -d "$CONFIG_DIR" ] && [ ! -L "$CONFIG_DIR" ] && [ ! -d "$CONFIG_DIR/.git" ]; then
+  warn "$CONFIG_DIR is not a git clone or a symlink (a manual copy?) — leaving it in place."
+  warn "Re-run with --force to delete it too."
+  kept+=("$CONFIG_DIR")
+  filtered=()
+  for t in "${present[@]}"; do
+    if [ "$t" != "$CONFIG_DIR" ]; then filtered+=("$t"); fi
+  done
+  # "${arr[@]}" on an empty array trips `set -u` on bash < 4.4 (macOS 3.2).
+  present=()
+  if [ ${#filtered[@]} -gt 0 ]; then present=("${filtered[@]}"); fi
+fi
+
 if [ ${#present[@]} -eq 0 ]; then
-  ok "Nothing to remove — no nvsinner files found."
+  if [ ${#kept[@]} -gt 0 ]; then
+    ok "Nothing else to remove — the manual-copy config was left in place."
+  else
+    ok "Nothing to remove — no nvsinner files found."
+  fi
   exit 0
 fi
 
@@ -87,5 +119,9 @@ for t in "${present[@]}"; do
 done
 
 printf '\n'
-ok "NvSinner uninstalled. (Your ~/.config/nvim, if any, was not touched.)"
+if [ ${#kept[@]} -gt 0 ]; then
+  ok "NvSinner uninstalled, except ${kept[0]} (kept; re-run with --force to delete it)."
+else
+  ok "NvSinner uninstalled. (Your ~/.config/nvim, if any, was not touched.)"
+fi
 info "If you added ~/.local/bin to your PATH just for NvSinner, you can drop that line now."
