@@ -92,7 +92,7 @@ jobs:
           nvim --version | head -1
 
       - name: Cache plugins (keyed on lazy-lock.json)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/nvim/lazy
