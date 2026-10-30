@@ -329,16 +329,16 @@ behavior in `lua/core/` gets a new spec.
 subsystem behavior, convention or tool requirement is reflected there, and
 keymaps also in `docs/keybindings.md`'s "Full keybindings reference".
 
-**Gate 6 — formatting:** `stylua --check lua/ tests/`.
+**Gate 6 — formatting:** `stylua --check init.lua colors lua tests`.
 
-**What runs without you.** `.github/workflows/ci.yml` re-runs Gate 2 and Gate 4
-on every PR and every push to `main`, on a clean machine against the pinned
-lockfile. `.githooks/pre-push` runs `stylua --check` + `make test` locally —
-but **only if you opted in with `git config core.hooksPath .githooks`**.
-Nothing wires it for you; `install.sh` does not. So: CI never checks
-formatting, CI is `ubuntu-latest` × `{v0.12.0, stable}` with no macOS and no
-nightly, and CI symlinks the checkout to `~/.config/nvim`, so the
-`NVIM_APPNAME=nvsinner` path is never exercised.
+**What runs without you.** `.github/workflows/ci.yml` re-runs Gate 2, Gate 4
+and Gate 6 on every PR and every push to `main`, on a clean machine against the
+pinned lockfile, and adds a lockfile drift check, the `NVIM_APPNAME=nvsinner`
+boot, an install/uninstall smoke job, and report-only nightly + selene jobs.
+`.githooks/pre-push` runs `stylua --check`, `selene` (non-fatal) and
+`make test` locally — but **only if you opted in with `make hooks`**. Nothing
+wires it for you; `install.sh` does not. Nightly and selene are visibility,
+not gates; read them, they cannot block a merge.
 
 ### Pre-merge checklist
 

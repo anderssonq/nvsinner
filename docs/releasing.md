@@ -32,7 +32,7 @@ runbook it follows — and the reference for cutting a release by hand.
    name say it), so every bump fails it until you do. It is deliberate: it
    makes a half-finished release impossible to merge green.
 3. **Run the gates** (all must pass): `make test` ·
-   `stylua --check lua/ tests/` · headless boot check
+   `stylua --check init.lua colors lua tests` (CI enforces the same check) · headless boot check
    (`nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"`).
 4. **Sync docs**: the [NVSINNER.md](../NVSINNER.md) status log; README.md if
    anything user-visible changed.

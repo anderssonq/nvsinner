@@ -1,0 +1,21 @@
+# selene standard library: Lua 5.1 (LuaJIT) plus the Neovim `vim` global.
+# `any: true` accepts every vim.* field — selene cannot know the API surface,
+# and the point of this file is only to stop `vim` reading as undefined.
+# The busted globals are what plenary's runner injects into tests/.
+base: lua51
+name: vim
+globals:
+  vim:
+    any: true
+  assert:
+    any: true
+  describe:
+    any: true
+  it:
+    any: true
+  before_each:
+    any: true
+  after_each:
+    any: true
+  pending:
+    any: true

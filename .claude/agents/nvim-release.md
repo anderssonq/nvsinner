@@ -26,7 +26,7 @@ No tags, GitHub releases or artifacts are required.
 3. **Run the gates** — all must pass before you report done:
    ```bash
    make test                    # whole suite, 0 failed 0 errors
-   stylua --check lua/ tests/
+   stylua --check init.lua colors lua tests
    nvim --headless -c "lua vim.defer_fn(function() vim.cmd('messages'); vim.cmd('qa') end, 300)"
    ```
 4. **Sync docs:** the `NVSINNER.md` status log; `README.md` only if something

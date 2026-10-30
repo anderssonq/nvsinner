@@ -363,10 +363,9 @@ automatically: `.github/workflows/ci.yml` re-runs the headless boot check and
 `make test` on every pull request and every push to `main`, on a clean machine
 against the pinned lockfile — so a green PR is stronger evidence than "it
 passed locally". The `.githooks/pre-push` hook — which you must opt into with
-`git config core.hooksPath .githooks`; nothing wires it for you — catches
-both plus `stylua --check` before the push even lands. Neither covers items 1,
-4 and 5, nor formatting once someone passes `--no-verify`: those stay yours.
-See §6 for what CI still misses.
+`make hooks`; nothing wires it for you — catches both, plus `stylua --check`
+and a non-fatal `selene`, before the push even lands. Neither covers items 1,
+4 and 5: those stay yours. See §8 for what CI still misses.
 
 ### When a spec fails — triage order
 
@@ -425,18 +424,18 @@ PR when you touch `ai-activity`, `ui-touch`, `autoreload` or `toggleterm`.
 
 ## 8. Known gaps — plainly
 
-- **CI does not check formatting.** `stylua --check` runs only in
-  `.githooks/pre-push`, which is **opt-in** (`git config core.hooksPath
-  .githooks` — nothing wires it for you, and `install.sh` does not) and
-  skippable with `--no-verify`. Formatting drift can reach `main`.
-- **One platform, no nightly.** CI is `ubuntu-latest` × `{v0.12.0, stable}`.
-  macOS is the dev platform and hosts `image-open.lua`'s `qlmanage`/`sips`
-  path; nightly is where the crash class lives. Neither is exercised.
-- **The `NVIM_APPNAME` path is never tested.** CI symlinks the checkout to
-  `~/.config/nvim`, so the distro's own launch mode is untested in CI.
-- **`install.sh` and `uninstall.sh` have zero automated coverage** — the
-  highest-blast-radius scripts in the repo, since they run on other people's
-  machines.
+- **The local pre-push hook is opt-in.** `make hooks` (`git config
+  core.hooksPath .githooks`) wires it; nothing else does, `install.sh` included,
+  and it is skippable with `--no-verify`. CI is the real gate: it runs
+  `stylua --check`, the suite on floor/stable/macOS, a lockfile drift check,
+  the `NVIM_APPNAME=nvsinner` boot, and an install/uninstall smoke job.
+- **Nightly and selene are report-only.** Both jobs are `continue-on-error`:
+  a red one is a finding to read, not a blocked merge. Nightly is where the
+  crash class lives; selene has not been triaged against the tree.
+- **The smoke job covers the happy path only.** It installs into a temporary
+  `HOME` and asserts uninstall leaves nothing; update-over-existing-clone,
+  non-git config dirs and Linux-only/macOS-only branches of the scripts are
+  untested.
 - **Headless cannot verify rendering.** Anything about what a bar *looks* like
   needs §7's interactive matrix.
 
@@ -458,5 +457,5 @@ find tests -name '*_spec.lua' | wc -l
 for s in boot-check keymap-audit palette-audit; do \
   .claude/skills/nvsinner-testing-and-qa/scripts/$s.sh >/dev/null && echo "$s OK"; done
 grep -n 'hooksPath\|githooks' install.sh || echo "install.sh wires no hook (correct)"
-sed -n '1,40p' .github/workflows/ci.yml
+grep -nE '^  [a-z-]+:$|continue-on-error' .github/workflows/ci.yml
 ```
