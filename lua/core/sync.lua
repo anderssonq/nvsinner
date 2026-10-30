@@ -24,6 +24,10 @@ local M = {}
 
 local TITLE = "🔥 NvSinner"
 
+-- How long to wait for `User LazySync` before warning (a full sync over a slow
+-- link can take minutes, so this is generous). Tunable for specs.
+M.TIMEOUT_MS = 10 * 60 * 1000
+
 -- Decode lazy-lock.json into { plugin = { branch, commit } }; nil on any
 -- failure (missing file, bad JSON) — the guard then just stays quiet.
 local function read_lock()
@@ -140,10 +144,25 @@ function M.sync()
 
 	local before = read_lock()
 
-	vim.api.nvim_create_autocmd("User", {
+	-- Set by the LazySync callback. It covers two races the timer handle alone
+	-- cannot: LazySync firing before lazy.sync() even returns (the watchdog would
+	-- be armed after the fact), and the defer_fn already queued when we stop it.
+	local done = false
+	local timer -- one-shot watchdog, armed below; stopped when LazySync arrives
+	local function stop_timer()
+		if timer and not timer:is_closing() then
+			timer:stop()
+			timer:close()
+		end
+		timer = nil
+	end
+
+	local au = vim.api.nvim_create_autocmd("User", {
 		pattern = "LazySync",
 		once = true,
 		callback = function()
+			done = true
+			stop_timer()
 			local jumps = M.branch_jumps(before or {}, read_lock() or {})
 			if #jumps > 0 then
 				local lines = { "⚠ Plugins JUMPED BRANCH (upstream default changed):" }
@@ -165,7 +184,38 @@ function M.sync()
 	})
 
 	vim.notify("Syncing plugins to latest…", vim.log.levels.INFO, { title = TITLE })
-	lazy.sync()
+
+	-- A throwing sync() never fires LazySync, which used to skip the Mason phase
+	-- with no word at all. Surface it and drop the now-orphaned autocmd.
+	local ok_sync, err = pcall(lazy.sync)
+	if not ok_sync then
+		pcall(vim.api.nvim_del_autocmd, au)
+		vim.notify(
+			"Plugin sync failed, Mason packages were skipped:\n" .. tostring(err),
+			vim.log.levels.ERROR,
+			{ title = TITLE }
+		)
+		return
+	end
+
+	-- One-shot watchdog (not a poller): if lazy never reports completion the
+	-- Mason phase would otherwise stay silently pending. It only warns; if the
+	-- sync does finish later the autocmd still runs the Mason phase.
+	if done then
+		return
+	end
+	timer = vim.defer_fn(function()
+		timer = nil
+		if done then
+			return
+		end
+		vim.notify(
+			("Plugin sync has not reported completion after %d s.\n"):format(M.TIMEOUT_MS / 1000)
+				.. "Check :Lazy. Mason packages are updated only once the sync finishes.",
+			vim.log.levels.WARN,
+			{ title = TITLE }
+		)
+	end, M.TIMEOUT_MS)
 end
 
 vim.api.nvim_create_user_command("NvSinnerSync", function()

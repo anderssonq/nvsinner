@@ -125,7 +125,10 @@ Code (`claude`).
   it'll remove, then **confirms** — prompts on a TTY, requires `--yes`/`-y` when
   piped (`curl | bash` has no TTY). A **symlinked** config dir (dev machine) is
   `rm -f`'d (unlink only) — never followed into its target; real dirs are
-  `rm -rf`'d. `~/.config/nvim` is untouched (different app name).
+  `rm -rf`'d. A config dir that is neither a git clone nor a symlink (a manual
+  copy — the case `install.sh` leaves untouched) is skipped with a warning
+  unless `--force`/`-f` is passed. `~/.config/nvim` is untouched (different app
+  name).
 - `install.sh` mirrors `:NvSinnerUpdate` out-of-editor: on an existing clone it
   `git pull`s (unshallowing old `--depth=1` installs) instead of skipping; fresh
   clones are full-depth so `git pull` / `:NvSinnerUpdate` update cleanly.
@@ -232,6 +235,9 @@ restore. Pick whichever you like:
 - **In-editor (recommended):** run `:NvSinnerUpdate`. It `git pull`s the
   config, restores plugins to the pinned `lazy-lock.json`, and runs
   `:checkhealth`. **Restart Neovim afterwards** so the new Lua config loads.
+  It refuses to start while the clone has uncommitted changes to tracked files
+  (commit or stash them first), and it decides "nothing new" by comparing
+  `HEAD` before and after the pull, not by reading git's message.
 - **Re-run the installer:** the one-liner is idempotent — on an existing
   clone it `git pull`s and re-installs plugins instead of skipping.
 - **By hand:**
@@ -445,3 +451,15 @@ It removes the four `nvsinner` dirs — config (`~/.config/nvsinner`), data
 (`~/.cache/nvsinner`) — and the `~/.local/bin/nvsinner` launcher. If your
 config dir is a symlink (e.g. a dev checkout), only the link is removed; the
 target is left intact. Or remove those five paths by hand.
+
+A config dir that is **neither a git clone nor a symlink** (a manual copy,
+which `install.sh` also leaves untouched) is **skipped with a warning**, since
+it may hold edits that exist nowhere else. The test is the same one `install.sh`
+uses (a `.git` *directory*), so a worktree-style dir whose `.git` is a file also
+counts as a manual copy. The other paths are still removed.
+Pass `--force` (`-f`) to delete it as well (flags are separate words; `-yf` is
+not supported):
+
+```bash
+./uninstall.sh --yes --force
+```

@@ -1253,6 +1253,16 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   checks for a `.git` dir OR file): the dev machine's `~/.config/nvsinner` is a
   symlink to this repo and a manual copy has no remote — neither can `git pull`.
   `M.update({ dir = … })` takes an optional dir override purely as a test seam.
+- **Dirty-tree guard** — before pulling it runs `git status --porcelain
+  --untracked-files=no` and aborts with a WARN (commit/stash, then re-run) if
+  tracked files are modified; untracked files are ignored (only a path
+  collision matters, and git reports that itself).
+- **"Updated" vs "no-op" is a `git rev-parse HEAD` compare** taken before and
+  after the pull — never git's English "Already up to date" text, which is
+  localised. Unreadable HEADs fall through to the update path (restore is
+  idempotent). Seams: `M._system` (job runner) and `M._restore`, swapped by
+  table field in `tests/core/update_spec.lua`, so no spec touches git remotes
+  or lazy.
 
 ## Plugin/Mason sync — `sync.lua` (required from `init.lua`)
 
@@ -1267,6 +1277,12 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
   `lazy/manage/init.lua`); it fires the `User LazySync` autocmd when the whole
   clean+install+update pipeline settles, so the Mason phase hooks that event
   with a one-shot autocmd.
+- **Failure is visible** — `lazy.sync()` is `pcall`ed: a throw notifies ERROR,
+  deletes the orphaned `LazySync` autocmd and skips Mason (previously the
+  Mason phase vanished without a word). A one-shot `vim.defer_fn` watchdog
+  (window = `M.TIMEOUT_MS`; skipped or silenced once `LazySync` has fired,
+  including synchronously inside `lazy.sync()` — not a poller) WARNs if
+  completion never arrives; it only warns, the hook stays armed.
 - **Mason phase** (mason 2.x API, verified against the installed plugin):
   loads `mason.nvim` via `require("lazy").load` (it's `cmd = "Mason"` lazy),
   `registry.refresh(cb)` (async; a failed refresh just falls back to cached

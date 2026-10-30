@@ -83,4 +83,81 @@ describe("core.sync", function()
 		assert.are.equal(vim.log.levels.WARN, captured[1].level)
 		assert.matches("mason", captured[1].msg)
 	end)
+
+	describe("with a fake lazy", function()
+		local orig_lazy, orig_notify, orig_timeout, captured
+
+		before_each(function()
+			orig_lazy, orig_notify, orig_timeout = package.loaded["lazy"], vim.notify, sync.TIMEOUT_MS
+			captured = {}
+			vim.notify = function(msg, level)
+				captured[#captured + 1] = { msg = msg, level = level }
+			end
+		end)
+
+		after_each(function()
+			package.loaded["lazy"], vim.notify, sync.TIMEOUT_MS = orig_lazy, orig_notify, orig_timeout
+			pcall(vim.api.nvim_clear_autocmds, { event = "User", pattern = "LazySync" })
+		end)
+
+		it("notifies ERROR and drops the LazySync hook when lazy.sync() throws", function()
+			package.loaded["lazy"] = {
+				sync = function()
+					error("boom")
+				end,
+			}
+			sync.sync()
+			local last = captured[#captured]
+			assert.are.equal(vim.log.levels.ERROR, last.level)
+			assert.matches("Plugin sync failed", last.msg)
+			assert.matches("boom", last.msg)
+			assert.are.equal(0, #vim.api.nvim_get_autocmds({ event = "User", pattern = "LazySync" }))
+		end)
+
+		it("warns once if LazySync never arrives within the timeout", function()
+			package.loaded["lazy"] = {
+				sync = function() end,
+			}
+			sync.TIMEOUT_MS = 20
+			sync.sync()
+			vim.wait(500, function()
+				return captured[#captured].level == vim.log.levels.WARN
+			end)
+			assert.are.equal(vim.log.levels.WARN, captured[#captured].level)
+			assert.matches("not reported completion", captured[#captured].msg)
+		end)
+
+		it("does not arm the watchdog when LazySync fires synchronously inside lazy.sync()", function()
+			package.loaded["lazy"] = {
+				sync = function()
+					vim.api.nvim_exec_autocmds("User", { pattern = "LazySync" })
+				end,
+			}
+			sync.TIMEOUT_MS = 20
+			sync.sync()
+			-- wait well past the timeout: a late watchdog would have warned by now
+			vim.wait(200, function()
+				return false
+			end)
+			for _, n in ipairs(captured) do
+				assert.is_nil(n.msg:find("not reported completion", 1, true))
+			end
+		end)
+
+		it("stays quiet (no timeout warning) when LazySync fires in time", function()
+			package.loaded["lazy"] = {
+				sync = function() end,
+			}
+			sync.TIMEOUT_MS = 50
+			sync.sync()
+			-- mason is absent in the minimal init, so the Mason phase WARNs once itself
+			vim.api.nvim_exec_autocmds("User", { pattern = "LazySync" })
+			vim.wait(200, function()
+				return false
+			end)
+			for _, n in ipairs(captured) do
+				assert.is_nil(n.msg:find("not reported completion", 1, true))
+			end
+		end)
+	end)
 end)

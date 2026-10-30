@@ -245,11 +245,16 @@ The command (registered at require time from `init.lua`) runs `M.update()`:
    false — a manual copy, or any dir with no repo — it is a
    **no-op-with-warning** ("not a git clone, so there's nothing to pull… re-run
    install.sh or update by hand") and returns.
-2. **`git -C <config> pull --ff-only`** via `vim.system` (async; editor stays
-   responsive). `--ff-only` never invents a merge commit and fails loudly if
-   the local clone diverged. Non-zero exit → error toast with git's stderr,
-   stop. Output containing "Already up to date" → info toast, stop (no
-   restore).
+2. **Dirty-tree guard, then `git -C <config> pull --ff-only`**, all async
+   (editor stays responsive). First `git status --porcelain
+   --untracked-files=no`: modified tracked files → WARN telling you to commit
+   or stash, nothing pulled; a failing status → ERROR, stop. Then the pull
+   (`--ff-only` never invents a merge commit and fails loudly if the local
+   clone diverged; non-zero exit → error toast with git's stderr, stop).
+   "Updated or not" is decided by comparing `git rev-parse HEAD` before and
+   after the pull, never by git's localised text: same HEAD → "Already up to
+   date" info toast, stop (no restore); different or unreadable HEAD → go on
+   to the restore (idempotent, so the safe default).
 3. **`require("lazy").restore()`** — awaited via `runner:wait(...)`; checks
    every plugin out to the commit pinned in the (freshly pulled)
    `lazy-lock.json`.
@@ -258,9 +263,11 @@ The command (registered at require time from `init.lua`) runs `M.update()`:
    keeps the old modules loaded, so the update only fully takes effect after a
    restart. Always relay this.
 
-Test seam: `M.update({ dir = "<path>" })` overrides the pulled dir — used by
-`tests/core/update_spec.lua` to exercise the not-a-clone warning without
-touching the real config.
+Test seams: `M.update({ dir = "<path>" })` overrides the pulled dir, and
+`M._system` (the job runner) / `M._restore` (the lazy restore step) are
+swapped by table field — `tests/core/update_spec.lua` uses them to exercise
+the dirty-tree abort, the HEAD compare and the failure paths without touching
+the real config, a remote, or lazy.
 
 Nuance: `update.lua` accepts a `.git` **file** (worktree) but `install.sh`
 line 29 only checks for a `.git` **directory** — a worktree-backed install
@@ -333,6 +340,11 @@ Behavior, verified line-by-line:
 - **Existence filter**: keeps only paths where `-e` **or** `-L` is true, so a
   *dangling* symlink is still caught and removed. Nothing present → "Nothing
   to remove", exit 0.
+- **Manual-copy guard**: a config dir that is not a symlink and has no `.git`
+  *directory* (the same `-d` test `install.sh` uses, so a worktree-style dir
+  with a `.git` file counts as a manual copy) is skipped with a warning and
+  kept, unless `--force`/`-f` is given; the other paths are still removed.
+  If that leaves nothing, it prints "Nothing else to remove" and exits 0.
 - **Preview then confirm**: lists every path it will remove (symlinks are
   annotated with their target and "target left untouched"). Confirmation:
   - Interactive TTY (`-t 0`) → `Proceed? [y/N]` prompt; anything but
@@ -344,8 +356,9 @@ Behavior, verified line-by-line:
   `rm -rf`'d. Your working repo survives an uninstall.
 - **`~/.config/nvim` is untouched** — different app name; the script never
   references it.
-- Flags: only `-y`/`--yes` and `-h`/`--help`; anything else errors out
-  (exit 1) before touching anything.
+- Flags: only `-y`/`--yes`, `-f`/`--force` and `-h`/`--help`, as separate
+  words (`-yf` is not supported); anything else errors out (exit 1) before
+  touching anything.
 - Not undone: the PATH line you may have added to your shell rc (the script
   just reminds you), and any globally installed tools (node packages, brew
   formulae, fonts, the AI CLI).
@@ -386,7 +399,7 @@ For the repo's own test suite (`make test`) see `nvsinner-testing-and-qa`.
 | Running the wrong appname | Plain `nvim` shows another config; changes "missing"; separate plugin/state dirs confuse debugging | Always launch via `nvsinner` or `NVIM_APPNAME=nvsinner nvim`; remember data/state/cache are per-appname even on the dev symlink machine |
 | solargraph missing | Ruby LSP never attaches; no repeated startup errors are logged | Needs a Ruby toolchain; then `:MasonInstall solargraph` and restart. Intentionally not in `ensure_installed` |
 | Node missing or older than 20 inside Neovim | JS/TS/Vue servers fail at startup (`Unexpected token '??='` is the classic old-Node signature) | Install Node 20+, restart the terminal/Neovim so PATH changes land, then confirm the version and executable with `:checkhealth nvsinner` |
-| Manual-copy install (no `.git`) | `:NvSinnerUpdate` warns "not a git clone"; installer re-run leaves the dir untouched | Replace the copy with a real clone (back up local edits first), or update by copying files by hand |
+| Manual-copy install (no `.git`) | `:NvSinnerUpdate` warns "not a git clone"; installer re-run leaves the dir untouched | Replace the copy with a real clone (back up local edits first), or update by copying files by hand. `uninstall.sh` also keeps such a dir unless `--force` is passed |
 | `:Lazy sync` on a user install | Local `lazy-lock.json` rewritten; plugin set drifts from the tested one | That's the documented opt-in float. To return to golden: `git -C ~/.config/nvsinner checkout lazy-lock.json && nvim --headless "+Lazy! restore" +qa` (with appname) |
 | First-run toast never appears when testing | You expected the missing-tools nudge | Marker already written: delete `~/.local/state/nvsinner/nvsinner-health-checked`. Headless runs never write it, so only an interactive launch consumes it |
 | Diverged local clone | `:NvSinnerUpdate` / installer fail on `--ff-only` | Deliberate loud failure. Inspect with `git -C ~/.config/nvsinner status`; rebase or reset your local commits, then update again |
@@ -409,7 +422,7 @@ Re-verify each section with one command:
 
 - No doc prescribes `sync`: `grep -rn 'Lazy! sync' CLAUDE.md docs/ README.md || echo clean`
 - Installer behavior: `sed -n '1,90p' install.sh` (clone/pull/unshallow, launcher, PATH advice, `Lazy! restore`)
-- Uninstaller behavior: `sed -n '1,91p' uninstall.sh` (five targets, TTY/--yes, symlink `rm -f`)
+- Uninstaller behavior: `grep -n 'FORCE\|ASSUME_YES\|rm -' uninstall.sh` (flags, manual-copy skip, symlink `rm -f`)
 - Launcher: `cat bin/nvsinner` (one `exec env NVIM_APPNAME=nvsinner nvim "$@"`)
 - Update anatomy: `sed -n '1,86p' lua/core/update.lua` (`--ff-only`, `is_git_repo`, restore→checkhealth→restart toast)
 - Health/first-run: `sed -n '100,180p' lua/core/health.lua` (marker path, headless bail, greet-once)
