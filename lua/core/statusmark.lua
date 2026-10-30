@@ -40,15 +40,8 @@ M.REST_MIX = 0.6
 M.PREFIX = "‹ NvSinner ▏"
 M.SUFFIX = " ›"
 
--- Mix `fg` into `bg` at `alpha`, per channel (same helper as ai-edits.lua).
-local function mix(bg, fg, alpha)
-	local function ch(i)
-		local b = tonumber(bg:sub(i, i + 1), 16)
-		local f = tonumber(fg:sub(i, i + 1), 16)
-		return math.floor(b + (f - b) * alpha + 0.5)
-	end
-	return string.format("#%02x%02x%02x", ch(2), ch(4), ch(6))
-end
+-- Per-channel blend of `fg` into `bg` at `alpha` (shared with ai-edits.lua).
+local mix = require("core.carbon").mix
 
 --- Highlight group for a brightness level.
 function M.group(level)

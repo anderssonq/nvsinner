@@ -729,4 +729,30 @@ function M.transparent()
 	return t == true or t == 1 or t == "1" or t == "true"
 end
 
+-- ─── Colour math ─────────────────────────────────────────────────────────────
+-- Shared by ai-edits, statusmark and wallpaper, which each carried a private
+-- copy. Lives here because every consumer already requires this module, and it
+-- has no requires of its own, so it adds no dependency cycle. Pure functions.
+
+--- "#rrggbb" -> { r, g, b } (0-255 integers).
+function M.hex2rgb(h)
+	return { tonumber(h:sub(2, 3), 16), tonumber(h:sub(4, 5), 16), tonumber(h:sub(6, 7), 16) }
+end
+
+--- { r, g, b } -> "#rrggbb".
+function M.rgb2hex(c)
+	return string.format("#%02x%02x%02x", c[1], c[2], c[3])
+end
+
+--- Mix `fg` into `bg` at `alpha`, per channel (highlights have no opacity, so a
+--- translucent wash is computed: bg + (fg - bg) * alpha). Both are "#rrggbb".
+function M.mix(bg, fg, alpha)
+	local b, f = M.hex2rgb(bg), M.hex2rgb(fg)
+	local o = {}
+	for i = 1, 3 do
+		o[i] = math.floor(b[i] + (f[i] - b[i]) * alpha + 0.5)
+	end
+	return M.rgb2hex(o)
+end
+
 return M

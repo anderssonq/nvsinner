@@ -38,6 +38,7 @@ lua/core/replace.lua         :NvSinnerReplace / <leader>rw — word replace moda
 lua/core/backdrop.lua        Dimming backdrop + interaction guard behind the NvSinner modals (full-screen winblend float that swallows mouse events, WinEnter focus trap, auto-closes with the modal) (native)
 settings/prompts.json        The prompt library (committed, user-editable); settings/ also holds the gitignored :NvSinnerMenu cache
 lua/core/carbon.lua          Carbon base16 role palette + background themes + accent packs — the ONE source of truth for every color
+lua/core/debounce.lua        Per-buffer debounced callback (timer map, re-arm, BufWipeout cleanup) shared by colorizer/todo/markdown; required on demand, not from init.lua (native)
 lua/core/keymaps.lua         Global keymaps: save/undo/redo, folds, split-resize, buffers
 lua/core/autoreload.lua      AI-workflow: disk auto-reload + terminal auto-insert on focus
 lua/core/ai-edits.lua        Underlines AI-written lines after a disk reload, until the user takes over (native)

@@ -111,11 +111,22 @@ end
 -- The payload is a TICKLE, not a state transfer: `status` is this buffer's new
 -- value, and subscribers are expected to re-read the full picture themselves.
 -- ai-activity is buffer-keyed and knows nothing about session numbers.
+-- Protected: tick() is the spinner's only driver, so an error escaping a
+-- subscriber must never reach it. The first failure is reported once (scheduled,
+-- since we may be in any event context); later ones stay quiet so a broken
+-- subscriber cannot toast on every 120ms tick.
+M._emit_warned = false
 local function emit(buf, status, prev)
-	pcall(vim.api.nvim_exec_autocmds, "User", {
+	local ok, err = pcall(vim.api.nvim_exec_autocmds, "User", {
 		pattern = "NvSinnerAgentState",
 		data = { buf = buf, status = status, prev = prev, reason = "activity" },
 	})
+	if not ok and not M._emit_warned then
+		M._emit_warned = true
+		vim.schedule(function()
+			vim.notify("ai-activity: NvSinnerAgentState subscriber failed: " .. tostring(err), vim.log.levels.WARN)
+		end)
+	end
 end
 
 -- Coarse status straight off a state row (M.status without the lookup).

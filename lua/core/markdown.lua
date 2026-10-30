@@ -227,23 +227,16 @@ _G.NvMdReader = M
 -- paint, and InsertLeave must promptly restore the insert-skipped cursor
 -- line. Handles anchored on M._debounce against luv GC.
 M.DEBOUNCE_MS = 50
-M._debounce = {} -- bufnr -> one-shot uv timer
-
-local function debounced_refresh(buf)
-	local t = M._debounce[buf]
-	if not t then
-		t = assert(vim.uv.new_timer())
-		M._debounce[buf] = t
-	end
-	t:stop()
-	t:start(
-		M.DEBOUNCE_MS,
-		0,
-		vim.schedule_wrap(function()
-			M.refresh(buf)
-		end)
-	)
-end
+local deb = require("core.debounce").per_buffer({
+	name = "markdown",
+	delay = function()
+		return M.DEBOUNCE_MS
+	end,
+	fn = function(buf)
+		M.refresh(buf)
+	end,
+})
+M._debounce = deb.timers -- bufnr -> one-shot uv timer (test seam)
 
 local grp = vim.api.nvim_create_augroup("nv_markdown", { clear = true })
 vim.api.nvim_create_autocmd({ "BufWinEnter", "InsertLeave" }, {
@@ -261,18 +254,7 @@ vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "WinScrolled" }, {
 		if not M.on then
 			return
 		end
-		debounced_refresh(args.buf)
-	end,
-})
-vim.api.nvim_create_autocmd("BufWipeout", {
-	group = grp,
-	callback = function(args)
-		local t = M._debounce[args.buf]
-		if t then
-			t:stop()
-			t:close()
-			M._debounce[args.buf] = nil
-		end
+		deb.trigger(args.buf)
 	end,
 })
 vim.api.nvim_create_autocmd("FileType", {
