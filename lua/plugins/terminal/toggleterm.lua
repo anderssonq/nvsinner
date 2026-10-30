@@ -226,6 +226,14 @@ return {
 		-- Panels are created lazily and memoised by session number, so a session
 		-- only spawns its process the first time it is opened — and the FIRST open
 		-- asks (in the column's own space) which CLI to run, via the picker below.
+		-- Register session n's Terminal with the core registry (send-to-AI bridge,
+		-- cockpit, statusline count). Plain-terminal sessions register too: piping
+		-- text into a shell is just as useful. Called on create AND after a
+		-- wiped-buffer respawn (on_exit unregistered the dead one).
+		local function register_panel(n)
+			require("core.ai-sessions").register(n, ai_panels[n])
+		end
+
 		local function create_ai_panel(n, choice)
 			ai_panels[n] = Terminal:new({
 				-- Reserved ids (100+) so they never collide with the <leader>t
@@ -249,17 +257,19 @@ return {
 				-- side and re-tucks any horizontal terminal bottom-left.
 				on_open = on_panel_open,
 				-- Drop the session from the bridge registry when its CLI dies.
-				on_exit = function()
-					require("core.ai-sessions").unregister(n)
+				-- Only the term's CURRENT job counts: after `:bd!` + a quick reopen
+				-- the respawned job is already registered, and the old job's late
+				-- exit must not unregister it.
+				on_exit = function(t, job)
+					if t.job_id == job then
+						require("core.ai-sessions").unregister(n)
+					end
 				end,
 			})
 			-- Winbar title: plain-terminal sessions read "term" (like the
 			-- horizontals); CLI sessions keep the "AI · N" identity.
 			ai_panels[n].__nv_label = (choice and choice.plain) and "term" or nil
-			-- Register with the core session registry (send-to-AI bridge +
-			-- cockpit). Plain-terminal sessions register too: piping text into
-			-- a shell is just as useful.
-			require("core.ai-sessions").register(n, ai_panels[n])
+			register_panel(n)
 			return ai_panels[n]
 		end
 
@@ -596,6 +606,7 @@ return {
 			end
 			if not spawned(term) then
 				term:open() -- buffer wiped (e.g. :bd!) → toggleterm respawns it
+				register_panel(n) -- on_exit unregistered the dead job; the new one must be visible again
 				return true
 			end
 			-- The window is built here, not by term:open(): toggleterm's opener

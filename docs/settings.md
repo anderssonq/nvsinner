@@ -13,7 +13,7 @@ hovering moves the selection and a click cycles the row's value.
 
 | Row | Values |
 |-----|--------|
-| Background theme | **dark:** `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` · **light:** `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` — role-palette ports of each upstream scheme, not the plugins themselves |
+| Background theme | **dark:** `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` / `gruvbox` / `dracula` / `kanagawa` / `solarized-dark` / `github-dark` / `ayu-dark` · **light:** `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` / `catppuccin-latte` / `gruvbox-light` / `rose-pine-dawn` / `github-light` — role-palette ports of each upstream scheme, not the plugins themselves |
 | Transparency | `off` / `on` |
 | Accent | `blue` / `magenta` / `green` / `purple` — swaps only the identity text accent, never the gray surfaces |
 | Folder color | `accent` / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` — recolors Neo-tree's folder names + icons |
@@ -100,7 +100,7 @@ value:
 
 | Flag | Values | Per launch | Persistent |
 |------|--------|-----------|------------|
-| Background theme | dark: `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox`; light: `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` | `NVSINNER_THEME=nord nvsinner` | `vim.g.nvsinner_theme = "nord"` |
+| Background theme | dark: `carbon` (default) / `onedark` / `catppuccin-mocha` / `tokyonight` / `nord` / `monokai` / `rose-pine` / `everforest` / `cyberdream` / `nightfox` / `gruvbox` / `dracula` / `kanagawa` / `solarized-dark` / `github-dark` / `ayu-dark`; light: `carbon-light` / `tokyonight-day` / `everforest-light` / `dayfox` / `catppuccin-latte` / `gruvbox-light` / `rose-pine-dawn` / `github-light` | `NVSINNER_THEME=nord nvsinner` | `vim.g.nvsinner_theme = "nord"` |
 | Transparency | off (default) / on | `NVSINNER_TRANSPARENT=1 nvsinner` | `vim.g.nvsinner_transparent = true` |
 | Accent pack | `blue` (default) / `magenta` / `green` / `purple` | `NVSINNER_ACCENT=green nvsinner` | `vim.g.nvsinner_accent = "green"` |
 | Folder color | `accent` (default) / `teal` / `aqua` / `pink` / `green` / `purple` / `gray` | `NVSINNER_FOLDER=aqua nvsinner` | `vim.g.nvsinner_folder = "aqua"` |

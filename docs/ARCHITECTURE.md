@@ -135,11 +135,9 @@ also what makes it testable headlessly.
 Every color in the distro resolves through this module. No module hardcodes a
 hex.
 
-Fourteen full palettes — ten dark (`dark`/carbon, `onedark`,
-`catppuccin_mocha`, `tokyonight`, `nord`, `monokai`, `rose_pine`, `everforest`,
-`cyberdream`, `nightfox`) and four light (`light`/carbon-light,
-`tokyonight_day`, `everforest_light`, `dayfox`) — each fill an identical
-role-key set: a `base00`–`base05` grayscale ramp, `base06` the foreground
+Every background palette (dark and light; the list is `M.theme_names` in
+`lua/core/carbon.lua`, see `:lua =require('core.carbon').theme_names`) fills an
+identical role-key set: a `base00`–`base05` grayscale ramp, `base06` the foreground
 extreme, `base07`–`base15` accents, plus `blend`, `lift`, `shade`, `backdrop`
 and the diff roles. Public theme names carry hyphens (`rose-pine`), the role
 tables underscores, and `M.themes[name].palette` bridges the two.

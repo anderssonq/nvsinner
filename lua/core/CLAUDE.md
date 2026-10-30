@@ -46,6 +46,9 @@ edits files on disk (see *Auto-reload* below).
   the ones worth clearing). `<leader>ja`'s reopen branch and `M.clear` were
   refactored through them, so the picker, `:NvSinnerAgents` and the clear flow
   all read one path.
+- **`M.live_count()`** — number of registered sessions whose CLI job is still
+  running (hidden columns included); used by the statusline robot. One `pairs`
+  walk + one `jobwait(…, 0)` per session (at most nine).
 - Targeting: the terminal you are inside > the most-recently-used session with
   an open column > MRU with a live (hidden) job; with none, it calls the
   injected opener to open session 1 and warns you to resend once the CLI is up
@@ -529,12 +532,11 @@ editing.
 - Chrome highlights are re-applied via `ColorScheme` autocmds so they survive
   colorscheme reloads and lazy-loaded plugins.
 - **Background themes** — `M.themes` / `M.theme_names` in `carbon.lua` name
-  fourteen full role tables selectable from `:NvSinnerMenu` "Background
-  theme", each named after the scheme it ports: ten dark (`carbon` — the
-  reference, `M.dark` — plus `onedark`, `catppuccin-mocha`, `tokyonight`,
-  `nord`, `monokai`, `rose-pine`, `everforest`, `cyberdream`, `nightfox`) and
-  four light (`carbon-light` — the historic light variant, `M.light` — plus
-  `tokyonight-day`, `everforest-light`, `dayfox`). Each registry entry maps the
+  every full role table selectable from `:NvSinnerMenu` "Background theme", each
+  named after the scheme it ports (the list and the dark/light split live in
+  `M.theme_names`: `:lua =require('core.carbon').theme_names`; `carbon` is the
+  reference, `M.dark`, and `carbon-light` the historic light variant,
+  `M.light`). Each registry entry maps the
   name to its role table (`palette`) and its `vim.o.background` `variant`;
   **public names carry hyphens and role tables underscores** (`rose-pine` →
   `M.rose_pine`), because a hyphen is not a Lua identifier — `palette` is the

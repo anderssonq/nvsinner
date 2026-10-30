@@ -432,7 +432,7 @@ Ongoing work in this area: see `nvsinner-frontier`. Theory:
   hard constraint across all seven subagent prompts
   (`.tmp/06-28-26_01_...md`; commit `b0cf66f`).
 - **Superseded by FA-26:** the specific palette is history — the theme is
-  carbon and there are now 10 themes × 4 accent packs. What survived is the
+  carbon and the palette now spans every background theme × every accent pack. What survived is the
   *doctrine*: grays dominate, each colored pixel means one thing, and no
   consumer carries a literal. Do not quote this entry's hexes as current.
 - **Status:** settled — doctrine, not preference.
@@ -645,9 +645,8 @@ description with root causes.
 - **Resolution:** the theme became **carbon**, an oxocarbon / IBM Carbon port,
   with ONE base16 role table in `lua/core/carbon.lua` and every consumer
   pulling roles from it. `colors/carbon.lua` is the colorscheme. The palette
-  has since grown to 10 background themes, 4 accent packs, 7 folder packs and
-  4 single-role slots — which is exactly why a hex literal is now wrong for at
-  least nine of the ten themes.
+  has since grown to many background themes, 4 accent packs, 7 folder packs and
+  4 single-role slots — which is exactly why a hex literal is now wrong for every theme but one.
 - **Status:** settled. Code-side duplication is structurally retired.
 - **Do not retry:** hardcoding a hex anywhere outside `lua/core/carbon.lua`,
   or "keeping palettes in sync" across files — that rule is inverted now.

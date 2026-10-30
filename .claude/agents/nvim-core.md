@@ -21,7 +21,7 @@ never loads. Two are NOT required from `init.lua`: `statusmark` (loaded by
 
 ## Traps — rationale lives in `lua/core/CLAUDE.md`
 - **Never hardcode a hex.** `require("core.carbon")` and reference a role.
-  There are 10 themes × 4 accent packs — a literal is right for at most one.
+  The palette is every background theme × every accent pack — a literal is right for at most one.
 - **Auto-reload: disk wins.** `autoreload.lua` reloads without checking
   `'modified'`, so unsaved in-Vim edits are discarded. Intended; preserve it.
 - **Bulk writes must write in the same step that edits** (`:cfdo … | update`),

@@ -493,6 +493,311 @@ M.cyberdream = {
 	diff_delete = "#3a1a18",
 }
 
+-- "gruvbox" — Gruvbox dark (morhetz/gruvbox), medium contrast: warm retro
+-- browns with the signature yellow. Diff washes are upstream's own sign bgs.
+M.gruvbox = {
+	base00 = "#282828", -- bg0
+	base01 = "#3c3836", -- bg1: CursorLine, Pmenu, Folded
+	base02 = "#504945", -- bg2: Visual, borders
+	base03 = "#928374", -- gray: comments
+	base04 = "#ebdbb2", -- fg1
+	base05 = "#f2e5bc", -- between fg1 and fg0
+	base06 = "#fbf1c7", -- fg0
+	base07 = "#8ec07c", -- bright aqua: teal
+	base08 = "#83a598", -- bright blue: functions/punctuation
+	base09 = "#fabd2f", -- bright yellow — the identity accent
+	base10 = "#fb4934", -- bright red: errors/attention
+	base11 = "#458588", -- neutral blue: terminal-mode
+	base12 = "#fe8019", -- bright orange: insert-mode block, busy chip
+	base13 = "#b8bb26", -- bright green
+	base14 = "#d3869b", -- bright purple: strings
+	base15 = "#f4d57a", -- pale yellow: companion of base09
+	blend = "#1d2021", -- bg0_h
+	shade = "#171a1b",
+	backdrop = "#000000",
+	lift = "#322f2e",
+	none = "NONE",
+	diff_add = "#34381b",
+	diff_change = "#0e363e",
+	diff_text = "#2f5560",
+	diff_delete = "#3c1f1e",
+}
+
+-- "dracula" — Dracula (dracula/dracula-theme). Purple is the identity accent;
+-- base07 (teal) is derived, the rest are upstream roles.
+M.dracula = {
+	base00 = "#282a36", -- background
+	base01 = "#343746", -- between background and current line
+	base02 = "#44475a", -- current line / selection
+	base03 = "#6272a4", -- comment
+	base04 = "#f8f8f2", -- foreground
+	base05 = "#fbfbf7",
+	base06 = "#ffffff",
+	base07 = "#6be5c9", -- derived teal
+	base08 = "#8be9fd", -- cyan: functions/punctuation
+	base09 = "#bd93f9", -- purple — the identity accent
+	base10 = "#ff5555", -- red: errors/attention
+	base11 = "#6fc1ff", -- derived light blue: terminal-mode
+	base12 = "#ff79c6", -- pink: insert-mode block, busy chip
+	base13 = "#50fa7b", -- green
+	base14 = "#f1fa8c", -- yellow: strings, DiagnosticWarn
+	base15 = "#d6bcfb", -- pale purple: companion of base09
+	blend = "#21222c",
+	shade = "#191a21",
+	backdrop = "#000000",
+	lift = "#2e303e",
+	none = "NONE",
+	diff_add = "#2a3b36",
+	diff_change = "#2b3550",
+	diff_text = "#3b4a78",
+	diff_delete = "#3f2a35",
+}
+
+-- "kanagawa" — Kanagawa "wave" (rebelot/kanagawa.nvim). Ink bg, crystal blue
+-- identity; diff washes are upstream's winter* tones.
+M.kanagawa = {
+	base00 = "#1f1f28", -- sumiInk3
+	base01 = "#2a2a37", -- sumiInk4
+	base02 = "#363646", -- sumiInk5
+	base03 = "#727169", -- fujiGray: comments
+	base04 = "#dcd7ba", -- fujiWhite
+	base05 = "#e6e2c8",
+	base06 = "#f2efd9",
+	base07 = "#7aa89f", -- waveAqua2: teal
+	base08 = "#7fb4ca", -- springBlue: functions/punctuation
+	base09 = "#7e9cd8", -- crystalBlue — the identity accent
+	base10 = "#e46876", -- waveRed: errors/attention
+	base11 = "#a3d4d5", -- lightBlue: terminal-mode
+	base12 = "#ffa066", -- surimiOrange: insert-mode block, busy chip
+	base13 = "#98bb6c", -- springGreen
+	base14 = "#957fb8", -- oniViolet: strings
+	base15 = "#a9b8e8", -- pale crystal blue: companion of base09
+	blend = "#181820", -- sumiInk1
+	shade = "#16161d", -- sumiInk0
+	backdrop = "#000000",
+	lift = "#25252f",
+	none = "NONE",
+	diff_add = "#2b3328", -- winterGreen
+	diff_change = "#252535", -- winterBlue
+	diff_text = "#2d4f67", -- waveBlue2
+	diff_delete = "#43242b", -- winterRed
+}
+
+-- "solarized-dark" — Solarized dark (Ethan Schoonover). The canonical eight
+-- accents verbatim; base05/base08/base11/base15 are derived brighter steps.
+M.solarized_dark = {
+	base00 = "#002b36", -- base03
+	base01 = "#073642", -- base02
+	base02 = "#124b5a", -- Visual, borders (between base02 and base01)
+	base03 = "#586e75", -- base01: comments
+	base04 = "#93a1a1", -- base1: body text
+	base05 = "#b4bfbf",
+	base06 = "#eee8d5", -- base2
+	base07 = "#2aa198", -- cyan: teal
+	base08 = "#4fb8b0", -- brighter cyan: functions/punctuation
+	base09 = "#268bd2", -- blue — the identity accent
+	base10 = "#dc322f", -- red: errors/attention
+	base11 = "#4aa3df", -- brighter blue: terminal-mode
+	base12 = "#cb4b16", -- orange: insert-mode block, busy chip
+	base13 = "#859900", -- green
+	base14 = "#6c71c4", -- violet: strings
+	base15 = "#6eb0e0", -- pale blue: companion of base09
+	blend = "#00252e",
+	shade = "#001f27",
+	backdrop = "#000000",
+	lift = "#03303c",
+	none = "NONE",
+	diff_add = "#073d30",
+	diff_change = "#08384a",
+	diff_text = "#0f4f6b",
+	diff_delete = "#3a1f26",
+}
+
+-- "github-dark" — GitHub dark default (primer/github-vscode-theme).
+M.github_dark = {
+	base00 = "#0d1117", -- canvas.default
+	base01 = "#161b22", -- canvas.subtle
+	base02 = "#30363d", -- border.default
+	base03 = "#6e7681", -- comments
+	base04 = "#c9d1d9", -- fg.default
+	base05 = "#e6edf3",
+	base06 = "#f0f6fc",
+	base07 = "#56d4dd", -- teal
+	base08 = "#79c0ff", -- light blue: functions/punctuation
+	base09 = "#58a6ff", -- accent blue — the identity accent
+	base10 = "#ff7b72", -- red: errors/attention
+	base11 = "#388bfd", -- vivid blue: terminal-mode
+	base12 = "#ffa657", -- orange: insert-mode block, busy chip
+	base13 = "#3fb950", -- green
+	base14 = "#d2a8ff", -- purple: strings
+	base15 = "#a5d6ff", -- pale blue: companion of base09
+	blend = "#090c10",
+	shade = "#010409",
+	backdrop = "#000000",
+	lift = "#121820",
+	none = "NONE",
+	diff_add = "#12261e",
+	diff_change = "#121d2f",
+	diff_text = "#1d3354",
+	diff_delete = "#3a1d20",
+}
+
+-- "ayu-dark" — Ayu dark (ayu-theme/ayu-vim): near-black bg with the signature
+-- warm yellow accent.
+M.ayu_dark = {
+	base00 = "#0b0e14", -- bg
+	base01 = "#131721", -- line / panel
+	base02 = "#253340", -- selection
+	base03 = "#5c6773", -- comment
+	base04 = "#bfbdb6", -- fg
+	base05 = "#d3d1ca",
+	base06 = "#e6e1cf",
+	base07 = "#95e6cb", -- regexp: teal
+	base08 = "#39bae6", -- tag: functions/punctuation
+	base09 = "#e6b450", -- accent — the identity accent
+	base10 = "#f07178", -- markup red: errors/attention
+	base11 = "#59c2ff", -- entity blue: terminal-mode
+	base12 = "#ff8f40", -- keyword orange: insert-mode block, busy chip
+	base13 = "#aad94c", -- string green
+	base14 = "#d2a6ff", -- constant purple: strings
+	base15 = "#f0cd85", -- pale accent: companion of base09
+	blend = "#080a0f",
+	shade = "#05070a",
+	backdrop = "#000000",
+	lift = "#0f121a",
+	none = "NONE",
+	diff_add = "#1b2b1a",
+	diff_change = "#172536",
+	diff_text = "#223a55",
+	diff_delete = "#351e22",
+}
+
+-- "catppuccin-latte" — Catppuccin's light flavour. The fg ramp inverts
+-- (base03 lightest → base06 darkest). Accents are darkened one step from the
+-- pastel Latte values (sky, sapphire, peach, green) so the solid mode chips
+-- (base00 text on the accent) stay legible.
+M.catppuccin_latte = {
+	base00 = "#eff1f5", -- base
+	base01 = "#e6e9ef", -- mantle: CursorLine, Pmenu, Folded
+	base02 = "#ccd0da", -- surface0: Visual, borders
+	base03 = "#8c8fa1", -- overlay1: comments
+	base04 = "#4c4f69", -- text
+	base05 = "#3f4258", -- strongest fg: float text
+	base06 = "#2e3045", -- the dark extreme: delimiters
+	base07 = "#179299", -- teal
+	base08 = "#1d8fc4", -- sky, darkened: functions/punctuation
+	base09 = "#1e66f5", -- Latte blue — the identity accent
+	base10 = "#d20f39", -- red: errors/attention
+	base11 = "#17869b", -- sapphire, darkened: terminal-mode
+	base12 = "#d9540a", -- peach, darkened: insert-mode block, busy chip
+	base13 = "#348623", -- green, darkened
+	base14 = "#8839ef", -- mauve: strings
+	base15 = "#7287fd", -- lavender: companion of base09
+	blend = "#e9ecf2", -- recessed float surface (darker than base00)
+	shade = "#dce0e8", -- crust: modal surface
+	backdrop = "#000000",
+	lift = "#ebeef3", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#d9ecd3",
+	diff_change = "#d6e2f8",
+	diff_text = "#c3d6f7",
+	diff_delete = "#f6d6dc",
+}
+
+-- "gruvbox-light" — Gruvbox light, medium contrast. Accents use upstream's
+-- "faded" (dark) tier, which is already tuned for a light surface; the fg ramp
+-- inverts (base03 lightest → base06 darkest).
+M.gruvbox_light = {
+	base00 = "#fbf1c7", -- bg0
+	base01 = "#ebdbb2", -- bg1: CursorLine, Pmenu, Folded
+	base02 = "#d5c4a1", -- bg2: Visual, borders
+	base03 = "#928374", -- gray: comments
+	base04 = "#3c3836", -- fg1
+	base05 = "#32302f", -- strongest fg: float text
+	base06 = "#282828", -- fg0: the dark extreme
+	base07 = "#427b58", -- faded aqua: teal
+	base08 = "#076678", -- faded blue: functions/punctuation
+	base09 = "#b57614", -- faded yellow — the identity accent
+	base10 = "#cc241d", -- red: errors/attention
+	base11 = "#458588", -- neutral blue: terminal-mode
+	base12 = "#af3a03", -- faded orange: insert-mode block, busy chip
+	base13 = "#79740e", -- faded green
+	base14 = "#8f3f71", -- faded purple: strings
+	base15 = "#d79921", -- neutral yellow: companion of base09
+	blend = "#f2e5bc", -- bg0_s: recessed float surface
+	shade = "#eadcae", -- modal surface: darker still
+	backdrop = "#000000",
+	lift = "#f3e6bd", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#e2e3b0",
+	diff_change = "#d5e1d8",
+	diff_text = "#c3d6d3",
+	diff_delete = "#f0d0c0",
+}
+
+-- "rose-pine-dawn" — Rosé Pine Dawn (rose-pine/neovim). Warm paper with iris
+-- as the identity accent. foam, iris, rose and gold are darkened one step so
+-- the solid mode chips (base00 text on the accent) stay legible; the fg ramp
+-- inverts (base03 lightest → base06 darkest).
+M.rose_pine_dawn = {
+	base00 = "#faf4ed", -- base
+	base01 = "#f2e9e1", -- overlay: CursorLine, Pmenu, Folded
+	base02 = "#dfdad9", -- highlight_med: Visual, borders
+	base03 = "#9893a5", -- muted: comments
+	base04 = "#575279", -- text
+	base05 = "#4a4566", -- strongest fg: float text
+	base06 = "#3b3754", -- the dark extreme: delimiters
+	base07 = "#3f808b", -- foam, darkened: teal
+	base08 = "#c4756f", -- rose, darkened: functions/punctuation
+	base09 = "#7f6a9b", -- iris, darkened — the identity accent
+	base10 = "#b4637a", -- love: errors/attention
+	base11 = "#286983", -- pine: terminal-mode
+	base12 = "#a9504b", -- warm rose, darkened (upstream #d7827e): insert-mode block, busy chip; much deeper than base08 so the two never read alike
+	base13 = "#6d8f89", -- leaf (upstream): Todo/success
+	base14 = "#b9811e", -- gold, darkened: strings, DiagnosticWarn
+	base15 = "#b4a1c9", -- pale iris: companion of base09
+	blend = "#f2ebe4", -- recessed float surface (darker than base00)
+	shade = "#e8dfd7", -- modal surface: darker still
+	backdrop = "#000000",
+	lift = "#f6efe8", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#e1ead8",
+	diff_change = "#e0e6ee",
+	diff_text = "#cfd9e6",
+	diff_delete = "#f3dadc",
+}
+
+-- "github-light" — GitHub light default (primer/github-vscode-theme). Primer's
+-- light accents are already tuned for white, so none needed darkening; the fg
+-- ramp inverts (base03 lightest → base06 darkest).
+M.github_light = {
+	base00 = "#ffffff", -- canvas.default
+	base01 = "#f6f8fa", -- canvas.subtle: CursorLine, Pmenu, Folded
+	base02 = "#d0d7de", -- border.default: Visual, borders
+	base03 = "#6e7781", -- comments
+	base04 = "#24292f", -- fg.default
+	base05 = "#1b1f24", -- strongest fg: float text
+	base06 = "#0d1117", -- the dark extreme: delimiters
+	base07 = "#1b7c83", -- teal
+	base08 = "#0550ae", -- deep blue: functions/punctuation
+	base09 = "#0969da", -- accent blue — the identity accent
+	base10 = "#cf222e", -- red: errors/attention
+	base11 = "#1f6feb", -- vivid blue: terminal-mode
+	base12 = "#bc4c00", -- orange: insert-mode block, busy chip
+	base13 = "#1a7f37", -- green
+	base14 = "#8250df", -- purple: strings
+	base15 = "#54aeff", -- pale blue: companion of base09
+	blend = "#f3f5f8", -- recessed float surface (darker than base00)
+	shade = "#e8ebef", -- modal surface: darker still
+	backdrop = "#000000",
+	lift = "#fafbfc", -- focused-pane lift (base00 ↔ base01)
+	none = "NONE",
+	diff_add = "#dafbe1",
+	diff_change = "#ddf4ff",
+	diff_text = "#b6e3ff",
+	diff_delete = "#ffebe9",
+}
+
 -- Registry: theme name → which role table it uses and which vim.o.background
 -- variant it belongs to (the variant also picks the accent-pack overrides).
 -- Public names carry hyphens; the role tables above use underscores, because a
@@ -509,11 +814,21 @@ M.themes = {
 	everforest = { palette = "everforest", variant = "dark" },
 	cyberdream = { palette = "cyberdream", variant = "dark" },
 	nightfox = { palette = "nightfox", variant = "dark" },
+	gruvbox = { palette = "gruvbox", variant = "dark" },
+	dracula = { palette = "dracula", variant = "dark" },
+	kanagawa = { palette = "kanagawa", variant = "dark" },
+	["solarized-dark"] = { palette = "solarized_dark", variant = "dark" },
+	["github-dark"] = { palette = "github_dark", variant = "dark" },
+	["ayu-dark"] = { palette = "ayu_dark", variant = "dark" },
 	-- light
 	["carbon-light"] = { palette = "light", variant = "light" },
 	["tokyonight-day"] = { palette = "tokyonight_day", variant = "light" },
 	["everforest-light"] = { palette = "everforest_light", variant = "light" },
 	dayfox = { palette = "dayfox", variant = "light" },
+	["catppuccin-latte"] = { palette = "catppuccin_latte", variant = "light" },
+	["gruvbox-light"] = { palette = "gruvbox_light", variant = "light" },
+	["rose-pine-dawn"] = { palette = "rose_pine_dawn", variant = "light" },
+	["github-light"] = { palette = "github_light", variant = "light" },
 }
 
 -- Retired names → the real scheme names that replaced them. Resolved by
@@ -546,10 +861,20 @@ M.theme_names = {
 	"everforest",
 	"cyberdream",
 	"nightfox",
+	"gruvbox",
+	"dracula",
+	"kanagawa",
+	"solarized-dark",
+	"github-dark",
+	"ayu-dark",
 	"carbon-light",
 	"tokyonight-day",
 	"everforest-light",
 	"dayfox",
+	"catppuccin-latte",
+	"gruvbox-light",
+	"rose-pine-dawn",
+	"github-light",
 }
 
 -- Resolve a raw theme value (possibly a retired name) to a registered one, or

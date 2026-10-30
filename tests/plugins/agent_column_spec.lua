@@ -189,4 +189,36 @@ describe("AI column across tabs (agent mode)", function()
 		assert.are.equal(1, count_ft(0, "nvsinner-picker"))
 		assert.are.equal("nvsinner-picker", vim.bo.filetype, "the second press focuses the open picker")
 	end)
+
+	-- :bd! kills the CLI → on_exit unregisters it; the next <leader>jN respawns the
+	-- job in a new buffer and must register it again (bridge, cockpit, robot count).
+	it("re-registers a session respawned after its buffer was wiped", function()
+		local term = create_session()
+		vim.cmd("stopinsert")
+		term:close()
+		vim.api.nvim_buf_delete(term.bufnr, { force = true })
+		sessions.unregister(1) -- what the real on_exit does when the job dies
+		assert.are.equal(0, #sessions.sessions())
+
+		vim.fn.maparg("<leader>j", "n", false, true).callback()
+		local e = sessions.sessions()[1]
+		assert.is_not_nil(e, "the respawned CLI is back in the registry")
+		assert.are.equal(term, e.term)
+		assert.is_true(vim.api.nvim_buf_is_valid(e.term.bufnr))
+	end)
+
+	-- The old job's exit can be processed AFTER the respawn re-registered the
+	-- session; it must not unregister the live one.
+	it("ignores a stale job's exit after a respawn, honours the current job's", function()
+		local term = create_session()
+		term.job_id = 11 -- the original job
+		term.job_id = 22 -- respawned on the same term
+		sessions.register(1, term)
+
+		term:on_exit(11, 0, "stdout")
+		assert.is_not_nil(sessions.sessions()[1], "a stale job's exit leaves the live session registered")
+
+		term:on_exit(22, 0, "stdout")
+		assert.is_nil(sessions.sessions()[1], "the current job's exit unregisters it")
+	end)
 end)

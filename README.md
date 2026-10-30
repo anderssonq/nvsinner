@@ -60,7 +60,7 @@ Each sin is a feature. Indulge freely.
 | 🜃 | **Envy** | Watch every agent at once. `Space xa` opens the cockpit: status (`working` · `idle` · `needs input`) and a live preview of each chat. |
 | ☿ | **Gluttony** | Ghost‑text completion on demand. `Ctrl‑l` in insert mode, `Tab` to accept. Served by OpenCode Zen, key read from `$OPENCODE_API_KEY`. |
 | ♄ | **Wrath** | Disk wins. When the agent edits a file, the buffer reloads and the changed lines are tinted in your accent color. |
-| ♀ | **Lust** | Look good doing it. The native **carbon** theme, 14 palettes, four accents, transparency, and a fallen angel floating behind the dashboard. |
+| ♀ | **Lust** | Look good doing it. The native **carbon** theme, a full set of background palettes, four accents, transparency, and a fallen angel floating behind the dashboard. |
 
 > [!WARNING]
 > **Disk wins** means unsaved edits in a buffer the agent rewrites are
