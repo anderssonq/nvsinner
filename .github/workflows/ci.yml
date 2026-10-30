@@ -144,7 +144,7 @@ jobs:
           version: stable
 
       # install.sh gates on node >= 20 (language servers).
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
 
