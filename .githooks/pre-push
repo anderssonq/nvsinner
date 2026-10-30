@@ -66,6 +66,11 @@ fi
 # Quiet on success (hundreds of passing lines are noise); the full output is printed only
 # when something breaks, which is when you actually want it.
 echo "[pre-push] make test…"
+# Git exports GIT_DIR (absolute inside a worktree) and friends to every hook.
+# Specs that build throwaway repos (tests/core/git_blame_spec.lua) would then
+# run their git commands against THIS repo instead. CI has no such vars.
+# shellcheck disable=SC2046
+unset $(git rev-parse --local-env-vars)
 TEST_LOG="$(mktemp)"
 trap 'rm -f "$TEST_LOG"' EXIT
 
