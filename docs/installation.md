@@ -236,7 +236,13 @@ restore. Pick whichever you like:
   config, restores plugins to the pinned `lazy-lock.json`, and runs
   `:checkhealth`. **Restart Neovim afterwards** so the new Lua config loads.
   It refuses to start while the clone has uncommitted changes to tracked files
-  (commit or stash them first), and it decides "nothing new" by comparing
+  (commit or stash them first). The one exception is `lazy-lock.json`: lazy
+  rewrites it on its own, so when it is the only modified file the update
+  discards that drift and the restore re-applies the pinned set (it always
+  runs after a discard). A copy of the discarded file is saved to
+  `nvsinner-lazy-lock.drift.json` in Neovim's state directory
+  (`:echo stdpath('state')`) and the notice names the path; this includes an
+  uncommitted `:NvSinnerSync` lockfile, which `:NvSinnerUpdate` discards. It decides "nothing new" by comparing
   `HEAD` before and after the pull, not by reading git's message.
 - **Re-run the installer:** the one-liner is idempotent — on an existing
   clone it `git pull`s and re-installs plugins instead of skipping.
