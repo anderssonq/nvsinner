@@ -7,6 +7,17 @@
 -- not, and the in-flight case — a commit on a branch that has NOT been merged
 -- yet, which no merge-descendant search can ever find.
 
+-- Immunity to inherited git env: under a git hook (or any caller that exports
+-- GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE ...) every `git -C <tmp>` below would
+-- act on THAT repo instead of the throwaway one, committing into it. Unset every
+-- repo-local variable git itself lists, for this process and so for the module's
+-- own `vim.system` git calls too (each spec runs in its own fresh nvim).
+for _, var in ipairs(vim.fn.systemlist({ "git", "rev-parse", "--local-env-vars" })) do
+	if var:match("^GIT_[%w_]+$") then
+		vim.fn.setenv(var, vim.NIL)
+	end
+end
+
 local blame = require("core.git-blame")
 
 describe("core.git-blame", function()

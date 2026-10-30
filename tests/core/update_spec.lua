@@ -46,13 +46,14 @@ describe("core.update", function()
 	-- here touches a real repo, remote or lazy.
 	describe("with a stubbed job runner", function()
 		local dir, orig_system, orig_restore, orig_notify
-		local calls, notes, restored, stub_errors
+		local calls, notes, restored, stub_errors, cmds, orig_backup, backup
 
 		local function stub(script)
-			calls, notes, restored, stub_errors = {}, {}, 0, {}
+			calls, notes, restored, stub_errors, cmds = {}, {}, 0, {}, {}
 			update._system = function(cmd, _, cb)
 				local sub = cmd[4] -- { "git", "-C", dir, <sub>, ... }
 				calls[#calls + 1] = sub
+				cmds[#cmds + 1] = cmd
 				local res = script[sub] and table.remove(script[sub], 1)
 				if not res then
 					-- Most calls run inside vim.schedule'd callbacks, where a thrown
@@ -94,10 +95,16 @@ describe("core.update", function()
 			dir = vim.fn.tempname()
 			vim.fn.mkdir(dir .. "/.git", "p")
 			orig_system, orig_restore, orig_notify = update._system, update._restore, vim.notify
+			orig_backup, backup = update._backup_path, vim.fn.tempname() .. "_drift.json"
+			update._backup_path = function()
+				return backup
+			end
 		end)
 
 		after_each(function()
 			update._system, update._restore, vim.notify = orig_system, orig_restore, orig_notify
+			update._backup_path = orig_backup
+			vim.fn.delete(backup)
 			vim.fn.delete(dir, "rf")
 		end)
 
@@ -110,6 +117,86 @@ describe("core.update", function()
 			assert.are.equal(vim.log.levels.WARN, notes[1].level)
 			assert.matches("uncommitted changes", notes[1].msg)
 			assert.matches("stash", notes[1].msg)
+		end)
+
+		it("discards a lockfile-only drift with an INFO note and carries on pulling", function()
+			vim.fn.writefile({ '{"drifted": true}' }, dir .. "/lazy-lock.json")
+			stub({
+				status = { { stdout = " M lazy-lock.json\n" } },
+				checkout = { {} },
+				["rev-parse"] = { { stdout = "abc123\n" }, { stdout = "def456\n" } },
+				pull = { { stdout = "Updating\n" } },
+			})
+			run()
+			assert.are.same({ "status", "checkout", "rev-parse", "pull", "rev-parse" }, calls)
+			assert.are.equal(1, restored)
+			assert.matches("lockfile drift discarded", joined())
+			assert.matches(backup, joined(), "the toast names where the copy went", 1, true)
+			assert.are.equal(vim.log.levels.INFO, notes[1].level)
+			assert.are.same({ '{"drifted": true}' }, vim.fn.readfile(backup), "the drifted content is saved first")
+		end)
+
+		it("restores from HEAD so a STAGED drift is discarded too", function()
+			vim.fn.writefile({ "{}" }, dir .. "/lazy-lock.json")
+			stub({
+				status = { { stdout = "M  lazy-lock.json\n" } },
+				checkout = { {} },
+				["rev-parse"] = { { stdout = "abc123\n" }, { stdout = "def456\n" } },
+				pull = { { stdout = "Updating\n" } },
+			})
+			run()
+			local co
+			for _, c in ipairs(cmds) do
+				if c[4] == "checkout" then
+					co = c
+				end
+			end
+			assert.are.same({ "git", "-C", dir, "checkout", "HEAD", "--", "lazy-lock.json" }, co)
+		end)
+
+		it("still restores plugins when a discarded lockfile leaves HEAD unchanged", function()
+			vim.fn.writefile({ "{}" }, dir .. "/lazy-lock.json")
+			stub({
+				status = { { stdout = " M lazy-lock.json\n" } },
+				checkout = { {} },
+				["rev-parse"] = { { stdout = "abc123\n" }, { stdout = "abc123\n" } },
+				pull = { { stdout = "Already up to date.\n" } },
+			})
+			run()
+			assert.are.equal(1, restored)
+		end)
+
+		it("matches the lockfile under a repo-root prefix when the config is a subdirectory", function()
+			vim.fn.writefile({ "{}" }, dir .. "/lazy-lock.json")
+			stub({
+				status = { { stdout = " M dotfiles/nvim/lazy-lock.json\n" } },
+				["rev-parse"] = { { stdout = "dotfiles/nvim/\n" }, { stdout = "a\n" }, { stdout = "b\n" } },
+				checkout = { {} },
+				pull = { { stdout = "Updating\n" } },
+			})
+			run()
+			assert.are.same({ "status", "rev-parse", "checkout", "rev-parse", "pull", "rev-parse" }, calls)
+			assert.are.equal(1, restored)
+		end)
+
+		it("aborts when a same-named file lives under a DIFFERENT prefix", function()
+			stub({
+				status = { { stdout = " M other/lazy-lock.json\n" } },
+				["rev-parse"] = { { stdout = "dotfiles/nvim/\n" } },
+			})
+			run()
+			assert.are.same({ "status", "rev-parse" }, calls)
+			assert.matches("uncommitted changes", notes[1].msg)
+		end)
+
+		it("aborts and leaves the lockfile alone when another tracked file is dirty too", function()
+			stub({ status = { { stdout = " M lazy-lock.json\n M lua/core/foo.lua\n" } } })
+			run()
+			assert.are.same({ "status" }, calls, "no checkout, no pull: the lockfile is untouched")
+			assert.are.equal(0, restored)
+			assert.are.equal(1, #notes)
+			assert.are.equal(vim.log.levels.WARN, notes[1].level)
+			assert.matches("uncommitted changes", notes[1].msg)
 		end)
 
 		it("reports no-op when HEAD is unchanged, whatever git printed", function()

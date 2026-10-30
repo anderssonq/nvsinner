@@ -73,12 +73,17 @@ jobs:
       # and tests/core/replace_spec.lua drives the REAL binary rather than a
       # stub — the project-wide replace is only meaningful against actual rg
       # output. Neither runner image is guaranteed to ship it.
-      - name: Install ripgrep
+      #
+      # luarocks rides along on purpose: image.nvim (an optional neo-tree
+      # dependency) has a rockspec, and without luarocks lazy bootstraps
+      # hererocks and adds a "hererocks" entry to lazy-lock.json, which the
+      # drift check below would then flag.
+      - name: Install ripgrep and luarocks
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then
-            brew install ripgrep
+            brew install ripgrep luarocks
           else
-            sudo apt-get update && sudo apt-get install -y ripgrep
+            sudo apt-get update && sudo apt-get install -y ripgrep luarocks
           fi
 
       - name: Link config into the XDG paths

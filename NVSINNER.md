@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.15.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.15.1).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.15.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.15.1"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.15.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.15.1` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -374,6 +374,14 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     debounce shared by colorizer, todo and markdown, the colour helpers
     (`hex2rgb` / `rgb2hex` / `mix`) live in `core/carbon.lua`, and
     `ai-activity` reports a failing emit once instead of silently.
+    **v3.15.1** fixes lockfile drift. `:NvSinnerUpdate` no longer aborts when
+    `lazy-lock.json` is the only modified file (lazy rewrites it on real
+    installs): it discards that drift, says so, and carries on; any other
+    modified tracked file still aborts. A fresh install now pins the lazy.nvim
+    clone to the lockfile commit instead of whatever `stable` is that day, and
+    CI installs luarocks so image.nvim no longer drags a `hererocks` entry into
+    the lockfile. The `git_blame` spec is now immune to inherited `GIT_*`
+    variables.
 
 ## Status
 

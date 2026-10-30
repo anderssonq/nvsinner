@@ -1270,7 +1270,26 @@ module loads before lazy.nvim). Spec: `tests/core/filebadge_spec.lua`.
 - **Dirty-tree guard** — before pulling it runs `git status --porcelain
   --untracked-files=no` and aborts with a WARN (commit/stash, then re-run) if
   tracked files are modified; untracked files are ignored (only a path
-  collision matters, and git reports that itself).
+  collision matters, and git reports that itself). **`lazy-lock.json` is the
+  one exception**: lazy rewrites it from the installed state, so real installs
+  carry drift in it, and aborting on that locked users out of updating. When it
+  is the ONLY modified file it is discarded and the pull proceeds. Details:
+  - The discard is `git checkout HEAD -- lazy-lock.json` (index AND worktree;
+    plain `checkout -- file` copies the index and would keep a staged drift).
+  - Before discarding, the drifted file is copied to
+    `stdpath("state")/nvsinner-lazy-lock.drift.json` (outside the repo,
+    overwritten each time; seam `M._backup_path`) and the INFO toast names that
+    path. If the copy fails nothing is discarded. This matters because an
+    uncommitted `:NvSinnerSync` result lives only in that file: `:NvSinnerUpdate`
+    discards it, and the copy is the way back.
+  - A discard ALWAYS runs the restore, even when HEAD did not move: the
+    installed plugins were built for the drifted lockfile, not the one on disk.
+  - Porcelain paths are repo-root relative. When the config dir is a subdirectory
+    of a bigger repo, the lockfile appears as `<prefix>lazy-lock.json`; the
+    prefix (`git rev-parse --show-prefix`) is only fetched when a same-named path
+    shows up, so ordinary dirty trees cost no extra call.
+  - With any other modified file the guard aborts as before and the lockfile is
+    left untouched.
 - **"Updated" vs "no-op" is a `git rev-parse HEAD` compare** taken before and
   after the pull — never git's English "Already up to date" text, which is
   localised. Unreadable HEADs fall through to the update path (restore is

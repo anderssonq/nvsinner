@@ -16,6 +16,26 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
 		vim.fn.getchar()
 		os.exit(1)
 	end
+	-- `--branch=stable` clones whatever stable is TODAY, and `Lazy! restore`
+	-- cannot roll lazy.nvim back while it is itself running. Pin the fresh clone
+	-- to the lockfile's commit so a new install matches the tested set. A missing
+	-- or invalid lockfile just keeps the stable clone.
+	local f = io.open(vim.fn.stdpath("config") .. "/lazy-lock.json", "r")
+	if f then
+		local ok, lock = pcall(vim.json.decode, f:read("*a"))
+		f:close()
+		local commit = ok and type(lock) == "table" and type(lock["lazy.nvim"]) == "table" and lock["lazy.nvim"].commit
+		if type(commit) == "string" then
+			vim.fn.system({ "git", "-C", lazypath, "checkout", "--quiet", commit })
+			if vim.v.shell_error ~= 0 then
+				vim.api.nvim_echo(
+					{ { "lazy.nvim: could not pin to " .. commit .. "; continuing on stable", "WarningMsg" } },
+					true,
+					{}
+				)
+			end
+		end
+	end
 end
 vim.opt.rtp:prepend(lazypath)
 
