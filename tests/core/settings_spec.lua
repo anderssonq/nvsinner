@@ -286,4 +286,64 @@ describe("core.settings", function()
 			vim.fn.delete(file)
 		end)
 	end)
+	describe("font_family and animations", function()
+		local font = require("core.font")
+		local orig_apply = font.apply
+		local applied
+		before_each(function()
+			applied = {}
+			font.apply = function(v)
+				applied[#applied + 1] = v
+			end
+		end)
+		after_each(function()
+			font.apply = orig_apply
+			vim.g.minianimate_disable = nil
+		end)
+
+		it("defaults to the terminal's font and animations on", function()
+			assert.are.equal("terminal", settings.defaults.font_family)
+			assert.is_true(settings.defaults.animations)
+		end)
+
+		it("persists font_family, applies it and broadcasts NvSinnerSetting", function()
+			local seen
+			local id = vim.api.nvim_create_autocmd("User", {
+				pattern = "NvSinnerSetting",
+				callback = function(a)
+					seen = a.data
+				end,
+			})
+			settings.set("font_family", "Maple Mono NF")
+			vim.api.nvim_del_autocmd(id)
+			assert.are.same({ "Maple Mono NF" }, applied)
+			assert.are.same({ key = "font_family", value = "Maple Mono NF" }, seen)
+			settings.load({ file = temp })
+			assert.are.equal("Maple Mono NF", settings.get("font_family"))
+		end)
+
+		it("animations off sets vim.g.minianimate_disable, on clears it", function()
+			settings.set("animations", false)
+			assert.is_true(vim.g.minianimate_disable)
+			settings.set("animations", true)
+			assert.is_nil(vim.g.minianimate_disable)
+		end)
+
+		it("animations on never clears a flag the user set themselves", function()
+			vim.g.minianimate_disable = true
+			settings.set("animations", false)
+			settings.set("animations", true)
+			assert.is_true(vim.g.minianimate_disable)
+		end)
+
+		it("seeds the persisted animations=off at setup()", function()
+			local file = vim.fn.tempname()
+			settings.setup({ file = file })
+			settings.set("animations", false)
+			vim.g.minianimate_disable = nil
+			settings.setup({ file = file })
+			assert.is_true(vim.g.minianimate_disable)
+			vim.fn.delete(file)
+		end)
+	end)
 end)

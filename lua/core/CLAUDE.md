@@ -1923,6 +1923,104 @@ and the menu row can never disagree (the `<leader>lh` / `inlay_hints` pattern).
   `M._slice(total, w0, ws, rows, per)`, `M._eligible(win)`, `M._win()`,
   `M._clicked_line(mp, rect)`, `M.jump(line)`, `M._reset()`.
 
+## Panel slide-in — `slide.lua` (required on demand, NOT from init.lua)
+
+- `slide.open(win, "width"|"height", opts?)` grows a freshly opened split
+  from 1 cell to its target over `DURATION` = 120 ms, ease-out cubic, one
+  `vim.uv` timer at 15 ms frames, pinned in the module's `active` table (FA-05)
+  and stopped + closed on finish. `opts` is `{ target = n, on_done = fn(win) }`
+  (a bare number is the target; default target = the current size — call it
+  right AFTER the plugin sized the panel). The shrink is synchronous, so the
+  full-size frame is never painted.
+- Callers: `toggleterm.lua`'s `on_panel_open` (AI columns + `<leader>t`
+  terminals, after focus + `startinsert!`), the first-open CLI picker (the
+  CLI column replacing it snaps via a one-shot `skip_slide`, reset even when
+  the open throws), and `neo-tree.lua`'s `neo_tree_window_after_open` handler
+  (new left/right windows only — a window that existed at `window_before_open`
+  is a reused sidebar and never slides).
+- **A terminal never slides along its width.** Neovim resizes a terminal's
+  PTY to its window on every frame, and the terminal does not reflow its
+  visible screen back after a shrink: the CLI got a SIGWINCH per frame and
+  every visible row was cut to the narrowest width it passed (50 → 1 → 50 left
+  each row as its first character; in agent mode the PTY size is the min over
+  every window on the buffer, so the other tab's column was damaged too). So a
+  width slide of a terminal window slides a **placeholder**: a wiped, unlisted
+  `nofile` scratch wearing the window's own options (winhighlight, winbar — so
+  the text area keeps its height). The terminal goes back at full size on
+  EVERY exit where the window survives (finish, interruption, `stop`, a
+  replacing `open`, `release`), and ALWAYS at the target size — even when the
+  ending was a foreign resize; a buffer shown in no window keeps its PTY
+  size, so the CLI only ever sees the final width. Height slides keep the
+  terminal (10 → 1 → 10 rows was verified harmless).
+  - The swap-in runs under `eventignore=all` (no handler sees the placeholder,
+    toggleterm's close/hidden logic never runs) and `:stopinsert`s the pending
+    `startinsert!`; a buffer-local InsertEnter guard stops toggleterm's own
+    scheduled `startinsert` — it must itself be scheduled (`:stopinsert`
+    inside InsertEnter does not take; probed).
+  - Only the swap-back at the slide's NATURAL end, in the FOCUSED window, is
+    an ordinary buffer enter: BufEnter lets `autoreload.lua` (the focus-mode
+    authority) and toggleterm restore terminal-insert exactly as on an
+    unanimated open. Every other swap-back runs under `eventignore`: in an
+    UNfocused window toggleterm's BufEnter would schedule an unconditional
+    `startinsert` into the window that really has focus (ui-touch's
+    `WinLeave` is replayed instead, so the column is not left wearing its
+    focus style), and an early one (`stop`, `release`) runs right before the
+    caller closes or re-shows the column, where that scheduled `startinsert`
+    would land in the code window.
+  - The placeholder's buffer options are set only AFTER it is in the window:
+    setting a `vim.bo` option on an undisplayed buffer borrows the autocmd
+    window, which Neovim creates on the current buffer — the terminal — at
+    full screen width, and that alone resized the PTY (measured 50 → 80).
+  - `M.release(buf)` lands any slide holding `buf` out of its window and
+    drains a pending swap-back; toggleterm's `win_here()` and its clearer
+    (before `shutdown`) call it. `M.held_term(placeholder)` maps a placeholder
+    back to its terminal, so `win_here()` and `<M-J>` still see the column
+    while a swap-back is pending.
+  - **A refused swap-back stays pending.** The cmdline window (`q:`) refuses a
+    buffer switch (E11); the hold is kept in `holds`, retried every
+    `RETRY_MS` until it lands or the window/terminal/placeholder is gone, and
+    `on_done` waits for it. A terminal wiped mid-slide (`<leader>jc`, the
+    cockpit's `d`, `:bd!`) closes its placeholder column instead of leaving it
+    ownerless.
+  - Keys typed during the 120 ms land in the placeholder, not the CLI
+    (accepted).
+- **`on_done(win)`** runs once when the slide ends with the window still
+  valid (normal finish, interruption, stop/replacement), after a held terminal
+  is back; never for a closed window or a slide that snapped. neo-tree uses it
+  to re-record `state.win_width` and redraw: `window_after_open` fires before
+  the first draw, which otherwise laid rows out for the 1-column start width
+  until neo-tree's 500 ms resize monitor caught up.
+- **Neighbours end where the plugin left them**: the tab's window sizes are
+  snapshotted at start and restored on the last frame — except a window
+  someone else resized mid-slide (detected per frame), whose size wins.
+- **Interruptions stop it cleanly**: window closed → stop; layout structure /
+  `lines` / `columns` changed → the panel lands at its target and stops (no
+  neighbour restore: the structure it was taken from is gone); the panel
+  resized by someone else → their size wins (a held terminal still lands at
+  the target); `stop()` / `release()` / a second `open` on the same window →
+  lands at the target and, with the layout unchanged, settles the neighbours.
+  **Entering the panel mid-slide is not a foreign resize**: Neovim raises the
+  current window to `'winwidth'`/`'winheight'` (20 by default), and the slide
+  carries on from that floor. Reading it as foreign once put a terminal back
+  at 20 columns (PTY 50 → 20, rows cut).
+- **Off** (instant, full size) when `vim.g.minianimate_disable` (the
+  :NvSinnerMenu "Animations" row — slide only READS it) or
+  `b:minianimate_disable` is truthy, when mini.animate is not loaded, and with
+  no UI attached (headless — every other spec stays deterministic).
+- **No double animation**: `busy(win)` / `busy()` are read by
+  `lua/plugins/ui/mini-animate.lua`'s `open.winconfig` and
+  `resize.subresize` predicates, so mini's open float skips the sliding
+  window and its resize easing skips every resize while a slide runs, plus a
+  `GRACE` (60 ms) tail — WinScrolled for the last frame fires after the timer
+  callback that caused it.
+- Seams: `M._has_ui`, `M._size_at`, `M._count` (and the tunables
+  `M.DURATION` / `M.GRACE` / `M.RETRY_MS` the specs wait on). Public API:
+  `open`, `stop`, `release`, `held_term`, `busy`. Specs:
+  `tests/core/slide_spec.lua` (incl. a real PTY logging `stty size` on
+  SIGWINCH; a refused swap-back is simulated with `'winfixbuf'`, E1513, the
+  headless stand-in for the cmdline window's E11),
+  `tests/plugins/panel_slide_spec.lua`.
+
 ## Dashboard wallpaper — `wallpaper.lua` (required from `init.lua`)
 
 ONE image painted **behind** the alpha start screen. It is **on by default**,
@@ -2019,3 +2117,41 @@ built-ins. Don't reintroduce them without asking.
   `M.tick(now)`, `M.mix`, `M.paint_grid`, `M.path`, `M.grid`, `M.enabled`,
   `M.paint`, `M.refresh`, `M.attach_alpha`, `M.command`, `M._headless`,
   `M._reset`. Spec: `tests/core/wallpaper_spec.lua`.
+
+## Font family — `font.lua` (NOT required from `init.lua`)
+
+Behind two `:NvSinnerMenu` rows: *Font* (`font_family`: `"terminal"` default | the bundled
+families, both in `fonts/`; the one list is `core.font.FAMILIES`, which the menu
+row reads — `M.valid()` refuses anything else in `apply()` and `render()`, so a
+hand-edited JSON value can never inject Ghostty keys) and
+*Animations* (`animations`, default on). `core/settings` requires `core.font`
+lazily from the `font_family` applier and, at boot, from `M.boot(family)`
+(passed the value, because requiring settings back would recurse).
+
+- **Ghostty** (`$TERM_PROGRAM == "ghostty"` or `$GHOSTTY_RESOURCES_DIR`; both
+  survive herdr). NvSinner writes ONLY `<XDG_CONFIG_HOME or ~/.config>/ghostty/nvsinner-font`
+  (`font-family = ""` reset line + the family; empty for `"terminal"`, because
+  `font-family` is a repeatable key and a bare second line would append a
+  fallback instead of replacing). Then `osascript` asks Ghostty to
+  `reload_config`. **It never edits the user's Ghostty config**: when no known
+  config (`~/.config/ghostty/config[.ghostty]`, `~/Library/Application Support/com.mitchellh.ghostty/config[.ghostty]`)
+  includes the file (each `config-file` value is resolved like Ghostty does —
+`?` and quotes stripped, `~` expanded, a relative path taken relative to the
+INCLUDING file — and compared with `owned_file()`; commented lines ignored) it WARNs with the exact `config-file = ?<absolute path>`
+  line. The include is ABSOLUTE on purpose: a relative `config-file` resolves
+  against the including file, and the user's config may live outside
+  `~/.config/ghostty`. Ghostty has no per-surface family, so the notice says it
+  applies to all Ghostty windows.
+- **Neovide**: `guifont` (an existing `:hN` / `:hN.5` size is kept); the
+  pre-NvSinner `guifont` is remembered on the first change and restored when
+  the row goes back to `"terminal"`. **Other
+  terminals**: one INFO notice, nothing spawned.
+- **Testing contract**: every process call goes through `M._run` (async,
+  `cb(ok, detail)`), and paths/env through `M._home` / `M._config_home` /
+  `M._getenv` / `M._is_mac`. Specs and manual probes must stub these and use a
+  temp dir — never run `osascript` or write under the real `~/.config/ghostty`.
+  The live reload re-fonting already-open surfaces is a manual check.
+- **Animations** has no module: the applier sets `vim.g.minianimate_disable =
+  true` (off) and records `vim.g.nvsinner_animations_off_by_menu`; on clears the
+  flag ONLY when NvSinner set it, so a user's own `minianimate_disable = true`
+  survives. `setup()` seeds it at boot unless the user already set the flag. mini.animate and `core/slide.lua` both read it.

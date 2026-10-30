@@ -109,6 +109,13 @@
   with `--ignored` 0.828 s vs 0.674 s): the daemon's IPC costs more than it
   saves at this scale and never helps `--ignored` enumeration. The real fix is
   upstream (neo-tree calling `git.status_async` for these two sources).
+- **The sidebar slides in** (`lua/core/slide.lua`): the
+  `window_before_open` / `window_after_open` handlers slide only a NEW
+  left/right window (a reused sidebar never slides), and the slide's `on_done`
+  re-records `state.win_width` and calls `renderer.redraw` for that window's
+  state — `window_after_open` fires before the first draw, so without it the
+  rows were laid out for the 1-column start width until neo-tree's 500 ms
+  resize monitor caught up. Contract: `lua/core/CLAUDE.md` → "Panel slide-in".
 - `telescope.lua` — `<leader>f` find files (incl. hidden dotfiles),
   `<leader>sf` live grep, `<leader>fb` buffers, plus the `<leader>s*` pickers
   (diagnostics / keymaps / commands / resume / help / symbols / references).

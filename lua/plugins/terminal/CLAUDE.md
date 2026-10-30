@@ -143,6 +143,30 @@
   may be the other tab's. With a column also shown in the diff tab,
   `nvim_set_current_win` on a window in another tab would switch tabpages out
   from under the caller.
+- **Panels slide in** (`core/slide.lua`, contract in `lua/core/CLAUDE.md`
+  *Panel slide-in*): `on_panel_open` calls `slide.open` last, after focus and
+  `startinsert!` — height for a `<leader>t` terminal, width for an AI column.
+  **An AI column never shows its terminal while it grows**: a width change
+  resizes the CLI's PTY every frame and the terminal does not reflow its
+  screen back, so the visible lines were cut to the narrowest width (and in
+  agent mode the column in the other tab too). slide.lua slides a wiped
+  placeholder instead and puts the terminal back at full width. Two things
+  here depend on that:
+  - `win_here()` calls `slide.release(term.bufnr)` first. Mid-slide the
+    window holds the placeholder, so without it the column reads as hidden
+    and `<leader>j` would open a SECOND window for it. It (and
+    `toggle_current_or_first`, behind `<M-J>`) also maps a placeholder whose
+    swap-back is still pending to its terminal via `slide.held_term(buf)`.
+  - The session clearer (`<leader>jc` / cockpit `d`) calls
+    `slide.release(term.bufnr)` before `shutdown`, so a column cleared
+    mid-slide does not leave an ownerless placeholder window behind.
+  - Terminal-insert comes back from the swap-back's `BufEnter` (autoreload +
+    toggleterm's own handler), not from the `startinsert!` above, which
+    slide.lua cancels for the placeholder.
+  The first-open CLI picker slides instead, and the CLI column replacing it
+  snaps through the one-shot `skip_slide`. That flag is reset even when the
+  column's open throws (`pcall` + rethrow). Otherwise it would stay set and
+  swallow the next panel's slide. Pinned by `tests/plugins/panel_slide_spec.lua`.
 - **herdr env isolation**: BOTH `Terminal:new` call sites (the AI columns and
   the `<leader>t` horizontals) pass `env = require("core.herdr").child_env()`
   with `clear_env = false`. Without it a spawned process inherits Neovim's

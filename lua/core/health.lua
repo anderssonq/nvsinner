@@ -172,7 +172,9 @@ function M.report()
 	end
 
 	h.start("NvSinner · Nerd Font")
-	h.info("Icons need a Nerd Font (FiraCode Nerd Font is bundled in fonts/).")
+	h.info(
+		"Icons need a Nerd Font (FiraCode Nerd Font and Maple Mono NF are bundled in fonts/; pick one with :NvSinnerMenu → Font)."
+	)
 	h.info('Set your terminal (or GUI) font to a "… Nerd Font" — this can\'t be auto-detected.')
 end
 

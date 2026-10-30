@@ -28,6 +28,8 @@
 --   * minimap   → code minimap pane on the right edge (lua/core/minimap.lua)
 --   * wallpaper_on → the dashboard wallpaper on/off (lua/core/wallpaper.lua)
 --   * copy_on_select → mouse selections land in the system clipboard (lua/core/copy-on-select.lua)
+--   * font_family → "terminal" (leave the font alone) | a bundled family; the list is core.font.FAMILIES (Ghostty/Neovide only)
+--   * animations → panel slide + mini.animate on/off: off sets vim.g.minianimate_disable (lua/core/slide.lua reads the same flag)
 --   * image_preview → how an opened image shows: "inline" (half-block paint in the buffer) | "quicklook" (lua/core/image-open.lua)
 -- Every M.set fires `User NvSinnerSetting` (data = { key, value }) so lazy
 -- specs can react without requiring this module eagerly.
@@ -57,6 +59,8 @@ M.defaults = {
 	wallpaper_on = true, -- the dashboard wallpaper (lua/core/wallpaper.lua); on by default
 	copy_on_select = true, -- herdr-style: a mouse selection is copied to the + register on release
 	image_preview = "inline", -- opened images: "inline" (painted in the buffer, macOS sips) | "quicklook" (placeholder + Quick Look)
+	font_family = "terminal", -- "terminal" (NvSinner leaves the font alone) | a member of core.font.FAMILIES
+	animations = true, -- panel slide + mini.animate; off sets vim.g.minianimate_disable
 }
 
 local legacy_file = vim.fn.stdpath("data") .. "/nvsinner-settings.json" -- pre-settings/ location
@@ -232,6 +236,25 @@ local apply = {
 	end,
 	copy_on_select = function() end, -- read on every mouse release by core/copy-on-select.lua
 	image_preview = function() end, -- read when an image buffer is opened by core/image-open.lua
+	font_family = function(v)
+		pcall(function()
+			require("core.font").apply(v)
+		end)
+	end,
+	-- mini.animate and core/slide.lua both honor this global flag; nil (not
+	-- false) when on, so the flag is truly unset like a stock session.
+	animations = function(v)
+		if not v then
+			if vim.g.minianimate_disable == nil then
+				vim.g.minianimate_disable = true
+				vim.g.nvsinner_animations_off_by_menu = true
+			end
+		elseif vim.g.nvsinner_animations_off_by_menu then
+			-- Only clear a flag NvSinner itself set; a user's own stays.
+			vim.g.minianimate_disable = nil
+			vim.g.nvsinner_animations_off_by_menu = nil
+		end
+	end,
 }
 
 -- Set + persist + apply live + broadcast.
@@ -277,6 +300,16 @@ function M.setup(opts)
 	seed_flag("nvsinner_variables", "NVSINNER_VARIABLES", data.variables)
 	seed_flag("nvsinner_strings", "NVSINNER_STRINGS", data.strings)
 	seed_flag("nvsinner_functions", "NVSINNER_FUNCTIONS", data.functions)
+	-- Animations: the persisted "off" lands before any panel can open. Never
+	-- overrides a flag the user already set in their own config.
+	if data.animations == false then
+		apply.animations(false)
+	end
+	-- Neovide has no terminal config to defer to: re-apply the persisted
+	-- family to 'guifont' (a no-op everywhere else; never spawns anything).
+	pcall(function()
+		require("core.font").boot(data.font_family)
+	end)
 	-- Defer the notify wrap until noice/notify have installed their handlers.
 	vim.api.nvim_create_autocmd("User", {
 		pattern = "VeryLazy",

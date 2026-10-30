@@ -30,7 +30,7 @@ that one decision.
 └───────────────────────────┬─────────────────────────────────┘
                             │
 ┌─ native core ─────────────▼─────────────────────────────────┐
-│  lua/core/*.lua  (35 modules, ~8.7k lines)                   │
+│  lua/core/*.lua  (native modules)                            │
 │  Zero plugin dependencies. Owns theming, settings, the AI    │
 │  bridge, modals, and every feature migrated off a plugin.    │
 └───────────────────────────┬─────────────────────────────────┘
@@ -89,16 +89,22 @@ Two other `lazy.setup` choices are deliberate:
   `editorconfig` and `spellfile` are kept for the same reason: they carry
   behavior the config relies on.
 
-### The three modules not in that list
+### The modules not in that list
 
-Of 35 modules in `lua/core/`, 32 are required at boot. The other three are
-deliberate:
+Most of `lua/core/` is required from `init.lua` at boot. The rest load another
+way, deliberately (count them with `ls lua/core/*.lua`, then check each name
+against `init.lua`):
 
 | Module | How it loads | Why |
 |--------|--------------|-----|
 | `carbon.lua` | Transitively | Every module's `apply_hl()` calls `require("core.carbon").colors()`. It is loaded eagerly in practice — just never named, because nothing "starts" it. |
 | `backdrop.lua` | On demand | Required inside each modal's `open()`. Nothing to arm until a modal exists. |
 | `mouse.lua` | On demand | A pure library — no autocmds, no state. Required only by the click handlers in neo-tree and diffview. |
+| `debounce.lua` | On demand | A shared per-buffer debouncer, required by colorizer / todo / markdown. |
+| `statusmark.lua` | By lualine | The statusline shimmer only exists when lualine does. |
+| `ts-compat.lua` | By the treesitter spec | Must run after nvim-treesitter registers its handlers (the `branch = "master"` pin's compensating control). |
+| `font.lua` | On demand | The `:NvSinnerMenu` Font row; required lazily by `core/settings` so a font-less session never loads it. |
+| `slide.lua` | On demand | The panel slide-in; required by toggleterm / neo-tree open paths. |
 
 ## Layers, and what may depend on what
 
@@ -399,10 +405,12 @@ lua/core/version.lua           Once-per-session update check (dashboard footer +
 lua/core/image-open.lua        Image files paint inline, Quick Look fallback
 lua/core/minimap.lua           Code minimap pane (:NvSinnerMinimap, <leader>xn) — braille overview + click to jump
 lua/core/copy-on-select.lua    herdr-style copy on select: a mouse selection lands in the clipboard on release
+lua/core/font.lua              Font family switch (:NvSinnerMenu Font row): Ghostty include file + reload_config, Neovide guifont
+lua/core/slide.lua             Panel slide-in for neo-tree / AI columns / terminals (off with the Animations setting)
 lua/core/wallpaper.lua         Dashboard wallpaper (:NvSinnerWallpaper on|off) — pure-Lua image painted behind alpha
 lua/plugins/<category>/*.lua   One plugin per file; grouped by category folder
 settings/prompts.json          The prompt library (committed, hand-editable)
-fonts/                         Bundled FiraCode Nerd Font .ttf files
+fonts/                         Bundled Nerd Fonts (FiraCode Nerd Font + Maple Mono NF) .ttf files + OFL.txt
 tests/                         Plenary busted suite (make test)
 CLAUDE.md                      Technical notes for AI agents working on this repo
 NVSINNER.md                    The distro plan + status log

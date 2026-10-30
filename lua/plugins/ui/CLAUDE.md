@@ -132,9 +132,12 @@ a role. Full theme docs: `lua/core/CLAUDE.md` §Theme.
   line (`<icon> | <title>: <message>`) instead of the default renderer's
   separate header row. Only the header is folded; a multi-line message keeps
   its extra lines.
-- `mini-animate.lua` — `mini.animate`: eases window open/close/resize (the AI
-  column slides in) + a short cursor trail. **Scroll is disabled here** —
-  that's `neoscroll`'s job (`smooth-scroll.lua`); don't enable both.
+- `mini-animate.lua` — `mini.animate`: eases window open/close/resize + a
+  short cursor trail. The layout panels SLIDE in via `lua/core/slide.lua`
+  instead; the `open.winconfig` / `resize.subresize` predicates read
+  `slide.busy()` so mini never animates a sliding panel twice. **Scroll is
+  disabled here** — that's `neoscroll`'s job (`smooth-scroll.lua`); don't
+  enable both.
 - `smooth-scroll.lua` — `neoscroll.nvim`, the **single** scroll owner (FA-17).
   It maps only `<PageUp>` / `<PageDown>`: `setup()` is deliberately never
   called, so neoscroll's default `<C-d>`/`<C-u>`/`<C-f>`/`zz`… set is never

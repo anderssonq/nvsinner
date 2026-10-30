@@ -43,7 +43,7 @@ nvsinner
 ```
 
 Needs **Neovim 0.12+**, `git`, `ripgrep`, Node 20+ and a Nerd Font
-(FiraCode Nerd Font ships in `fonts/`). Language servers and formatters install
+(FiraCode Nerd Font and Maple Mono NF ship in `fonts/`). Language servers and formatters install
 themselves on first launch. [Full requirements →](docs/installation.md)
 
 ---

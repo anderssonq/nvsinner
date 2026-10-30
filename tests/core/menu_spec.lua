@@ -83,4 +83,43 @@ describe("core.menu", function()
 		assert.matches("herdr detail", text)
 		menu.close()
 	end)
+	it("cycles the Font row through its three values (and back) and the Animations row on/off", function()
+		local font = require("core.font")
+		local orig_apply = font.apply
+		local applied = {}
+		font.apply = function(v)
+			applied[#applied + 1] = v
+		end
+		menu.open()
+		local text = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+		assert.matches("Font", text, nil, true)
+		assert.matches("Animations", text, nil, true)
+		local font_row
+		for i, line in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+			if line:match("Font%s+‹") then
+				font_row = i - 1 -- minus TOP_PAD
+			end
+		end
+		menu.move(-99)
+		menu.move(font_row - 1)
+		assert.are.equal("terminal", settings.get("font_family"))
+		menu.cycle(1)
+		assert.are.equal("FiraCode Nerd Font", settings.get("font_family"))
+		menu.cycle(1)
+		assert.are.equal("Maple Mono NF", settings.get("font_family"))
+		menu.cycle(1) -- wraps
+		assert.are.equal("terminal", settings.get("font_family"))
+		menu.cycle(-1) -- backwards wraps
+		assert.are.equal("Maple Mono NF", settings.get("font_family"))
+		assert.are.same({ "FiraCode Nerd Font", "Maple Mono NF", "terminal", "Maple Mono NF" }, applied)
+		menu.move(1) -- the Animations row follows Font
+		assert.is_true(settings.get("animations"))
+		menu.cycle(1)
+		assert.is_false(settings.get("animations"))
+		assert.is_true(vim.g.minianimate_disable)
+		menu.cycle(1)
+		assert.is_nil(vim.g.minianimate_disable)
+		menu.close()
+		font.apply = orig_apply
+	end)
 end)
