@@ -75,7 +75,9 @@ local ITEMS = {
 	{ key = "font_family", label = "Font", values = require("core.font").FAMILIES },
 	{ key = "animations", label = "Animations", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "image_preview", label = "Image preview", values = { "inline", "quicklook" } },
-	-- herdr reporting: both rows no-op unless a herdr server owns this pane.
+	-- herdr reporting: no-op unless herdr (a server pane, or the Herdr app's
+	-- herdr-core terminal) owns this terminal; "herdr detail" applies to a
+	-- herdr server only — herdr-core always gets the rollup plus a record per column.
 	{ key = "herdr", label = "herdr reporting", values = { false, true }, show = bool_show("on", "off") },
 	{ key = "herdr_detail", label = "herdr detail", values = { "state", "tokens", "full" } },
 	{

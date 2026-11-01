@@ -51,8 +51,8 @@ lua/core/ai-sessions.lua     AI session registry + send-to-AI bridge (native)
 lua/core/ai-ask.lua          :NvSinnerAskAI + visual <leader>x — Ask-AI action modal over the selection (native)
 lua/core/ai-complete.lua     Inline AI completion (ghost text), manual insert <C-l> / :NvSinnerComplete trigger; curl→OpenCode Zen ONLY (default minimax-m2.5), $OPENCODE_API_KEY from env (native)
 lua/core/agents.lua          :NvSinnerAgents / <leader>xa — agent cockpit: every AI column with its status (ai-activity + per-CLI screen signatures), a live chat preview, focus + close (native)
-bin/nvsinner-herdr           Drive the AI columns from another herdr pane (list/focus/send/read over Neovim's RPC socket)
-lua/core/herdr.lua           Reports the AI columns' rolled-up working/blocked/idle state to a running herdr server over its unix-socket JSON API; a total no-op unless herdr owns this pane (native)
+bin/nvsinner-herdr           Agent-to-agent bridge: columns ↔ columns ↔ herdr agents (peers/prompt/send/wait/read/status over Neovim's RPC socket + herdr; --skill)
+lua/core/herdr.lua           Reports the AI columns' working/blocked/idle state to herdr — a `herdr server` over its unix-socket JSON API (one rolled-up agent per pane), or the Herdr desktop app's herdr-core (`hc`) via OSC 7501 (the rollup plus one record per column); a total no-op unless one of them owns this terminal (native)
 lua/core/ia.lua              :NvSinnerIA — AI hub modal (completion on/off, model picker over the verified-safe Go models, Ask-AI, prompts); listed as the single AI row in :NvSinnerHelp (native)
 lua/core/update.lua          :NvSinnerUpdate — git pull + Lazy restore + checkhealth (native)
 lua/core/sync.lua            :NvSinnerSync — opt-in Lazy sync + Mason package updates (native)
@@ -144,7 +144,9 @@ line to `init.lua`** or its files will silently never load.
   **OpenCode Zen exclusively** and reads `$OPENCODE_API_KEY` from the env at
   request time (never a plugin, never a stored key) — see `lua/core/CLAUDE.md`.
 - **The send-to-AI bridge never auto-submits** — payloads land in the CLI input
-  for review (no trailing `\r`).
+  for review (no trailing `\r`). The ONE exception is the agent-to-agent
+  `prompt` verb (`bin/nvsinner-herdr prompt`, `M.remote` action `prompt` in
+  `lua/core/herdr.lua`): an agent asking another has no human to press Enter.
 - **Auto-reload means disk wins** — unsaved in-Vim edits to a buffer the AI
   changes are discarded (intended viewer-style workflow).
 - **toggleterm keeps `persist_mode = false`** — its `true` default restores the

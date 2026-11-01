@@ -233,8 +233,10 @@ terminal runtime. It still reads no API key, renders no chat and wraps no CLI �
 the AI-is-a-CLI-in-a-column rule is untouched. Do not delete it as "an in-editor
 AI integration".
 
-**Gate.** Every entry point is a no-op unless `HERDR_ENV=1`, `HERDR_SOCKET_PATH`
-and `HERDR_PANE_ID` are all present — the same guard herdr's own shipped
+**Gate.** Every *reporting* entry point is a no-op unless a backend owns this
+terminal (`M.backend()`, see *Two backends*): for a herdr server, `HERDR_ENV=1`,
+`HERDR_SOCKET_PATH` and `HERDR_PANE_ID` all present (the exceptions: `M.remote`, and
+`child_env(n)`'s `NVSINNER_COLUMN` — both serve the agent bridge off herdr too) — the same guard herdr's own shipped
 integrations use. `:NvSinnerMenu` → "herdr reporting" turns it off on top of
 that; "herdr detail" picks `state` (lifecycle only), `tokens` (+ per-column) or
 `full` (+ title and state labels).
@@ -272,7 +274,49 @@ mechanism — they fail herdr's `== "1"` / non-empty guards, which is all its
 clients check. Gated on env **presence**, not on `M.enabled()`: the
 mis-attribution happens whether or not we report, so turning reporting off must
 not re-open it. `lua/plugins/terminal/toggleterm.lua` **pulls** the table
-(`env = require("core.herdr").child_env()`); core never requires the plugin.
+(`child_env()` for `<leader>t` terminals, `child_env(n)` for AI columns, which
+adds the bridge's `NVSINNER_*` vars — see *Agent-to-agent bridge* below); core
+never requires the plugin.
+
+**Two backends — `M.backend()`.** The Herdr desktop app does **not** run its
+terminals in `herdr server`: they live in herdr-core (`hc`), which sets
+`HC_TERMINAL_ID` / `HC_TERMINAL_SOCKET` and never `HERDR_*` — so on the app the
+herdr gate above stays shut. `M._hc()` is the second gate (both vars non-empty);
+`M.backend()` answers `"herdr"` (wins when both are present: `HERDR_*` means a
+herdr server owns the pane), `"hc"` or nil, and `M._self_key()` is this editor's
+address in it (pane id or hc terminal id) — the discovery record's name and the
+`<addr>/jN` prefix. Under hc:
+
+- **The report is an OSC 7501 sequence**, written to our own terminal with
+  `nvim_ui_send` (what the built-in OSC 52 clipboard uses) through `M._emit`,
+  the one terminal-writer specs swap. `nvim_ui_send` reaches every UI that
+  writes to a tty, so it writes only with **exactly one** attached
+  (`M._tty_ui`): none (a GUI counts as none) means nothing to write through,
+  two would put our records on a second terminal (`nvim --remote-ui`). With no
+  tty UI a flush does **not** arm the retry backoff (that would re-snapshot
+  forever); `UIEnter`/`UILeave` forget what was written and re-send the whole
+  picture. A failed write with a UI attached backs off like a failed socket
+  send. Limit: a lone remote UI in another terminal still gets the records.
+  "herdr detail" does not apply: hc always gets the rollup plus the records.
+- **hc keeps one record per id**, so each column is reported on its own beside
+  the rollup: root `state=<rollup>:app=nvsinner`, `id=jN:state=<s>:app=<cli>`
+  per live column, `id=jN:state=clear` for one that went away, everything
+  cleared on release. `M._hc_frames` builds them (pure); only records whose body
+  changed since the last frame are written.
+- Probed against herdr-core 0.9.5 (2026-10-31) on throwaway terminals: pairs
+  are `:`-separated (`;` is ignored); `state=clear` removes a record; a report
+  carrying an unknown key (`title`) is dropped **whole**, so only `state`,
+  `app` and `id` are sent; `msg` never surfaced in `hc get` and is not used.
+  End to end: a real-UI Neovim in an hc terminal showed the rollup plus `j2`
+  and `j3` as their own records, and its discovery record vanished on exit; a
+  `nvim_ui_send` from `VimLeavePre` still reaches the tty, so the release's
+  `state=clear` lands. A message sent with `HC_TERMINAL_ID` blank arrived with
+  no `<hc from=…>` tag (receiver: a plain program; an agent receiver untested).
+- **Env isolation** (the hc half of *Env isolation* above) blanks `HC_TERMINAL_ID` in columns (an agent there could
+  otherwise `hc send $HC_TERMINAL_ID …` into Neovim, and an `hc run` from a
+  column would become the editor's child) and hands the editor's id over as
+  `NVSINNER_HC_TERMINAL`. `HC_TERMINAL_SOCKET` stays: it names the runtime,
+  not this terminal.
 
 **Protocol findings** (probed on NVIM 0.12.3 against herdr 0.9.1, protocol 22):
 
@@ -322,7 +366,7 @@ heuristic, not a guarantee.
 
 ### Discovery + remote control — `M.remote` and `bin/nvsinner-herdr`
 
-Reporting lets herdr *see* the columns; this lets anything inside herdr *drive*
+Reporting lets herdr *see* the columns; this lets anything inside herdr (or the Herdr app) *drive*
 them. Neovim always listens on `v:servername`, so a client in another pane can
 go pane id → socket → column.
 
@@ -332,8 +376,11 @@ silently — the server still answers `ok`. The default socket path is ~108, so
 record at `stdpath("state")/herdr/<pane>.json` (directory `0700`) holding the
 servername, pid, cwd and pane; the token carries only the **pid**, which is
 short, identifies the instance, and is worth seeing in herdr's UI. The record is
-written before the first send — the control path must work even while reporting
-is failing — and removed on `VimLeavePre`.
+published at startup (see *Agent-to-agent bridge*), refreshed on every report,
+and removed on `VimLeavePre`. `stdpath("state")` follows `NVIM_APPNAME`, so the
+client looks for a pane's record under every `$XDG_STATE_HOME/*/herdr/` (the one
+with a live socket wins) — this config also runs as plain `nvim` on the dev
+machine.
 
 **Why Neovim's own socket.** Neovim creates socket files `0755`, so a socket of
 ours in a shared directory would be world-connectable. The default one is
@@ -344,7 +391,7 @@ protected by its `0700` parent directories, so we reuse it rather than calling
 `key=value` header lines, a bare `--`, then the free text verbatim. That way a
 multi-line prompt never has to be escaped into a Vim expression, and the only
 interpolated value is a path the client made. Actions: `list`, `focus`, `send`,
-`read` — an allowlist, and an unknown one is refused. `json=1` returns the same
+`read`, `status`, `prompt` — an allowlist, and an unknown one is refused. `json=1` returns the same
 shape encoded, so the shell client needs no JSON parser.
 
 `M.remote` is deliberately **not** gated on `M.enabled()`: a client may hold the
@@ -354,14 +401,123 @@ here. Do not document it as a sandbox.
 
 `send` goes through `ai-sessions.send_to`, so the **never-auto-submit** contract
 holds unchanged: the text lands in the CLI input and no carriage return follows.
+The TEXT can't smuggle one in either: every typing action refuses control
+characters (`control_chars`) other than newline and tab — a bare CR is an Enter
+(it would run a line in a shell column), and ESC can close the bracketed paste
+early so a CR after it submits. CRLF is normalised to LF first. While a
+prompt's Enter is pending (`M._inflight[n]`), `send` is refused too
+(`agent_busy`): anything typed inside the gap would be submitted with it. The
+in-editor bridge (`<leader>as/ab/ad`, Ask-AI) is **not** checked against it — a
+human sending within the same 200 ms is accepted as a known gap.
+
+`prompt` is the **one** action that submits, and the only written exception to
+never-auto-submit: an agent asking another agent has no human at the far end to
+press Enter. The text goes through `send_to`; the Enter is a **second**
+`chansend`, deferred `SUBMIT_MS` (200 ms) — sent in the same burst, a TUI with
+paste detection (claude) folds it into the paste as a newline. Like herdr's
+`agent prompt`, a column whose status is `awaiting` is refused with
+`agent_blocked` **before** anything is typed, since that Enter would answer the
+dialog — and re-checked when the Enter is due, so a dialog that appeared inside
+the gap leaves the text unsubmitted. That check is `agents.lua`'s screen
+heuristic: a dialog it misses still takes the Enter as its default answer.
+Also refused before typing: a plain-shell column (`not_an_agent` — the Enter
+would hand the text to a shell, and backticks or `$(…)` in a prompt would run),
+a column whose previous Enter is still pending (`agent_busy` — two prompts
+inside the gap would merge, then a bare Enter would follow), and a column whose
+state can't be read (`agent_unknown` — the guards fail closed). `status` maps `agents.status_of` onto herdr's words (`awaiting` →
+`blocked`, else `working`/`idle`, `unknown` for a dead or missing column), so a
+client waits on a column with the same `--until` states as on a herdr agent.
+`status` with `fresh=1` answers `started` only once the column wrote output
+**after** the last prompt's Enter (`ai-activity.last_output` vs
+`M._submitted[n]`, cleared when each prompt starts), else `pending`, and
+`not_submitted` when the Enter was skipped for a dialog (`M._skipped[n]`):
+typing the text redraws the CLI's input line, which alone reads as `working`
+for `IDLE_MS`, so plain status would let `prompt --wait` pass on the echo of a
+prompt whose Enter was never written. It does **not** catch a TUI that folds
+the Enter into its input as a newline: that redraw is output after the Enter
+too. The `submitted` reply goes out before the Enter is written; only
+`--wait` confirms it.
+`list` carries the editor's `pane` so a client can build `pane/jN` addresses.
 
 `read` trims the blank tail **before** taking the last N lines. A terminal buffer
 is a full-height grid, so a column that has not filled its screen yet keeps its
 output at the top with blank rows under it — tailing first returns nothing.
 
-Spec: `tests/core/herdr_spec.lua`. `M._send` is the one socket toucher and is
-swapped by table field in every test, so the suite never opens a connection; the
-remote specs drive `M.remote` against real terminals.
+### Agent-to-agent bridge
+
+`bin/nvsinner-herdr` is also how agents talk to each other — column ↔ column,
+column ↔ herdr agent, editor ↔ editor — with one address scheme: `jN` (a column
+of the editor the caller runs in, via `$NVIM`, which Neovim sets in every
+terminal it spawns), `<pane>/jN` (a column of the editor registered for that
+herdr pane or hc terminal, via the discovery record), a `w*:p*` pane id
+(passed to `herdr agent`), anything else (under the Herdr app with no herdr
+server owning the pane: an hc terminal, through `hc get/send/wait/read`; else
+`herdr agent`). For hc, `prompt` is `hc send` (it presses Enter itself after
+~3 s of quiet and refuses a blocked program, exit 9 → our 3; hc's 3/11
+not_found/finished → our 4), refused first for a terminal reporting no agent
+status (`not_an_agent` — a plain shell would run the text, `$(…)` included,
+whatever prefix it carries; `peers` hides the same ones), `--wait` maps
+`started:false` to `agent_prompt_stalled` (3) and a check-in (`ended:false`) to
+124; `send`, `focus` and `--until` are refused (hc has no type-without-Enter,
+no focus, and its wait ends at the first non-working state).
+Verbs mirror herdr's: `peers`, `whoami`, `prompt [--wait]`, `send`, `wait
+[--until]`, `read`, `status`, `focus`; `--skill` prints an agent-facing guide
+(the one copy of it — no prompt-library entry duplicates that text).
+
+- **The socket rides under `NVSINNER_*` names.** Under herdr `child_env(n)`
+  still blanks the five `HERDR_*` vars, and adds `NVSINNER_HERDR_SOCKET`,
+  `NVSINNER_HERDR_PANE` and `NVSINNER_COLUMN` (under hc: `HC_TERMINAL_ID`
+  blanked, `NVSINNER_HC_TERMINAL` added) — all `""` where they do not apply,
+  because they are inherited and an editor nested in a column would otherwise
+  pass the outer column's address on (with no backend `child_env()` is `nil`,
+  so there a nested editor's `<leader>t` terminals still inherit it).
+  herdr's hooks never
+  read those, so the mis-attribution stays closed. The client puts
+  `HERDR_SOCKET_PATH` back for its own `herdr` subprocess only, **never a pane
+  id**. With no backend `child_env(n)` sets `NVSINNER_COLUMN` and clears the two
+  herdr keys, and `child_env()` stays `nil` — column-to-column needs no herdr.
+- **Waiting on a column is client-side polling** (`status` every 0.5 s, bounded
+  by `--timeout`). The editor-side rule — no free-running timer in this module —
+  is untouched: the loop lives in the client process. `prompt --wait` copies
+  herdr's gate on `fresh` status: the column must produce output after the
+  Enter within 5 s, or the client exits `agent_prompt_stalled` (3); an Enter
+  skipped for a dialog exits `agent_blocked` (3). `--timeout` bounds the whole
+  wait, gate included. A column only reports `working`/`blocked`/`idle`, so
+  `--until done|unknown` is refused for one (herdr agents only). A wait ends
+  with 4 when the editor can't be reached or answers outside the vocabulary
+  (bash drops `set -e` inside `$(…)`, so `column_status` propagates the failure
+  by hand), and 124 on `--timeout`.
+- **An editor's pane is never a herdr target.** Its only herdr "agent" is our
+  rollup, and `herdr agent prompt` there would type into Neovim itself. The
+  client resolves every herdr address (pane id **or name**) through `agent get`
+  first, then refuses a pane with a live discovery record or an agent named
+  `nvsinner`, pointing at `<pane>/jN`; `peers` hides those panes. Under hc a
+  terminal whose foreground is `nvim`/`vim` (or whose 7501 app is `nvsinner`)
+  is refused **without** needing a record — a plain or older editor, or one on
+  another machine, has none, and `hc send` would type into normal mode. The record is
+  therefore published **at startup** whenever a backend is present — not only after
+  a report flushed, and not gated on "herdr reporting" — or a guard that depends
+  on it would open whenever reporting is off. Only once a UI is attached
+  (`UIEnter` when none is yet): a headless run in the same pane (a test, a
+  script) would overwrite the live editor's record and may exit without taking
+  it back.
+- **Sender tag + self-guard.** `send`/`prompt` prefix `[from <whoami>]` so the
+  receiver can reply; messaging your own address is refused.
+- Probed 2026-10-31 (client 0.9.5, server 0.9.1, protocol 22): `herdr agent
+  read` answers plain text, not JSON; `agent list` / `agent get` answer JSON;
+  `peers`/`status`/`read` against the live server from a simulated column
+  (HERDR_* unset, `NVSINNER_HERDR_SOCKET` set) worked read-only. `prompt` to a
+  herdr agent is a passthrough to `herdr agent prompt` and was **not** fired at
+  a live agent.
+
+Spec: `tests/core/herdr_spec.lua`. `M._send` is the one socket toucher and
+`M._emit` the one terminal writer; both are swapped by table field in every
+test, so the suite never opens a connection or writes an escape sequence (and
+`tests/minimal_init.lua` clears `HERDR_*` / `HC_TERMINAL_ID` for every spec);
+the hc client runs against a fake `hc` on `PATH`; the
+remote specs drive `M.remote` against real terminals, and one runs the real
+client against this editor through `$NVIM` (async — a blocking `system()` would
+hold the loop the callback needs).
 
 ## Inline AI completion — `ai-complete.lua` (required from `init.lua`)
 

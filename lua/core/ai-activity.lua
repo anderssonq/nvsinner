@@ -96,6 +96,13 @@ function M.status(buf)
 	return "idle"
 end
 
+-- uv.now() of a tracked terminal's last output, or nil. core/herdr.lua uses it
+-- to tell output caused by a submitted prompt from the echo of its own text.
+function M.last_output(buf)
+	local s = buf and state[buf]
+	return s and s.last or nil
+end
+
 -- ─── State-change notification ──────────────────────────────────────────────
 -- Fires `User NvSinnerAgentState` on every transition, so consumers (today:
 -- core/herdr.lua) learn about agent activity WITHOUT polling. Polling is the

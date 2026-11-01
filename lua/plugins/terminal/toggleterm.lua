@@ -275,9 +275,11 @@ return {
 				-- Without it the column inherits HERDR_PANE_ID from the EDITOR's
 				-- pane, so an agent with a herdr integration installed (claude
 				-- ships one) reports its session against that pane — every column
-				-- overwriting the last. nil when herdr isn't here, so nothing
-				-- changes off herdr. See lua/core/herdr.lua's child_env().
-				env = require("core.herdr").child_env(),
+				-- overwriting the last. `n` adds NVSINNER_COLUMN, the column's own
+				-- address for the agent-to-agent bridge (bin/nvsinner-herdr) —
+				-- the only thing set when herdr isn't here.
+				-- See lua/core/herdr.lua's child_env().
+				env = require("core.herdr").child_env(n),
 				clear_env = false,
 				-- on_panel_open forces the column full-height on the configured
 				-- side and re-tucks any horizontal terminal bottom-left.

@@ -176,15 +176,20 @@ idle. NvSinner's columns live inside one Neovim process, so without help the
 whole editor looks like a single pane "running an editor" — up to nine live
 agents herdr cannot see, count, or tell you are blocked.
 
-When herdr owns the pane, NvSinner reports them. The editor's pane shows one
+When herdr owns the pane, NvSinner reports them. That works with both of
+herdr's runtimes: a `herdr server` pane, and a terminal of the Herdr desktop
+app (herdr-core, `hc`), where each column also shows up as its own entry under
+`hc get <editor terminal>`. The editor's pane shows one
 agent whose state is the **rollup** of your columns — attention wins, so any
-column waiting on you makes the pane `blocked` — plus a token per column
-(`j1` … `j9`) naming its CLI and status. Everything here is inert outside
-herdr, and `:NvSinnerMenu` → *herdr reporting* switches it off.
+column waiting on you makes the pane `blocked` — plus, on a herdr server, a
+token per column (`j1` … `j9`) naming its CLI and status. The Herdr app needs
+exactly one terminal UI attached to the editor (it reads the report from that
+terminal). Reporting is inert outside herdr
+(column-to-column talk, below, is not), and `:NvSinnerMenu` → *herdr reporting* switches it off.
 
 Because herdr tracks one agent per pane, it can see the columns but cannot type
-into a single one. `nvsinner-herdr` is the way in — run it from any other herdr
-pane, including from an agent working there:
+into a single one. `nvsinner-herdr` is the way in — from another herdr pane, or
+from inside a column:
 
 ```bash
 nvsinner-herdr list                    # every column, its CLI and status
@@ -194,10 +199,47 @@ echo "$diff" | nvsinner-herdr send 3 -  # the same, from stdin
 nvsinner-herdr read 3 --lines 80        # tail what column 3 is showing
 ```
 
-It targets the calling pane by default (`--pane <id>` for another), speaks to
-the editor over Neovim's own RPC socket, and `--json` makes any of it
-machine-readable. **`send` never submits** — text lands in the CLI input for you
+A bare column number means the editor you run in (`--pane <id>` picks another;
+from a plain herdr pane it is the editor registered for that pane). It speaks
+to the editor over Neovim's own RPC socket, and `--json` makes `list` and
+`peers` machine-readable. **`send` never submits** — text lands in the CLI input for you
 to review, exactly like the in-editor bridge below.
+
+#### Agents talking to agents
+
+The same command is the bridge between agents, in every direction: a column to
+another column, a column to an agent in a herdr pane, and back. One address
+names each of them:
+
+| Address | Who |
+|---|---|
+| `j3` | column 3 of the editor you are in |
+| `w1:p4/j2` | column 2 of the NvSinner editor in herdr pane `w1:p4` |
+| `t1h/j2` | column 2 of the NvSinner editor in Herdr app terminal `t1h` |
+| `w1:p2` or a name | an agent herdr runs in its own pane |
+| `t8` or a name | under the Herdr app: an agent in an hc terminal (`prompt` goes through `hc send`; hc has no type-without-Enter, so `send` is refused) |
+
+```bash
+nvsinner-herdr peers                                 # every agent you can reach
+nvsinner-herdr whoami                                # your own address
+nvsinner-herdr prompt j2 "review src/api" --wait     # submit, wait for it to settle
+nvsinner-herdr read j2 --lines 80                    # read the answer
+nvsinner-herdr prompt w1:p2 "run the e2e suite" --wait --timeout 600000
+nvsinner-herdr wait w1:p4/j2 --until idle
+```
+
+**`prompt` is the one verb that submits** — an agent asking another has no human
+at the far end to press Enter. It refuses a target that is blocked on an
+approval or a question (that Enter would answer the dialog), a column running a
+plain shell (the shell would run the text), and a column still taking the
+previous prompt. Text with control characters (a carriage return, ESC) is
+refused by every verb, so `send` can't submit by accident. It signs the text
+`[from <your address>]` so the receiver can reply (`--no-from` to skip), and it
+will not message yourself. `send`, `<leader>as/ab/ad` and Ask-AI still never
+submit.
+
+Column-to-column works without herdr: every column already knows its editor.
+To teach an agent the bridge, ask it to run `nvsinner-herdr --skill`.
 
 **Send context without the clipboard:** select code and hit `<leader>as` to
 drop it into the AI column's input, `<leader>ab` to send an `@path` mention

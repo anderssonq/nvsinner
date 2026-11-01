@@ -13,6 +13,11 @@ vim.opt.runtimepath:prepend(root)
 vim.opt.runtimepath:prepend(data .. "/lazy/plenary.nvim")
 
 -- Quiet, deterministic environment.
+-- The suite may run inside a herdr pane or a Herdr app (herdr-core) terminal;
+-- no spec may report to, or write discovery records for, the real one.
+for _, name in ipairs({ "HERDR_ENV", "HERDR_SOCKET_PATH", "HERDR_PANE_ID", "HC_TERMINAL_ID" }) do
+	vim.env[name] = nil
+end
 vim.opt.swapfile = false
 vim.opt.shadafile = "NONE"
 vim.opt.more = false

@@ -167,14 +167,19 @@
   snaps through the one-shot `skip_slide`. That flag is reset even when the
   column's open throws (`pcall` + rethrow). Otherwise it would stay set and
   swallow the next panel's slide. Pinned by `tests/plugins/panel_slide_spec.lua`.
-- **herdr env isolation**: BOTH `Terminal:new` call sites (the AI columns and
-  the `<leader>t` horizontals) pass `env = require("core.herdr").child_env()`
-  with `clear_env = false`. Without it a spawned process inherits Neovim's
+- **herdr env isolation**: BOTH `Terminal:new` call sites pass
+  `env = require("core.herdr").child_env(…)` with `clear_env = false` — the
+  `<leader>t` horizontals `child_env()`, the AI columns `child_env(n)` (which
+  also sets `NVSINNER_COLUMN`, the column's address for the agent-to-agent
+  bridge; see `lua/core/CLAUDE.md`). Without it a spawned process inherits Neovim's
   environment verbatim, including the EDITOR pane's `HERDR_PANE_ID` — so a CLI
   with a herdr integration installed (claude ships one) reports its session
   against that pane, every column overwriting the last, and herdr later
-  restores a mis-attributed session into a plain shell. `child_env()` returns
-  `nil` off herdr, so nothing changes there. The plugin **pulls** the table from
+  restores a mis-attributed session into a plain shell. Off herdr `child_env()`
+  returns `nil`, and `child_env(n)` sets `NVSINNER_COLUMN = n` and clears the two
+  `NVSINNER_HERDR_*` keys. Under the Herdr desktop app (herdr-core, `HC_*`)
+  neither is `nil`: both blank `HC_TERMINAL_ID` instead of the `HERDR_*` vars
+  and pass the editor's terminal id as `NVSINNER_HC_TERMINAL`. The plugin **pulls** the table from
   core; core never requires the plugin. Pinned by
   `tests/plugins/terminal_keymaps_spec.lua` against comment-stripped source.
   **Do not** isolate by prefixing the command with `env -u …` instead: it works

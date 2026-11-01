@@ -157,17 +157,22 @@ function M.report()
 	if not hok then
 		h.warn("core.herdr failed to load — the integration is inert")
 	else
-		local env = herdr._env()
-		if not env.present then
-			h.info("No herdr pane detected (HERDR_ENV unset) — the integration is inert.")
-		elseif not (vim.uv or vim.loop).fs_stat(env.socket) then
-			h.warn("herdr owns this pane but its socket is gone: " .. tostring(env.socket), {
-				"The server may have stopped. `herdr status server` to check.",
+		local backend = herdr.backend()
+		local where = (backend == "hc" and "Herdr app terminal " or "herdr pane ") .. tostring(herdr._self_key())
+		local socket = backend == "hc" and herdr._hc().socket or herdr._env().socket
+		if not backend then
+			h.info("No herdr pane or Herdr app terminal detected (HERDR_* / HC_* unset) — the integration is inert.")
+		elseif not (vim.uv or vim.loop).fs_stat(socket) then
+			h.warn("herdr owns this terminal but its socket is gone: " .. tostring(socket), {
+				backend == "hc" and "The Herdr app's core may have stopped. `hc server status` to check."
+					or "The server may have stopped. `herdr status server` to check.",
 			})
 		elseif not herdr.enabled() then
-			h.info("herdr pane " .. tostring(env.pane) .. " — reporting is off (:NvSinnerMenu → herdr reporting).")
+			h.info(where .. " — reporting is off (:NvSinnerMenu → herdr reporting).")
+		elseif backend == "hc" and not herdr._tty_ui() then
+			h.info(where .. " — nothing to report through: it needs exactly one terminal UI attached.")
 		else
-			h.ok("Reporting the AI columns to herdr as pane " .. tostring(env.pane))
+			h.ok("Reporting the AI columns to herdr as " .. where)
 		end
 	end
 
