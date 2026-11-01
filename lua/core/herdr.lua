@@ -61,12 +61,29 @@
 --
 -- CONTROL (M.remote). Neovim always listens on `v:servername`, so anything that
 -- can read the discovery record can drive the columns from another herdr pane
+-- or hc terminal
 -- via `nvim --server … --remote-expr`. bin/nvsinner-herdr is that client. The
 -- socket is the SAME default one Neovim opens, whose parent directories are
 -- 0700 — deliberately not a fresh socket of our own, because Neovim creates
 -- socket files 0755 and one in a shared directory would be world-connectable.
 -- M.remote is an API surface, NOT a security boundary: anything holding that
 -- socket can already evaluate arbitrary code in this editor.
+--
+-- AGENT-TO-AGENT. The same client is how agents talk to each other (column ↔
+-- column, column ↔ herdr agent). Its `prompt` verb is the one path that
+-- SUBMITS (REMOTE.prompt); everything else keeps the never-auto-submit rule.
+--
+-- TWO BACKENDS. The Herdr desktop app does not run its terminals in `herdr
+-- server`: they live in herdr-core (`hc`), which sets HC_TERMINAL_ID /
+-- HC_TERMINAL_SOCKET and never HERDR_*. Under hc the report is not a socket
+-- call but an OSC 7501 sequence written to our own terminal through the UI
+-- (nvim_ui_send — what the built-in OSC 52 clipboard uses), and hc keeps one
+-- RECORD per id, so each column is reported on its own beside the rollup.
+-- Probed against herdr-core 0.9.5 (2026-10-31): `ESC]7501;state=working:
+-- app=nvsinner BEL` sets the root record, `id=j2:state=blocked` a record of
+-- its own, `id=j2:state=clear` removes it; pairs are `:`-separated, and a
+-- report carrying an unknown key (`title`) is dropped whole. herdr wins when
+-- both are present: HERDR_* means a herdr server owns this pane.
 
 local M = {}
 
@@ -78,6 +95,7 @@ local AGENT = "nvsinner" -- live agent name; must match [a-z][a-z0-9_-]{0,31}
 local COALESCE_MS = 200 -- events → one frame; herdr tracks one agent per pane anyway
 local BACKOFF_MS = { 1000, 2000, 5000, 15000 } -- retry schedule, last value repeats
 local REPLY_MS = 2000 -- safety net: close a connection that never answers
+local SUBMIT_MS = 200 -- paste → Enter gap; a TUI that sees both in one burst takes Enter as a pasted newline
 local MAX_TOKENS = 16 -- herdr's cap on report_metadata tokens
 local COLUMN_TOKENS = MAX_TOKENS - 1 -- one slot reserved for the `nvim` marker
 
@@ -100,9 +118,40 @@ function M._env(opts)
 	return env
 end
 
--- True only when herdr owns this pane AND reporting is switched on.
+-- herdr-core (the desktop app's terminal runtime) injects these instead.
+function M._hc(opts)
+	local e = opts or vim.env
+	local env = { id = e.HC_TERMINAL_ID, socket = e.HC_TERMINAL_SOCKET }
+	env.present = (env.id or "") ~= "" and (env.socket or "") ~= ""
+	return env
+end
+
+-- "herdr", "hc" or nil. herdr first: HERDR_* means a herdr server owns the pane.
+function M.backend()
+	if M._env().present then
+		return "herdr"
+	end
+	if M._hc().present then
+		return "hc"
+	end
+	return nil
+end
+
+-- This editor's address inside its backend: the herdr pane id or the hc
+-- terminal id (`t1h`). Names the discovery record and prefixes `<addr>/jN`.
+function M._self_key()
+	local b = M.backend()
+	if b == "herdr" then
+		return M._env().pane
+	elseif b == "hc" then
+		return M._hc().id
+	end
+	return nil
+end
+
+-- True only when a backend owns this terminal AND reporting is switched on.
 function M.enabled()
-	if not M._env().present then
+	if not M.backend() then
 		return false
 	end
 	local ok, settings = pcall(require, "core.settings")
@@ -112,29 +161,65 @@ function M.enabled()
 	return settings.get("herdr") ~= false
 end
 
--- Env table for a CLI we spawn in a column, or nil when herdr isn't here.
+-- Env table for a terminal we spawn, or nil when there is nothing to set.
 --
 -- Columns otherwise inherit Neovim's environment verbatim, including the
--- EDITOR pane's HERDR_PANE_ID. An agent with a herdr integration installed
+-- editor's own address (HERDR_PANE_ID under herdr, HC_TERMINAL_ID under hc —
+-- the hc case is explained in its branch below). An agent with a herdr integration installed
 -- (claude ships one) then reports its own session against the editor's pane —
 -- every column overwriting the last, and herdr later trying to restore that
 -- mis-attributed session into a plain shell. Empty strings fail herdr's
 -- `== "1"` / non-empty guards, which is all its clients check; jobstart's env
 -- cannot delete a variable, and clear_env would mean rebuilding PATH by hand.
 --
--- Gated on env PRESENCE, not on M.enabled(): the mis-attribution happens
+-- Gated on env PRESENCE (either backend), not on M.enabled(): the mis-attribution happens
 -- whether or not we report, so switching reporting off must not re-open it.
-function M.child_env()
-	if not M._env().present then
-		return nil
+--
+-- The agent-to-agent bridge still needs the herdr socket, so it rides under
+-- NVSINNER_* names that herdr's hooks never read: bin/nvsinner-herdr puts
+-- HERDR_SOCKET_PATH back for its own `herdr` subprocess only, and never a pane
+-- id, so nothing it runs can be attributed to the editor's pane. `n` (an AI
+-- column's number) becomes NVSINNER_COLUMN, the column's own address — set off
+-- herdr too, since column-to-column talk needs no herdr at all.
+function M.child_env(n)
+	local env = M._env()
+	local hc = M._hc()
+	local out
+	-- Under herdr, and for any column, every NVSINNER_* key is written, ""
+	-- where it does not apply: they are inherited, so an editor nested inside a
+	-- column would otherwise hand ITS terminals the outer column's address.
+	-- Off herdr a non-column terminal gets nil (nothing to isolate), so there
+	-- that nested case still inherits the outer address.
+	if env.present then
+		out = {
+			HERDR_ENV = "",
+			HERDR_PANE_ID = "",
+			HERDR_SOCKET_PATH = "",
+			HERDR_TAB_ID = "",
+			HERDR_WORKSPACE_ID = "",
+			NVSINNER_HERDR_SOCKET = env.socket,
+			NVSINNER_HERDR_PANE = env.pane,
+			NVSINNER_HC_TERMINAL = "",
+			NVSINNER_COLUMN = "",
+		}
+	elseif hc.present then
+		-- Same reasoning under hc: the editor's terminal id would let an agent
+		-- in a column `hc send $HC_TERMINAL_ID …` straight into Neovim, and
+		-- would make an `hc run` from a column a child of the editor. The core
+		-- socket stays: it names the runtime, not this terminal.
+		out = {
+			HC_TERMINAL_ID = "",
+			NVSINNER_HERDR_SOCKET = "",
+			NVSINNER_HERDR_PANE = "",
+			NVSINNER_HC_TERMINAL = hc.id,
+			NVSINNER_COLUMN = "",
+		}
 	end
-	return {
-		HERDR_ENV = "",
-		HERDR_PANE_ID = "",
-		HERDR_SOCKET_PATH = "",
-		HERDR_TAB_ID = "",
-		HERDR_WORKSPACE_ID = "",
-	}
+	if n then
+		out = out or { NVSINNER_HERDR_SOCKET = "", NVSINNER_HERDR_PANE = "" }
+		out.NVSINNER_COLUMN = tostring(n)
+	end
+	return out
 end
 
 -- ─── Payload (pure) ─────────────────────────────────────────────────────────
@@ -291,6 +376,107 @@ function M._send(line)
 	return true
 end
 
+-- ─── hc transport (OSC 7501) ────────────────────────────────────────────────
+
+-- nvim_ui_send reaches only UIs that write to a tty, and every one of them.
+-- So exactly ONE must be attached: none means nothing to write to (a GUI
+-- counts as none), and two would put our records on a second terminal too
+-- (`nvim --remote-ui` from another hc terminal). Limit: a lone remote UI in a
+-- different terminal than the one that started the editor still gets them.
+function M._tty_ui()
+	local n = 0
+	for _, ui in ipairs(vim.api.nvim_list_uis()) do
+		if ui.stdout_tty then
+			n = n + 1
+		end
+	end
+	return n == 1
+end
+
+-- The ONE function that writes to the terminal under hc; specs swap it.
+function M._emit(seq)
+	if not M._tty_ui() then
+		return false
+	end
+	return (pcall(vim.api.nvim_ui_send, seq))
+end
+
+-- agents.lua's vocabulary mapped onto herdr's (and hc's, which uses the same
+-- words): the 7501 records, and `status` so a client can wait on a column with
+-- the same --until states it uses for a herdr agent.
+local HERDR_STATUS = { working = "working", awaiting = "blocked", idle = "idle" }
+
+-- Values must be escape-code-safe and must not carry the `:` separator.
+local function hc_word(v)
+	return (tostring(v):gsub("[^%w%._%-]", ""))
+end
+
+-- Rows + rollup → { [record id] = report body }, `""` being the root record.
+-- A column that is not alive gets "state=clear", as does one we reported
+-- before that is gone now (M._hc_records holds the ids we put up).
+function M._hc_frames(p, rows, previous)
+	local frames, live = {}, {}
+	frames[""] = p.state and ("state=" .. p.state .. ":app=" .. AGENT) or "state=clear"
+	for _, row in ipairs(rows or {}) do
+		local id = "j" .. tostring(row.n)
+		local st = row.alive and HERDR_STATUS[row.status]
+		if st then
+			frames[id] = "id=" .. id .. ":state=" .. st .. ":app=" .. hc_word(cli_of(row))
+			live[id] = true
+		end
+	end
+	for id in pairs(previous or {}) do
+		if id ~= "" and not live[id] then
+			frames[id] = "id=" .. id .. ":state=clear"
+		end
+	end
+	return frames, live
+end
+
+local function hc_osc(body)
+	return "\27]7501;" .. body .. "\7"
+end
+
+-- Writes only what changed since the last frame (M._hc_sent), so a burst of
+-- events that leaves a column where it was costs nothing.
+local function hc_flush(p, rows)
+	local frames, live = M._hc_frames(p, rows, M._hc_records)
+	local out = {}
+	M._hc_sent = M._hc_sent or {}
+	for id, body in pairs(frames) do
+		if M._hc_sent[id] ~= body then
+			out[#out + 1] = hc_osc(body)
+		end
+	end
+	if #out > 0 and not M._emit(table.concat(out)) then
+		return false
+	end
+	for id, body in pairs(frames) do
+		if body:find("state=clear", 1, true) then
+			M._hc_sent[id] = nil
+		else
+			M._hc_sent[id] = body
+		end
+	end
+	M._hc_records = live
+	return true
+end
+
+-- Returns false when the clear could not be written (no or several tty UIs):
+-- the bookkeeping then stays, so the next flush or UIEnter clears for real.
+local function hc_release()
+	local frames = M._hc_frames({ state = nil }, {}, M._hc_records)
+	local out = {}
+	for _, body in pairs(frames) do
+		out[#out + 1] = hc_osc(body)
+	end
+	if not M._emit(table.concat(out)) then
+		return false
+	end
+	M._hc_sent, M._hc_records = nil, nil
+	return true
+end
+
 -- A failed send re-arms a retry on a widening backoff. Deliberately silent:
 -- a herdr server that went away must be indistinguishable from no herdr, and a
 -- retry loop that toasted would nag straight past the `quiet` setting.
@@ -316,6 +502,12 @@ end
 
 -- Give up our authority so herdr falls back to its own screen detection.
 function M.release()
+	if M.backend() == "hc" then
+		if not M._hc_records or hc_release() then
+			M._reported = nil
+		end
+		return
+	end
 	local env = M._env()
 	if not env.present then
 		return
@@ -362,9 +554,9 @@ function M.flush()
 	end
 	local p = M._payload(rows)
 
-	-- Written before the first send, not after: the control path (the discovery
-	-- record that bin/nvsinner-herdr resolves) must work even while reporting is
-	-- failing, and a column existing is what makes it worth publishing.
+	-- Re-written before the first send, not after: the control path (the
+	-- discovery record that bin/nvsinner-herdr resolves) must work even while
+	-- reporting is failing. It is also published at startup, below.
 	if p.state ~= nil then
 		M.publish()
 	end
@@ -374,6 +566,16 @@ function M.flush()
 		if M._reported ~= nil then
 			M.release()
 		end
+		return
+	end
+
+	if M.backend() == "hc" then
+		if hc_flush(p, rows) then
+			M._reported, M._backoff = p.state, 0
+		elseif M._tty_ui() then
+			schedule_retry()
+		end
+		-- No tty UI: no retry loop. UIEnter (below) re-sends everything.
 		return
 	end
 
@@ -447,10 +649,12 @@ end
 
 -- ─── Discovery record ───────────────────────────────────────────────────────
 --
--- One JSON file per Neovim instance, named after the herdr pane hosting it, so
--- a client in ANOTHER pane can go pane id → this editor's RPC socket. It exists
+-- One JSON file per Neovim instance, named after the herdr pane or hc terminal
+-- hosting it (M._self_key), so a client elsewhere can go address → this
+-- editor's RPC socket. It exists
 -- because the socket path does not fit in a metadata token (80 characters).
--- Written on the first successful report, removed on the way out.
+-- Published at startup (once a UI is attached, see the bottom of this file),
+-- refreshed on every report, removed on the way out.
 
 function M.registry_dir()
 	return vim.fn.stdpath("state") .. "/herdr"
@@ -462,12 +666,14 @@ function M.registry_path(pane)
 end
 
 function M.publish()
-	local env = M._env()
-	if not env.present then
+	local key = M._self_key()
+	if not key then
 		return false
 	end
+	local env = M._env()
 	local record = vim.json.encode({
-		pane = env.pane,
+		pane = key, -- the address prefix: a herdr pane id or an hc terminal id
+		backend = M.backend(),
 		tab = env.tab,
 		workspace = env.workspace,
 		servername = vim.v.servername,
@@ -477,7 +683,7 @@ function M.publish()
 	})
 	local ok = pcall(function()
 		vim.fn.mkdir(M.registry_dir(), "p", "0700")
-		local fd = assert(io.open(M.registry_path(env.pane), "w"))
+		local fd = assert(io.open(M.registry_path(key), "w"))
 		fd:write(record .. "\n")
 		fd:close()
 	end)
@@ -485,11 +691,11 @@ function M.publish()
 end
 
 function M.unpublish()
-	local env = M._env()
-	if not env.present then
+	local key = M._self_key()
+	if not key then
 		return
 	end
-	pcall(vim.fn.delete, M.registry_path(env.pane))
+	pcall(vim.fn.delete, M.registry_path(key))
 end
 
 -- ─── Remote control (bin/nvsinner-herdr) ────────────────────────────────────
@@ -506,13 +712,17 @@ local function columns()
 	return ok and rows or {}
 end
 
-local function entry_for(n)
-	for _, e in ipairs(require("core.ai-sessions").sessions()) do
-		if e.n == n then
-			return e
+local function find_n(list, n)
+	for _, x in ipairs(list) do
+		if x.n == n then
+			return x
 		end
 	end
 	return nil
+end
+
+local function entry_for(n)
+	return find_n(require("core.ai-sessions").sessions(), n)
 end
 
 local REMOTE = {}
@@ -541,7 +751,10 @@ function REMOTE.list()
 	if #lines == 0 then
 		lines[1] = "no AI columns open"
 	end
-	return { text = table.concat(lines, "\n"), data = { columns = rows, cwd = vim.fn.getcwd() } }
+	return {
+		text = table.concat(lines, "\n"),
+		data = { columns = rows, cwd = vim.fn.getcwd(), pane = M._self_key() },
+	}
 end
 
 function REMOTE.focus(req)
@@ -553,23 +766,164 @@ function REMOTE.focus(req)
 	return { text = ok and ("focused column " .. n) or ("cannot open column " .. n), data = { ok = ok, n = n } }
 end
 
--- Lands in the CLI's input for review. The bridge never appends a carriage
--- return, so nothing is ever auto-submitted — that contract holds here too.
-function REMOTE.send(req)
+-- The shared front half of `send` and `prompt`: validate, find the live
+-- column, run `guard` (prompt's blocked check), then type the text without
+-- submitting. Returns `entry, n, #text`, or `nil, reply` for the caller to
+-- hand straight back.
+local function type_into(req, verb, guard)
 	local n = tonumber(req.n)
-	local text = req.text or ""
+	local text = (req.text or ""):gsub("\r\n", "\n")
 	if not n or text == "" then
-		return { text = "send needs a column number and text", data = { ok = false } }
+		return nil, { text = verb .. " needs a column number and text", data = { ok = false } }
+	end
+	-- Only newline and tab get through. A bare CR is an Enter (it would submit
+	-- a `send`, or run a line in a shell column), and ESC can close the
+	-- bracketed paste early and smuggle an Enter in after it.
+	if text:find("[%z\1-\8\11-\31\127]") then
+		return nil,
+			{
+				text = verb .. " refused: the text holds control characters (control_chars); nothing sent",
+				data = { ok = false, n = n, error = "control_chars" },
+			}
 	end
 	local e = entry_for(n)
 	if not e then
-		return { text = "column " .. n .. " is not running", data = { ok = false, n = n } }
+		return nil, { text = "column " .. n .. " is not running", data = { ok = false, n = n } }
 	end
-	local ok = require("core.ai-sessions").send_to(e, text, { focus = false })
+	-- A prompt's Enter is still pending: anything typed now would be submitted
+	-- with it, `send` included.
+	if M._inflight[n] then
+		return nil,
+			{
+				text = "column " .. n .. " is still taking the previous prompt (agent_busy); nothing sent",
+				data = { ok = false, n = n, error = "agent_busy" },
+			}
+	end
+	local refusal = guard and guard(n)
+	if refusal then
+		return nil, refusal
+	end
+	if not require("core.ai-sessions").send_to(e, text, { focus = false }) then
+		return nil, { text = "column " .. n .. " refused the " .. verb, data = { ok = false, n = n } }
+	end
+	return e, n, #text
+end
+
+-- Lands in the CLI's input for review. The bridge never appends a carriage
+-- return, so nothing is ever auto-submitted — that contract holds here too.
+function REMOTE.send(req)
+	local e, n, len = type_into(req, "send")
+	if not e then
+		return n -- the refusal
+	end
 	return {
-		text = ok and ("queued " .. #text .. " chars in column " .. n .. " (not submitted)")
-			or ("column " .. n .. " refused the send"),
-		data = { ok = ok, n = n, submitted = false },
+		text = "queued " .. len .. " chars in column " .. n .. " (not submitted)",
+		data = { ok = true, n = n, submitted = false },
+	}
+end
+
+local function row_for(n)
+	return find_n(columns(), n)
+end
+
+-- Per column: uv.now() when prompt's Enter was written (M._submitted[n]),
+-- whether an Enter is still pending (M._inflight[n]), and whether the last
+-- prompt's Enter was skipped because a dialog appeared (M._skipped[n]).
+M._submitted, M._inflight, M._skipped = {}, {}, {}
+
+-- `fresh=1` asks a different question: has the column produced output SINCE
+-- the last prompt's Enter? Typing the text redraws the CLI's input line, which
+-- alone reads as "working" for a second — so a client gating `prompt --wait`
+-- on plain status would pass on the echo even if the Enter was never written.
+-- It cannot tell a TUI that folded the Enter into its input (that redraw is
+-- output too). Answers "started", "pending" (Enter not written yet / no
+-- output after it), "not_submitted" (the Enter was skipped) or "unknown".
+function REMOTE.status(req)
+	local n = tonumber(req.n)
+	local row = n and row_for(n)
+	if not row or not row.alive then
+		return { text = "unknown", data = { ok = false, n = n, status = "unknown" } }
+	end
+	local s = HERDR_STATUS[row.status] or "unknown"
+	if req.fresh == "1" and M._skipped[n] then
+		s = "not_submitted"
+	elseif req.fresh == "1" then
+		local at = M._submitted[n]
+		local last = row.bufnr and require("core.ai-activity").last_output(row.bufnr)
+		local started = not M._inflight[n] and at ~= nil and last ~= nil and last > at
+		-- A column that blocked right after the Enter has started too.
+		if not M._inflight[n] and at ~= nil and s == "blocked" then
+			started = true
+		end
+		s = started and "started" or "pending"
+	end
+	return { text = s, data = { ok = true, n = n, status = s, cli = row.kind } }
+end
+
+-- The agent-to-agent verb, and the ONE place anything submits. `send` and the
+-- in-editor bridge (<leader>as/ab/ad, Ask-AI) still never press Enter; an
+-- agent asking another agent has no human at the receiving end to press it,
+-- so the explicit `prompt` action does. Mirrors herdr's `agent prompt`: a
+-- column waiting on an approval or a question is refused before anything is
+-- typed, since the Enter would answer that dialog instead.
+--
+-- Refused before typing, too: a plain-terminal column (the Enter would hand the
+-- text to a SHELL — backticks and $(…) in a prompt would run), and a column
+-- whose state can't be read (fail closed: no row, no Enter). A column with an
+-- Enter still pending is refused by type_into for every verb.
+local function refuse_prompt(n)
+	local row = row_for(n)
+	if not row then
+		return {
+			text = "column " .. n .. " has no readable state (agent_unknown); nothing sent",
+			data = { ok = false, n = n, error = "agent_unknown" },
+		}
+	end
+	if row.kind == "shell" or row.kind == "session" then
+		return {
+			text = "column " .. n .. " runs a plain shell, not an agent (not_an_agent); nothing sent",
+			data = { ok = false, n = n, error = "not_an_agent" },
+		}
+	end
+	if row.status == "awaiting" then
+		return {
+			text = "column " .. n .. " is blocked on an approval or a question (agent_blocked); nothing sent",
+			data = { ok = false, n = n, error = "agent_blocked" },
+		}
+	end
+end
+
+function REMOTE.prompt(req)
+	local e, n, len = type_into(req, "prompt", refuse_prompt)
+	if not e then
+		return n -- the refusal
+	end
+	-- Enter goes in a second write, after a gap: sent in the same burst as the
+	-- text, a TUI with paste detection (claude) folds it into the paste as a
+	-- newline and the prompt just sits there. Re-checked at write time: a
+	-- dialog that appeared inside the gap would take the Enter as its default
+	-- answer ("Yes"), so the text is left unsubmitted instead. The check is
+	-- agents.lua's screen heuristic — a dialog it misses is still at risk.
+	-- Skipped Enters are recorded for `status fresh=1`, and the previous
+	-- prompt's timestamp is dropped so its output can't pass for this one.
+	local job = e.term.job_id
+	M._inflight[n], M._submitted[n], M._skipped[n] = true, nil, nil
+	vim.defer_fn(function()
+		M._inflight[n] = nil
+		local row = row_for(n)
+		if not row or row.status == "awaiting" then
+			M._skipped[n] = true
+			return
+		end
+		if pcall(vim.fn.chansend, job, "\r") then
+			M._submitted[n] = uv.now()
+		end
+	end, SUBMIT_MS)
+	-- "submitted" is the client's success token; the Enter itself lands
+	-- SUBMIT_MS later, and only `--wait` (status fresh=1) can confirm it.
+	return {
+		text = "submitted " .. len .. " chars to column " .. n,
+		data = { ok = true, n = n, submitted = true },
 	}
 end
 
@@ -655,6 +1009,8 @@ function M._reset() -- test seam
 		M._timer:stop()
 	end
 	M._pending, M._backoff, M._reported = false, 0, nil
+	M._submitted, M._inflight, M._skipped = {}, {}, {}
+	M._hc_sent, M._hc_records = nil, nil
 end
 
 vim.api.nvim_create_autocmd("User", {
@@ -665,8 +1021,38 @@ vim.api.nvim_create_autocmd("User", {
 	end,
 })
 
+-- The discovery record is the client's only way to know a pane or terminal
+-- hosts an EDITOR (and so must never be typed into as an agent), so it exists
+-- for as long as this editor runs under a backend — not only once reporting flushed,
+-- and not only while reporting is switched on. Only an editor with a UI: a
+-- headless run in the same pane (a test, a script) would overwrite the live
+-- editor's record and could exit without taking it back.
+if M.backend() then
+	local function publish()
+		pcall(M.publish)
+	end
+	if #vim.api.nvim_list_uis() > 0 then
+		vim.schedule(publish)
+	else
+		vim.api.nvim_create_autocmd("UIEnter", { once = true, callback = publish })
+	end
+end
+
+-- Under hc a UI that (re)attaches has seen none of our records, and one that
+-- left took them with it: forget what was written and send the full picture.
+vim.api.nvim_create_autocmd({ "UIEnter", "UILeave" }, {
+	group = "nv_herdr",
+	callback = function()
+		if M.backend() == "hc" then
+			M._hc_sent = nil
+			M.schedule()
+		end
+	end,
+})
+
 -- Hand the pane back on the way out, so a closed editor doesn't leave herdr
--- holding a stale "blocked" from our source.
+-- holding a stale "blocked" from our source. (A VimLeavePre nvim_ui_send
+-- still reaches the tty, so hc gets its `state=clear` too.)
 vim.api.nvim_create_autocmd("VimLeavePre", {
 	group = "nv_herdr",
 	callback = function()

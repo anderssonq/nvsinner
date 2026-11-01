@@ -396,8 +396,8 @@ lua/core/ai-activity.lua       Agent/terminal activity spinner in the terminal w
 lua/core/ai-sessions.lua       AI session registry + send-to-AI bridge (<leader>as/ab/ad, <leader>ja, <leader>jc clear)
 lua/core/ai-ask.lua            Ask-AI action modal over the visual selection (<leader>x)
 lua/core/agents.lua            Agent cockpit: every AI column + status + chat preview (:NvSinnerAgents, <leader>xa)
-lua/core/herdr.lua             Reports the AI columns' state to a herdr server (no-op unless herdr owns this pane)
-bin/nvsinner-herdr             Drive those columns from another herdr pane (list/focus/send/read)
+lua/core/herdr.lua             Reports the AI columns' state to herdr: a herdr server, or the Herdr app's herdr-core (no-op unless one owns this terminal)
+bin/nvsinner-herdr             Agent-to-agent bridge: columns, other editors, herdr agents, hc terminals (peers/prompt/send/wait/read)
 lua/core/update.lua            :NvSinnerUpdate (git pull + Lazy restore + checkhealth)
 lua/core/sync.lua              :NvSinnerSync (opt-in Lazy sync + Mason updates)
 lua/core/health.lua            :checkhealth nvsinner + first-run tool-problems toast

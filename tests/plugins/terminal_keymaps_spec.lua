@@ -57,10 +57,14 @@ describe("toggleterm terminal-mode keymaps", function()
 	-- EDITOR's pane, so a CLI with a herdr integration installed (claude ships
 	-- one) reports its session against that pane — every column overwriting the
 	-- last, and herdr later restoring a mis-attributed session into a shell.
-	-- core/herdr.lua's child_env() returns nil off herdr, so this is inert there.
+	-- The AI columns pass their number (child_env(n) adds NVSINNER_COLUMN, the
+	-- agent-to-agent address); the <leader>t terminals call child_env(), which
+	-- returns nil off herdr, so it is inert there.
 	it("hands both terminal kinds the herdr child environment", function()
-		local _, n = code:gsub('env%s*=%s*require%("core%.herdr"%)%.child_env%(%)', "")
-		assert.are.equal(2, n, "the AI columns AND the <leader>t terminals both need the isolation")
+		local _, plain = code:gsub('env%s*=%s*require%("core%.herdr"%)%.child_env%(%)', "")
+		local _, column = code:gsub('env%s*=%s*require%("core%.herdr"%)%.child_env%(n%)', "")
+		assert.are.equal(1, plain, "the <leader>t terminals need the isolation, with no column address")
+		assert.are.equal(1, column, "the AI columns need it too, with their number as the address")
 		assert.matches("clear_env%s*=%s*false", code, "env must MERGE, not replace the whole environment")
 	end)
 end)

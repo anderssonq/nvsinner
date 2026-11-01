@@ -1,99 +1,608 @@
 #!/usr/bin/env bash
-# Drive NvSinner's AI columns from anywhere inside herdr.
+# The agent-to-agent bridge between NvSinner's AI columns and herdr.
 #
-# NvSinner's AI columns live inside one Neovim process, so herdr can see their
-# rolled-up state (lua/core/herdr.lua reports it) but cannot type into a single
-# one: its input surface is the pane's PTY, and the pane is the editor. This is
-# the way in. Neovim always listens on v:servername, and the editor writes a
-# discovery record naming its pane, so a client in ANOTHER herdr pane can go
-# pane id -> socket -> column.
+# NvSinner's AI columns live inside one Neovim process, so herdr sees their
+# rolled-up state (lua/core/herdr.lua reports it) but cannot address a single
+# one, and an agent INSIDE a column cannot reach herdr: its HERDR_* vars are
+# blanked so its own herdr hook never reports onto the editor's pane. This
+# script is the way through, in both directions, with herdr's own verbs.
 #
-# The socket is Neovim's own, whose parent directories are 0700. Holding it
-# means being able to evaluate code in that editor, which is exactly what this
-# script does — it is a convenience, not a privilege boundary.
+# Addresses:
+#   j3            column 3 of THIS editor (from inside a column or its shells)
+#   w1:p4/j2      column 2 of the NvSinner editor running in herdr pane w1:p4
+#   t1h/j2        column 2 of the editor in herdr-core terminal t1h (the app)
+#   w1:p2, name   an agent herdr detected itself (passed to `herdr agent`)
+#   t8, name      under the Herdr app: an hc terminal (passed to `hc`)
 #
-#   nvsinner-herdr list                     every column with its status
-#   nvsinner-herdr focus 3                  open or focus column 3
-#   nvsinner-herdr send 3 "review this"     put text in its CLI input
-#   echo "..." | nvsinner-herdr send 3 -    the same, from stdin
-#   nvsinner-herdr read 3 --lines 80        tail column 3
+#   nvsinner-herdr peers                       every agent you can talk to
+#   nvsinner-herdr whoami                      your own address (reply-to)
+#   nvsinner-herdr prompt <addr> "text"        type it AND submit it
+#   nvsinner-herdr prompt <addr> - --wait      text from stdin, wait to settle
+#   nvsinner-herdr send <addr> "text"          type it, never submit
+#   nvsinner-herdr wait <addr> [--until S]     wait for idle/blocked (or S;
+#                                              done/unknown: herdr agents only)
+#   nvsinner-herdr read <addr> [--lines N]     tail its screen
+#   nvsinner-herdr status <addr>               working | blocked | idle | unknown
+#   nvsinner-herdr focus <addr>                open or focus it
+#   nvsinner-herdr list                        this editor's columns (legacy)
+#   nvsinner-herdr --skill                     a guide to paste into an agent
 #
-# --pane <id>  target another pane (default: $HERDR_PANE_ID, the calling pane)
-# --json       machine-readable output
+# --pane <id>   which editor a bare `3` / `j3` means (default: this one)
+# --timeout MS  give up after MS (wait, prompt --wait)
+# --no-from     don't prefix the text with "[from <your address>]"
+# --json        machine-readable output (list, peers)
+# --            everything after it is text, even if it starts with "-"
 #
-# Text is NEVER submitted: it lands in the CLI input for a human to review,
-# the same contract the in-editor send-to-AI bridge keeps.
+# Only `prompt` submits. `send`, like the in-editor send-to-AI bridge, leaves
+# the text in the CLI input for a human to review (hc has no such verb, so
+# `send` to an hc terminal is refused). Two runtimes: `herdr server` (HERDR_*)
+# and herdr-core, the Herdr desktop app's (HC_*).
+#
+# Holding an editor's socket means being able to evaluate code in it, which is
+# exactly what this script does — a convenience, not a privilege boundary.
 
 set -euo pipefail
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/nvsinner/herdr"
+# Each editor writes its record under its own NVIM_APPNAME (nvsinner, nvim, …).
+STATE_BASE="${XDG_STATE_HOME:-$HOME/.local/state}"
+POLL=0.5 # seconds between status reads while waiting on a column
+STALL_POLLS=10 # prompt --wait: polls to see the column start (5 s, like herdr)
 
-die() { printf 'nvsinner-herdr: %s\n' "$1" >&2; exit 1; }
+die() { printf 'nvsinner-herdr: %s\n' "$1" >&2; exit "${2:-1}"; }
+need_jq() { command -v jq > /dev/null || die "$1 needs jq"; }
 
 usage() {
-	sed -n '4,27p' "$0" | sed 's/^# \{0,1\}//'
+	sed -n '4,42p' "$0" | sed 's/^# \{0,1\}//'
 	exit "${1:-0}"
+}
+
+skill() {
+	cat <<'EOF'
+# Talking to other agents (NvSinner + herdr)
+
+You can message other coding agents with `nvsinner-herdr`. Addresses:
+`j3` = AI column 3 of your editor; `w1:p4/j2` or `t1h/j2` = column 2 of the
+editor in that herdr pane / Herdr app terminal; `w1:p2`, `t8` or a name = an
+agent running in a pane or terminal of its own.
+
+    nvsinner-herdr peers                          # who is there, and their state
+    nvsinner-herdr whoami                         # your address, for replies
+    nvsinner-herdr prompt j2 "..." --wait --timeout 300000
+    nvsinner-herdr read j2 --lines 80             # read the answer
+    nvsinner-herdr status j2                      # working | blocked | idle
+
+Rules:
+- `prompt` submits; your message arrives prefixed with "[from <your address>]",
+  so the other agent can answer with `nvsinner-herdr prompt <that address> ...`.
+- Before prompting, check `status`: never prompt an agent that is `working`
+  or `blocked`. A `blocked` agent waits for a HUMAN approval: tell the user.
+- Prefer `--wait`, then `read`; do not poll in a tight loop. Toward a Herdr
+  app terminal (`t8`), a wait without `--timeout` gives up after 180 s
+  (exit 124): wait again if it is still working.
+- Never message yourself, and never start a reply loop: answer once, then stop.
+EOF
+	exit 0
 }
 
 action="${1:-}"
 [ -n "$action" ] || usage 1
 case "$action" in
 	-h|--help|help) usage 0 ;;
-	list|focus|send|read) shift ;;
+	--skill|skill) skill ;;
+	list|peers|whoami|focus|send|prompt|read|wait|status) shift ;;
 	*) die "unknown command: $action (try --help)" ;;
 esac
 
-pane="${HERDR_PANE_ID:-}"
+pane=""
 json=0
 lines=""
-n=""
+addr=""
 text=""
-have_text=0
+do_wait=0
+timeout=""
+until_states=""
+from=1
+fresh=0 # status requests: ask whether output came AFTER the last prompt's Enter
+
+need() { [ $# -ge 2 ] && [ -n "$2" ] || die "$1 needs a value"; }
+digits() { case "$2" in ''|*[!0-9]*) die "$1 must be a number, got '$2'" ;; esac; }
 
 while [ $# -gt 0 ]; do
 	case "$1" in
-		--pane) pane="${2:-}"; shift 2 ;;
+		--pane) need "$@"; pane="$2"; shift 2 ;;
 		--json) json=1; shift ;;
-		--lines) lines="${2:-}"; shift 2 ;;
-		--) shift ;;
-		-)  text="$(cat)"; have_text=1; shift ;;
+		--lines) need "$@"; digits "$1" "$2"; lines="$2"; shift 2 ;;
+		--wait) do_wait=1; shift ;;
+		--timeout) need "$@"; digits "$1" "$2"; timeout="$2"; shift 2 ;;
+		--until)
+			need "$@"
+			case "$2" in idle|working|blocked|done|unknown) ;; *) die "--until: unknown state '$2'" ;; esac
+			until_states="${until_states:+$until_states }$2"; shift 2 ;;
+		--no-from) from=0; shift ;;
+		--) shift; break ;;
+		-)  text="$(cat)"; shift ;;
 		*)
-			if [ -z "$n" ]; then n="$1"; else
-				text="${text:+$text }$1"; have_text=1
+			if [ -z "$addr" ]; then addr="$1"; else
+				text="${text:+$text }$1"
 			fi
 			shift ;;
 	esac
 done
+for word in "$@"; do # after --: all text
+	if [ -z "$addr" ]; then addr="$word"; else text="${text:+$text }$word"; fi
+done
 
-[ -n "$pane" ] || die "no pane: run this inside herdr, or pass --pane <id>"
+# ─── Who we are ──────────────────────────────────────────────────────────────
 
-record="$STATE_DIR/$(printf '%s' "$pane" | tr -c '[:alnum:]_-' '-').json"
-[ -f "$record" ] || die "no NvSinner editor registered for pane $pane
+# An AI column carries NVSINNER_COLUMN (and the editor's address as
+# NVSINNER_HERDR_PANE or NVSINNER_HC_TERMINAL); a plain herdr pane carries
+# HERDR_PANE_ID, a plain Herdr app terminal HC_TERMINAL_ID.
+self_address() {
+	local editor="${NVSINNER_HERDR_PANE:-${NVSINNER_HC_TERMINAL:-}}"
+	if [ -n "${NVSINNER_COLUMN:-}" ]; then
+		if [ -n "$editor" ]; then
+			printf '%s/j%s' "$editor" "$NVSINNER_COLUMN"
+		else
+			printf 'j%s' "$NVSINNER_COLUMN"
+		fi
+	elif [ -n "${HERDR_PANE_ID:-}" ]; then
+		printf '%s' "$HERDR_PANE_ID"
+	elif [ -n "${HC_TERMINAL_ID:-}" ]; then
+		printf '%s' "$HC_TERMINAL_ID"
+	fi
+}
+
+# ─── herdr ───────────────────────────────────────────────────────────────────
+
+# Inside a column the HERDR_* vars are blank on purpose; put the socket back
+# for this one subprocess, and never a pane id, so nothing herdr records can be
+# attributed to the editor's pane.
+native_herdr() { [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_SOCKET_PATH:-}" ]; }
+in_herdr() { native_herdr || [ -n "${NVSINNER_HERDR_SOCKET:-}" ]; }
+
+# herdr-core: a column keeps HC_TERMINAL_SOCKET (it names the runtime) but not
+# HC_TERMINAL_ID, so `hc` runs as no terminal's caller — never the editor's.
+in_hc() {
+	{ [ -n "${HC_TERMINAL_ID:-}" ] || [ -n "${NVSINNER_HC_TERMINAL:-}" ]; } && command -v hc > /dev/null
+}
+
+herdr_cmd() {
+	in_herdr || die "not inside herdr: '$addr' is not a column (j1-j9 or <pane>/jN)"
+	if native_herdr; then
+		herdr "$@"
+	else
+		HERDR_ENV=1 HERDR_SOCKET_PATH="$NVSINNER_HERDR_SOCKET" HERDR_PANE_ID= HERDR_TAB_ID= HERDR_WORKSPACE_ID= \
+			herdr "$@"
+	fi
+}
+
+# ─── Editors (discovery records + $NVIM) ─────────────────────────────────────
+
+# The record is one flat JSON object written by lua/core/herdr.lua; read it
+# without requiring a JSON parser on the box.
+record_field() { sed -n "s/.*\"$2\":\"\\([^\"]*\\)\".*/\\1/p" "$1"; }
+
+# The pane's record under any appname: the one with a live socket wins, else
+# the first found (for the error message), else where nvsinner would write it.
+record_for() {
+	local name candidate first=""
+	name="$(printf '%s' "$1" | tr -c '[:alnum:]_-' '-').json"
+	for candidate in "$STATE_BASE"/*/herdr/"$name"; do
+		[ -f "$candidate" ] || continue
+		[ -n "$first" ] || first="$candidate"
+		if [ -S "$(record_field "$candidate" servername)" ]; then
+			printf '%s' "$candidate"
+			return
+		fi
+	done
+	printf '%s' "${first:-$STATE_BASE/nvsinner/herdr/$name}"
+}
+
+socket_for_pane() {
+	local record socket
+	record="$(record_for "$1")"
+	[ -f "$record" ] || die "no NvSinner editor registered for pane $1
   (open a column there first; the record appears at $record)"
+	socket="$(record_field "$record" servername)"
+	[ -n "$socket" ] || die "discovery record has no servername: $record"
+	[ -S "$socket" ] || die "the editor for pane $1 is gone (stale socket: $socket)"
+	printf '%s' "$socket"
+}
 
-# The record is one flat JSON object written by lua/core/herdr.lua. Pull the
-# socket out without requiring a JSON parser on the box.
-socket="$(sed -n 's/.*"servername":"\([^"]*\)".*/\1/p' "$record")"
-[ -n "$socket" ] || die "discovery record has no servername: $record"
-[ -S "$socket" ] || die "the editor for pane $pane is gone (stale socket: $socket)"
+# The editor a bare column number means: --pane, else the editor this shell
+# runs inside ($NVIM, which Neovim sets in every terminal it spawns), else the
+# one registered for the calling herdr pane.
+local_socket() {
+	if [ -n "$pane" ]; then
+		socket_for_pane "$pane"
+	elif [ -n "${NVIM:-}" ] && [ -S "$NVIM" ]; then
+		printf '%s' "$NVIM"
+	elif [ -n "${HERDR_PANE_ID:-}" ]; then
+		socket_for_pane "$HERDR_PANE_ID"
+	elif [ -n "${HC_TERMINAL_ID:-}" ]; then
+		socket_for_pane "$HC_TERMINAL_ID"
+	else
+		die "no editor: run this inside an NvSinner terminal, or pass --pane <id>"
+	fi
+}
+
+# True when <pane> hosts a live NvSinner editor. Its herdr "agent" is our
+# rollup, and typing into that pane would type into Neovim itself.
+is_editor_pane() {
+	local record socket
+	record="$(record_for "$1")"
+	[ -f "$record" ] || return 1
+	socket="$(record_field "$record" servername)"
+	[ -n "$socket" ] && [ -S "$socket" ]
+}
+
+# One request to an editor: header lines, a bare `--`, then the text verbatim
+# (the format lua/core/herdr.lua's M.remote reads). Prints the reply.
+# Request files still on disk; removed on any exit, Ctrl-C included (they
+# hold the prompt text). Called inside $(…) too, and a subshell does not
+# inherit the main shell's traps, so it sets its own there.
+pending_files=""
+# A trapped INT runs its handler and carries on, so the signals exit
+# explicitly (the EXIT trap then cleans up) — or Ctrl-C would not stop a wait.
+trap 'rm -f $pending_files' EXIT
+trap 'exit 130' HUP INT TERM
+
+remote() {
+	local socket="$1" act="$2" n="${3:-}" body="${4:-}" with_body="${5:-0}" req rc=0
+	req="$(mktemp "${TMPDIR:-/tmp}/nvsinner-herdr.XXXXXX")"
+	pending_files="$pending_files $req"
+	if [ "$BASH_SUBSHELL" -gt 0 ]; then
+		trap "rm -f $(printf '%q' "$req")" EXIT
+		trap 'exit 130' HUP INT TERM
+	fi
+	{
+		printf 'action=%s\n' "$act"
+		[ -n "$n" ] && printf 'n=%s\n' "$n"
+		[ -n "$lines" ] && printf 'lines=%s\n' "$lines"
+		[ "$act" = status ] && [ "$fresh" = 1 ] && printf 'fresh=1\n'
+		printf 'json=%s\n' "$json"
+		printf -- '--\n'
+		[ "$with_body" = 1 ] && printf '%s' "$body"
+	} > "$req"
+	# The path is a Vim single-quoted string: double any quote in it.
+	local sq="'" q
+	q="${req//$sq/$sq$sq}"
+	# --remote-expr prints no trailing newline; add one so replies end lines.
+	nvim --server "$socket" --remote-expr \
+		"luaeval('require(\"core.herdr\").remote(_A)', '$q')" || rc=$?
+	rm -f "$req"
+	[ "$rc" = 0 ] || return "$rc"
+	echo
+}
+
+# ─── Resolve an address ──────────────────────────────────────────────────────
+
+kind="" # column | herdr | hc
+socket=""
+n=""
+resolve() {
+	local a="$1"
+	case "$a" in
+		[1-9]|j[1-9])
+			kind=column; n="${a#j}"; socket="$(local_socket)" ;;
+		*/[1-9]|*/j[1-9])
+			kind=column; n="${a##*/}"; n="${n#j}"; socket="$(socket_for_pane "${a%/*}")" ;;
+		w*:p*)
+			kind=herdr ;; # a herdr pane id; guarded on it in the herdr branch
+		*)
+			# A name or an hc address: under the Herdr app (and no herdr
+			# server owning this pane) it is an hc terminal.
+			if in_hc && ! in_herdr; then kind=hc; else kind=herdr; fi ;;
+	esac
+}
+
+# Prints the column's state. Fails when the editor can't be reached — bash
+# drops `set -e` inside $(…), so callers must check, not rely on it.
+column_status() {
+	local saved="$json" out rc=0
+	json=0
+	out="$(remote "$socket" status "$n")" || rc=$?
+	json="$saved"
+	[ "$rc" = 0 ] || return "$rc"
+	printf '%s' "$out"
+}
+
+# Poll a column until it reaches one of the states: prints it and returns 0,
+# returns 4 when the column is gone and 124 on timeout (the last state read is
+# left in $last, the time spent in $waited_ms). Client-side on purpose: the
+# editor never runs a free-running timer, so the waiting lives here, bounded by
+# the caller.
+last=""
+waited_ms=0
+wait_column() {
+	local want="$1" ms="${2:-}" polls=0 limit=""
+	[ -n "$ms" ] && limit=$(( (ms + 499) / 500 ))
+	while :; do
+		last="$(column_status)" || return 4
+		case " $want " in *" $last "*) printf '%s\n' "$last"; return 0 ;; esac
+		# Gone, or a reply outside the vocabulary (an `error: …`): stop.
+		case "$last" in working|blocked|idle|pending) ;; *) return 4 ;; esac
+		polls=$((polls + 1))
+		waited_ms=$((polls * 500))
+		if [ -n "$limit" ] && [ "$polls" -ge "$limit" ]; then
+			return 124
+		fi
+		sleep "$POLL"
+	done
+}
+
+wait_or_die() {
+	local rc=0
+	wait_column "$@" || rc=$?
+	case "$rc" in
+		0) ;;
+		4) die "column $n is not running" 4 ;;
+		*) die "timeout: column $n is still $last" 124 ;;
+	esac
+}
+
+# ─── Actions ─────────────────────────────────────────────────────────────────
 
 case "$action" in
-	focus|read) [ -n "$n" ] || die "$action needs a column number" ;;
-	send)
-		[ -n "$n" ] || die "send needs a column number"
-		[ "$have_text" = 1 ] || die "send needs text (or - to read stdin)" ;;
+	whoami)
+		me="$(self_address)"
+		[ -n "$me" ] || die "no address: not inside an NvSinner column or a herdr pane"
+		printf '%s\n' "$me"
+		exit 0 ;;
+
+	list)
+		socket="$(local_socket)"
+		remote "$socket" list
+		exit 0 ;;
+
+	peers)
+		need_jq peers
+		me="$(self_address)"
+		out=""
+		# Columns of the editor we run in, then of every registered editor.
+		if [ -n "${NVIM:-}" ] && [ -S "$NVIM" ]; then
+			saved="$json"; json=1
+			chunk="$(remote "$NVIM" list | jq -r --arg me "$me" '
+				.pane as $p | .columns[] | select(.alive and .cli != "shell" and .cli != "session")
+				| (if $p then "\($p)/j\(.n)" else "j\(.n)" end) as $a
+				| select($a != $me and "j\(.n)" != $me)
+				| "\($a)\tnvsinner-column\t\(.cli)\t\(.status)"')" || chunk=""
+			out+="$chunk"$'\n'
+			json="$saved"
+		fi
+		for record in "$STATE_BASE"/*/herdr/*.json; do
+			[ -f "$record" ] || continue
+			p="$(record_field "$record" pane)"
+			s="$(record_field "$record" servername)"
+			[ -S "$s" ] || continue
+			[ "$s" = "${NVIM:-}" ] && continue
+			saved="$json"; json=1
+			# One editor failing must not sink the whole listing.
+			chunk="$(remote "$s" list | jq -r --arg p "$p" --arg me "$me" '
+				.columns[] | select(.alive and .cli != "shell" and .cli != "session")
+				| "\($p)/j\(.n)" as $a | select($a != $me)
+				| "\($a)\tnvsinner-column\t\(.cli)\t\(.status)"')" || chunk=""
+			out+="$chunk"$'\n'
+			json="$saved"
+		done
+		# Agents herdr detected itself, minus every editor pane (their only
+		# "agent" is our rollup) and minus ourselves.
+		if in_herdr; then
+			while IFS=$'\t' read -r p agent status; do
+				[ -n "$p" ] || continue
+				[ "$p" = "$me" ] && continue
+				is_editor_pane "$p" && continue
+				[ "$agent" = nvsinner ] && continue # an editor's rollup, record or not
+				out+="$p"$'\t'"herdr-agent"$'\t'"$agent"$'\t'"$status"$'\n'
+			done < <(herdr_cmd agent list | jq -r '.result.agents[]? | "\(.pane_id)\t\(.agent)\t\(.agent_status)"' || true)
+		fi
+		# Terminals herdr-core runs that report an agent status, minus editors
+		# (their status is our rollup) and ourselves.
+		if in_hc; then
+			while IFS=$'\t' read -r t agent status; do
+				[ -n "$t" ] || continue
+				[ "$t" = "${HC_TERMINAL_ID:-}" ] && continue
+				is_editor_pane "$t" && continue
+				out+="$t"$'\t'"hc-agent"$'\t'"$agent"$'\t'"$status"$'\n'
+			done < <(hc ls --json 2>/dev/null | jq -r '.terminals[]? | select(.status != null and .agent != "nvsinner")
+				| "\(.address)\t\(.agent // "?")\t\(.status)"' || true)
+		fi
+		out="$(printf '%s' "$out" | sed '/^$/d')"
+		if [ "$json" = 1 ]; then
+			printf '%s\n' "$out" | jq -R -s -c 'split("\n") | map(select(length > 0) | split("\t")
+				| {address: .[0], kind: .[1], cli: .[2], status: .[3]})'
+		elif [ -z "$out" ]; then
+			echo "no peers"
+		else
+			printf '%s\n' "$out" | column -t -s $'\t'
+		fi
+		exit 0 ;;
 esac
 
-req="$(mktemp "${TMPDIR:-/tmp}/nvsinner-herdr.XXXXXX")"
-trap 'rm -f "$req"' EXIT HUP INT TERM
-{
-	printf 'action=%s\n' "$action"
-	[ -n "$n" ] && printf 'n=%s\n' "$n"
-	[ -n "$lines" ] && printf 'lines=%s\n' "$lines"
-	printf 'json=%s\n' "$json"
-	printf -- '--\n'
-	[ "$have_text" = 1 ] && printf '%s' "$text"
-} > "$req"
+[ -n "$addr" ] || die "$action needs an address (j3, w1:p4/j2, w1:p2, or an agent name)"
+resolve "$addr"
 
-exec nvim --server "$socket" --remote-expr \
-	"luaeval('require(\"core.herdr\").remote(_A)', '$req')"
+# A column reports only working/blocked/idle; the other two are herdr's.
+if [ "$kind" = column ]; then
+	for s in $until_states; do
+		case "$s" in done|unknown) die "--until $s: only herdr agents report it, not column $n" ;; esac
+	done
+fi
+
+case "$action" in
+	send|prompt)
+		[ -n "$text" ] || die "$action needs text (or - to read stdin)"
+		me="$(self_address)"
+		if [ "$kind" = column ] && [ "$socket" = "${NVIM:-}" ] && [ "$n" = "${NVSINNER_COLUMN:-}" ]; then
+			die "refusing to message yourself ($me)"
+		fi
+		if [ "$from" = 1 ] && [ -n "$me" ]; then
+			text="[from $me] $text"
+		fi ;;
+esac
+
+# The guards both runtimes share, once the address resolved to `target`.
+# $1: the backend's reply ($info) for the error text, $2: whether it is an
+# editor by the backend's own account, $3: our own id in that backend.
+guard_target() {
+	[ -n "$target" ] || die "no agent at $addr: $(printf '%s' "$1" | jq -r '.error.message // .' 2>/dev/null || printf '%s' "$1")"
+	if [ "$2" = 1 ] || is_editor_pane "$target"; then
+		die "$addr is an NvSinner editor, not an agent: address a column, e.g. $target/j1"
+	fi
+	if [ "$target" = "$3" ] && [ "$action" != read ] && [ "$action" != status ]; then
+		die "refusing to message yourself ($target)"
+	fi
+}
+
+# hc's own exit codes collide with ours (3 = not_found there, stalled here).
+hc_or_die() {
+	local rc=0
+	res="$(hc "$@")" || rc=$?
+	case "$rc" in
+		0) ;;
+		9) die "agent_blocked: $target is waiting on a person (permission or a question)" 3 ;;
+		3|11) die "$target is gone" 4 ;;
+		*) exit "$rc" ;;
+	esac
+}
+
+if [ "$kind" = hc ]; then
+	need_jq "addressing an hc terminal"
+	# Resolve a name to its address, then guard on it. A terminal running
+	# Neovim is an editor even with no discovery record (plain nvim, one
+	# started before this bridge, another machine's): hc would paste the text
+	# and press Enter into normal mode.
+	info="$(hc get --json -- "$addr" 2>&1)" || true
+	target="$(printf '%s' "$info" | jq -r '.address // empty' 2>/dev/null || true)"
+	editor="$(printf '%s' "$info" | jq -r '
+		if ((.foreground.name // "") | test("^(n?vi(m|ew)?|[gl]vim|nvim[.-].*)$"))
+			or ((.foreground.argv[0] // "") | test("(^|/)(n?vi(m|ew)?|[gl]vim|nvim[.-][^/]*)$"))
+			or (.status.app // "") == "nvsinner" then 1 else 0 end' 2>/dev/null || echo 0)"
+	guard_target "$info" "$editor" "${HC_TERMINAL_ID:-}"
+	secs=""
+	[ -n "$timeout" ] && secs=$(( (timeout + 999) / 1000 ))
+	case "$action" in
+		prompt)
+			# Only a program that reports an agent status is an agent: a plain
+			# shell (status null) would run the text — `$(…)` and all, the
+			# "[from …]" prefix does not stop it. `peers` hides the same ones.
+			[ "$(printf '%s' "$info" | jq -r '.status == null')" = false ] \
+				|| die "$target runs no agent (not_an_agent): hc would hand the text to its program; nothing sent"
+			# hc send pastes, presses Enter once nobody has typed for ~3 s, and
+			# refuses a blocked program itself (exit 9).
+			# `--` keeps a text starting with "-" from reading as an option.
+			args=(send --json)
+			if [ "$do_wait" = 1 ]; then
+				args+=(--wait)
+				[ -n "$secs" ] && args+=(--timeout "$secs")
+			fi
+			hc_or_die "${args[@]}" -- "$target" "$text"
+			if [ "$do_wait" = 1 ]; then
+				[ "$(printf '%s' "$res" | jq -r '.started')" = false ] \
+					&& die "agent_prompt_stalled: $target never started" 3
+				# hc checks in after --timeout (180 s by default): not done yet.
+				[ "$(printf '%s' "$res" | jq -r '.wait.ended')" = false ] \
+					&& die "timeout: $target is still $(printf '%s' "$res" | jq -r '.wait.status // "working"')" 124
+				printf '%s\n' "$(printf '%s' "$res" | jq -r 'if .wait.reason == "exit" then "exited" else (.wait.status // "done") end')"
+			else
+				printf 'submitted %s chars to %s\n' "${#text}" "$target"
+			fi ;;
+		send)
+			die "hc has no way to type without pressing Enter: use prompt (it submits)" ;;
+		wait)
+			[ -z "$until_states" ] || die "--until: an hc wait ends at the first state that is not working"
+			args=(wait --json)
+			[ -n "$secs" ] && args+=(--timeout "$secs")
+			hc_or_die "${args[@]}" -- "$target"
+			st="$(printf '%s' "$res" | jq -r 'if .reason == "exit" then "exited" else (.status // "exited") end')"
+			[ "$(printf '%s' "$res" | jq -r '.ended')" = false ] && die "timeout: $target is still $st" 124
+			printf '%s\n' "$st" ;;
+		read)
+			hc_or_die read --lines "${lines:-40}" -- "$target"
+			printf '%s\n' "$res" ;;
+		status)
+			printf '%s' "$info" | jq -r '.status.state // "unknown"' ;;
+		focus)
+			die "an hc terminal can't be focused from here (hc attach takes it over)" ;;
+	esac
+	exit
+fi
+
+if [ "$kind" = herdr ]; then
+	need_jq "addressing a herdr agent"
+	# Resolve the address (pane id or name) to the agent herdr has there, then
+	# guard on the PANE: a name can point at an editor's pane just as well, and
+	# that pane's only "agent" is our rollup — typing there types into Neovim.
+	info="$(herdr_cmd agent get "$addr" 2>&1)" || true
+	target="$(printf '%s' "$info" | jq -r '.result.agent.pane_id // empty' 2>/dev/null || true)"
+	agent="$(printf '%s' "$info" | jq -r '.result.agent.agent // empty' 2>/dev/null || true)"
+	editor=0; [ "$agent" = nvsinner ] && editor=1
+	guard_target "$info" "$editor" "${HERDR_PANE_ID:-}"
+	case "$action" in
+		prompt)
+			args=(agent prompt "$target" "$text")
+			[ "$do_wait" = 1 ] && args+=(--wait)
+			[ -n "$timeout" ] && args+=(--timeout "$timeout")
+			rc=0
+			herdr_cmd "${args[@]}" || rc=$?
+			exit "$rc" ;;
+		send)
+			herdr_cmd pane send-text "$target" "$text" ;;
+		wait)
+			args=(agent wait "$target")
+			set -f
+			for s in $until_states; do args+=(--until "$s"); done
+			set +f
+			[ -n "$timeout" ] && args+=(--timeout "$timeout")
+			herdr_cmd "${args[@]}" ;;
+		read)
+			herdr_cmd agent read "$target" --source recent --lines "${lines:-40}" ;;
+		status)
+			printf '%s' "$info" | jq -r '.result.agent.agent_status' ;;
+		focus)
+			herdr_cmd agent focus "$target" ;;
+	esac
+	exit
+fi
+
+case "$action" in
+	focus|read|status)
+		remote "$socket" "$action" "$n" ;;
+	send)
+		json=0 # "queued" is the success token
+		reply="$(remote "$socket" send "$n" "$text" 1)"
+		printf '%s\n' "$reply"
+		case "$reply" in queued*) ;; *) exit 1 ;; esac ;;
+	wait)
+		wait_or_die "${until_states:-idle blocked}" "$timeout" ;;
+	prompt)
+		# Plain text even under --json: "submitted" is the success token.
+		json=0
+		reply="$(remote "$socket" prompt "$n" "$text" 1)"
+		printf '%s\n' "$reply"
+		case "$reply" in submitted*) ;; *) exit 1 ;; esac
+		if [ "$do_wait" = 1 ]; then
+			# Like herdr's --wait: the column must be seen to start within 5 s,
+			# then the first settled state ends the wait.
+			# `fresh` asks for output AFTER the Enter, so the echo of the typed
+			# text can't pass for the agent starting.
+			rc=0
+			fresh=1
+			gate=$((STALL_POLLS * 500))
+			if [ -n "$timeout" ] && [ "$timeout" -lt "$gate" ]; then gate="$timeout"; fi
+			wait_column "started" "$gate" > /dev/null || rc=$?
+			fresh=0
+			if [ "$last" = not_submitted ]; then
+				die "agent_blocked: column $n was blocked (or unreadable) when the Enter was due; the text sits unsubmitted" 3
+			fi
+			[ "$rc" = 4 ] && die "column $n is not running" 4
+			[ "$rc" = 0 ] || die "agent_prompt_stalled: column $n never started" 3
+			# --timeout bounds the whole wait, the start gate included.
+			left="$timeout"
+			if [ -n "$timeout" ]; then
+				left=$((timeout - waited_ms))
+				[ "$left" -gt 0 ] || left=1
+			fi
+			wait_or_die "${until_states:-idle blocked}" "$left"
+		fi ;;
+esac
