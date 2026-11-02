@@ -71,13 +71,13 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
    push/PR: stable Neovim, plugin cache keyed on `lazy-lock.json`,
    `Lazy! restore` against the pinned lockfile, a headless boot check that
    fails on startup errors, then the full `make test` suite.
- 10. ✅ **Versioned releases + update check (v1.0.0, current v3.16.0).** The
+ 10. ✅ **Versioned releases + update check (v1.0.0, current v3.17.0).** The
     semver lives in ONE place — [lua/nvsinner/init.lua](lua/nvsinner/init.lua)
-        (`version = "3.16.0"`) — and [lua/core/version.lua](lua/core/version.lua)
+        (`version = "3.17.0"`) — and [lua/core/version.lua](lua/core/version.lua)
     runs a once-per-session async check against that file fetched raw from
     `main`: the dashboard footer shows an update prompt (or
     "NvSinner is up to date"), and the `:NvSinnerHelp` title shows
-    `v3.16.0` plus the check status. Users update with `:NvSinnerUpdate`.
+    `v3.17.0` plus the check status. Users update with `:NvSinnerUpdate`.
     Cutting a release: [docs/releasing.md](docs/releasing.md), coordinated by
     the `nvim-release` agent. **v1.1.0** added `<leader>jc` /
     `:NvSinnerAIClear` (clear an AI session's chosen CLI so the next open
@@ -395,6 +395,18 @@ This creates `~/.config/nvsinner`, `~/.local/share/nvsinner`,
     `<leader>j` AI columns and `<leader>t` terminals now slide in
     (`lua/core/slide.lua`; AI columns slide a placeholder so the CLI screen is
     never truncated).
+    **v3.17.0** lets agents talk to each other. `bin/nvsinner-herdr` gains
+    `peers`, `prompt [--wait]`, `send`, `wait`, `read`, `status` and `--skill`
+    over one address scheme: `jN` (this editor), `<pane|hcterm>/jN` (another
+    editor), `w*:p*` or `tN` (a herdr or Herdr app agent). `prompt` is the one
+    verb that submits; `send` and the in-editor bridge still never press Enter,
+    and a prompt to an editor, a plain shell, itself or a busy or blocked agent
+    is refused. `lua/core/herdr.lua` now also supports the Herdr desktop app:
+    its `herdr-core` (`hc`) gets the rollup plus one record per column over OSC
+    7501, a `herdr server` still wins when both are present, and
+    `:checkhealth nvsinner` reports the active backend. AI columns get
+    `NVSINNER_*` variables instead of `HERDR_*` and `HC_TERMINAL_ID`, so no
+    agent can type into the editor.
 
 ## Status
 
